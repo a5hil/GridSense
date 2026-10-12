@@ -1,0 +1,251 @@
+/*!
+ * @file      EdgeNode_Pole.ino
+ * @brief     GridSense Pole Edge Node Firmware (1x PZEM-004T v4.0 Split CT per Electric Pole)
+ * @details   Polls single PZEM-004T AC monitor via HardwareSerial (Serial1: RX 17, TX 18),
+ *            or synthesizes mock Indian grid data (230V, 50Hz) for bench validation.
+ *            Transmits telemetry to Central Gateway via Sub-GHz LoRa using Listen-Before-Talk (LBT)
+ *            with Channel Activity Detection (CAD) and random backoff jitter (100-1500 ms).
+ *
+ * @project   GridSense - MCA Project, FISAT
+ *
+ * HOW TO FLASH:
+ * - For Electric Pole 1 (Incomer): Set "#define POLE_ID 1", compile & upload.
+ * - For Electric Pole 2 (Outgoing): Set "#define POLE_ID 2", compile & upload.
+ *
+ * FAULT INJECTION (In Mock Mode):
+ * - Send serial commands via Serial Monitor (115200 baud):
+ *     'n' : Normal load
+ *     'd' : Differential fault (Injects high current on Pole 1 or low on Pole 2)
+ *     'o' : Overcurrent fault (> 16A overload)
+ *     'u' : Undervoltage sag (< 180V brownout)
+ *     'a' : Auto-cycle mode (automatically cycles normal -> fault -> normal)
+ *
+ * HARDWARE CONNECTIONS (When USE_MOCK_SENSORS is false):
+ * - PZEM TX -> ESP32-S3 GPIO 17 (Serial1 RX)
+ * - PZEM RX -> ESP32-S3 GPIO 18 (Serial1 TX)
+ * - PZEM 5V -> 5V / VBUS (Drives internal optocouplers)
+ * - PZEM GND -> GND
+ * - Split CT clamp -> Live AC Phase wire on this pole
+ */
+
+#include "PZEM004T_Modbus.h"
+#include "lr1121_lbt_tx.h"
+
+/* =========================================================================
+ * POLE SELECTION & MOCK TOGGLE
+ * ========================================================================= */
+#define POLE_ID                     1       // Set to 1 for Pole 1, set to 2 for Pole 2
+#define USE_MOCK_SENSORS            true    // Set to true for Mock Mode, false for live PZEM v4.0
+#define TELEMETRY_INTERVAL_MS       3000    // Telemetry transmission interval (3 seconds)
+
+/* =========================================================================
+ * HARDWARE PINOUT (HardwareSerial1)
+ * ========================================================================= */
+#define PZEM_RX_PIN                 17      // Connects to PZEM TX
+#define PZEM_TX_PIN                 18      // Connects to PZEM RX
+
+PZEM004T_Modbus pzem(Serial1, PZEM_RX_PIN, PZEM_TX_PIN);
+PZEMData sensor;
+
+// Telemetry state tracking
+uint32_t packet_seq = 0;
+unsigned long last_tx_ms = 0;
+
+// Mock Simulation Scenarios
+enum MockScenario {
+    MOCK_NORMAL = 0,
+    MOCK_DIFFERENTIAL_FAULT,
+    MOCK_OVERCURRENT_FAULT,
+    MOCK_UNDERVOLTAGE_FAULT,
+    MOCK_AUTO_CYCLE
+};
+
+MockScenario mockScenario = MOCK_NORMAL;
+uint32_t autoCycleCounter = 0;
+float accumulatedEnergyWh = (POLE_ID == 1) ? 1420.0f : 1418.5f;
+
+void generateMockData() {
+    float v_base = 230.0f + ((rand() % 20) - 10) * 0.1f;
+    float freq   = 50.0f + ((rand() % 10) - 5) * 0.02f;
+    accumulatedEnergyWh += 0.5f;
+
+    MockScenario activeScenario = mockScenario;
+
+    if (mockScenario == MOCK_AUTO_CYCLE) {
+        autoCycleCounter++;
+        if (autoCycleCounter % 15 == 8 || autoCycleCounter % 15 == 9) {
+            activeScenario = MOCK_DIFFERENTIAL_FAULT;
+        } else if (autoCycleCounter % 15 == 13) {
+            activeScenario = MOCK_OVERCURRENT_FAULT;
+        } else {
+            activeScenario = MOCK_NORMAL;
+        }
+    }
+
+    switch (activeScenario) {
+        case MOCK_DIFFERENTIAL_FAULT:
+            // Inter-pole line leakage / tapping:
+            // Pole 1 sees high current (3.85A), Pole 2 sees low current (1.15A)
+            sensor.voltage   = v_base - ((POLE_ID == 1) ? 3.0f : 5.0f);
+            sensor.current   = (POLE_ID == 1) ? (3.850f + ((rand() % 10) * 0.01f)) 
+                                              : (1.150f + ((rand() % 10) * 0.01f));
+            sensor.power     = sensor.voltage * sensor.current * 0.95f;
+            sensor.frequency = freq;
+            sensor.pf        = 0.95f;
+            sensor.energy    = accumulatedEnergyWh;
+            sensor.alarm     = false;
+            sensor.isValid   = true;
+            break;
+
+        case MOCK_OVERCURRENT_FAULT:
+            // High current on both poles (overload)
+            sensor.voltage   = v_base - 8.0f;
+            sensor.current   = 18.500f + ((rand() % 20) * 0.05f);
+            sensor.power     = sensor.voltage * sensor.current * 0.97f;
+            sensor.frequency = freq - 0.2f;
+            sensor.pf        = 0.97f;
+            sensor.energy    = accumulatedEnergyWh;
+            sensor.alarm     = true;
+            sensor.isValid   = true;
+            break;
+
+        case MOCK_UNDERVOLTAGE_FAULT:
+            // Grid brownout
+            sensor.voltage   = 165.0f + ((rand() % 10) * 0.2f);
+            sensor.current   = 2.100f;
+            sensor.power     = sensor.voltage * sensor.current * 0.92f;
+            sensor.frequency = freq - 0.4f;
+            sensor.pf        = 0.92f;
+            sensor.energy    = accumulatedEnergyWh;
+            sensor.alarm     = false;
+            sensor.isValid   = true;
+            break;
+
+        case MOCK_NORMAL:
+        default:
+            // Normal healthy grid: Pole 1 and Pole 2 carry virtually identical current
+            sensor.voltage   = v_base - ((POLE_ID == 2) ? 0.3f : 0.0f);
+            sensor.current   = (POLE_ID == 1) ? (2.450f + ((rand() % 10) - 5) * 0.005f)
+                                              : (2.430f + ((rand() % 10) - 5) * 0.005f);
+            sensor.power     = sensor.voltage * sensor.current * 0.96f;
+            sensor.frequency = freq;
+            sensor.pf        = 0.96f;
+            sensor.energy    = accumulatedEnergyWh;
+            sensor.alarm     = false;
+            sensor.isValid   = true;
+            break;
+    }
+}
+
+void processSerialCommands() {
+    if (Serial.available()) {
+        char ch = Serial.read();
+        if (ch == 'n' || ch == 'N') {
+            mockScenario = MOCK_NORMAL;
+            Serial.println("\n[CMD] Injected MOCK_NORMAL (Normal Grid Operation)");
+        } else if (ch == 'd' || ch == 'D') {
+            mockScenario = MOCK_DIFFERENTIAL_FAULT;
+            Serial.println("\n[CMD] Injected MOCK_DIFFERENTIAL_FAULT (Differential current mismatch)");
+        } else if (ch == 'o' || ch == 'O') {
+            mockScenario = MOCK_OVERCURRENT_FAULT;
+            Serial.println("\n[CMD] Injected MOCK_OVERCURRENT_FAULT (Overload > 16A)");
+        } else if (ch == 'u' || ch == 'U') {
+            mockScenario = MOCK_UNDERVOLTAGE_FAULT;
+            Serial.println("\n[CMD] Injected MOCK_UNDERVOLTAGE_FAULT (Brownout < 180V)");
+        } else if (ch == 'a' || ch == 'A') {
+            mockScenario = MOCK_AUTO_CYCLE;
+            autoCycleCounter = 0;
+            Serial.println("\n[CMD] Switched to MOCK_AUTO_CYCLE (Automated periodic fault cycling)");
+        }
+    }
+}
+
+void printDiagnostics() {
+    Serial.println("-------------------------------------------------------");
+    Serial.printf(" [Electric Pole #%d] %s | V: %.1f V | I: %.3f A | P: %.1f W | F: %.1f Hz | PF: %.2f\n",
+                  POLE_ID, sensor.isValid ? "ONLINE " : "OFFLINE",
+                  sensor.voltage, sensor.current, sensor.power, sensor.frequency, sensor.pf);
+    Serial.println("-------------------------------------------------------");
+}
+
+void setup() {
+    Serial.begin(115200);
+    delay(2000); // Allow USB CDC enumeration
+
+    Serial.println("\n**************************************************");
+    Serial.printf("   GridSense FDIR Prototype - Electric Pole #%d\n", POLE_ID);
+    Serial.println("   MCA Project - FISAT                           ");
+    #if USE_MOCK_SENSORS
+    Serial.println("   >> MOCK SIMULATION MODE ACTIVE <<              ");
+    Serial.println("   Type 'n'=Norm, 'd'=Diff, 'o'=OverI, 'u'=UnderV, 'a'=Auto");
+    #else
+    Serial.println("   >> LIVE PZEM-004T V4.0 SENSOR ACTIVE <<        ");
+    #endif
+    Serial.println("   >> LBT (CAD) Collision Avoidance: ENABLED <<   ");
+    Serial.println("**************************************************");
+
+    #if !USE_MOCK_SENSORS
+    Serial.printf("[INIT] Initializing PZEM-004T v4.0 on Serial1 (RX: %d, TX: %d)...\n", PZEM_RX_PIN, PZEM_TX_PIN);
+    pzem.begin();
+    #else
+    Serial.println("[INIT] Mock sensor generator initialized.");
+    #endif
+
+    // Initialize LR1121 with Hardware CAD support
+    Serial.println("[INIT] Initializing Waveshare LR1121 Sub-GHz LoRa...");
+    lora_transmitter_init();
+
+    Serial.printf("[INIT] Ready. Frequency: %u MHz | Output: %d dBm\n\n",
+                  (uint32_t)(RF_FREQ_IN_HZ / 1000000UL), TX_OUTPUT_POWER_DBM);
+}
+
+void loop() {
+    // Process any ongoing LoRa TX interrupts
+    lora_tx_irq_process();
+
+    #if USE_MOCK_SENSORS
+    processSerialCommands();
+    #endif
+
+    unsigned long current_ms = millis();
+
+    if (current_ms - last_tx_ms >= TELEMETRY_INTERVAL_MS) {
+        last_tx_ms = current_ms;
+        packet_seq++;
+
+        #if USE_MOCK_SENSORS
+        generateMockData();
+        #else
+        pzem.read(sensor);
+        #endif
+
+        printDiagnostics();
+
+        // Format compact JSON telemetry payload for this Pole
+        char payload[160];
+        snprintf(payload, sizeof(payload),
+            "{\"pole\":%d,\"seq\":%u,\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"freq\":%.1f,\"pf\":%.2f,\"e\":%.1f}",
+            POLE_ID,
+            packet_seq,
+            sensor.isValid ? sensor.voltage   : 0.0f,
+            sensor.isValid ? sensor.current   : 0.0f,
+            sensor.isValid ? sensor.power     : 0.0f,
+            sensor.isValid ? sensor.frequency : 0.0f,
+            sensor.isValid ? sensor.pf        : 0.0f,
+            sensor.isValid ? sensor.energy    : 0.0f
+        );
+
+        Serial.printf("[POLE #%d TX #%u] Checking channel & sending...\n", POLE_ID, packet_seq);
+
+        // Perform Listen-Before-Talk (LBT) using Hardware CAD with random backoff (100-1500ms)
+        bool sent = lora_send_with_lbt(payload, 5, 100, 1500);
+
+        if (sent) {
+            Serial.printf("[POLE #%d TX OK] >>> %s\n\n", POLE_ID, payload);
+        } else {
+            Serial.printf("[POLE #%d TX RETRY_LIMIT] >>> %s\n\n", POLE_ID, payload);
+        }
+    }
+
+    delay(10);
+}
