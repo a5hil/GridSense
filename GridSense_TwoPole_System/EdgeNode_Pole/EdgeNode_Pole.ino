@@ -30,6 +30,7 @@
 
 #include "PZEM004T_Modbus.h"
 #include "lr1121_lbt_tx.h"
+#include "pole_ble_service.h"
 
 /* =========================================================================
  * POLE SELECTION & MOCK TOGGLE
@@ -37,6 +38,7 @@
 #define POLE_ID                     2       // Set to 1 for Pole 1, set to 2 for Pole 2
 #define USE_MOCK_SENSORS            true    // Set to true for Mock Mode, false for live PZEM v4.0
 #define TELEMETRY_INTERVAL_MS       3000    // Telemetry transmission interval (3 seconds)
+#define ENABLE_BLE_LINEMAN_ACCESS   true    // Enable Bluetooth Low Energy for field technicians
 
 /* =========================================================================
  * HARDWARE PINOUT (HardwareSerial1)
@@ -51,12 +53,14 @@ PZEMData sensor;
 uint32_t packet_seq = 0;
 unsigned long last_tx_ms = 0;
 
-// Mock Simulation Scenarios
+// Mock Simulation Scenarios (Including Kerala Grid Operational States)
 enum MockScenario {
     MOCK_NORMAL = 0,
     MOCK_DIFFERENTIAL_FAULT,
     MOCK_OVERCURRENT_FAULT,
     MOCK_UNDERVOLTAGE_FAULT,
+    MOCK_POWERCUT,           // 0V / 0A (Feeder de-energized / load shedding)
+    MOCK_LINE_CHARGING,      // Maintenance re-energization test
     MOCK_AUTO_CYCLE
 };
 
@@ -121,6 +125,30 @@ void generateMockData() {
             sensor.isValid   = true;
             break;
 
+        case MOCK_POWERCUT:
+            // Feeder de-energized (KSEB power cut / load shedding)
+            sensor.voltage   = 0.0f;
+            sensor.current   = 0.0f;
+            sensor.power     = 0.0f;
+            sensor.frequency = 0.0f;
+            sensor.pf        = 0.0f;
+            sensor.energy    = accumulatedEnergyWh;
+            sensor.alarm     = false;
+            sensor.isValid   = true;
+            break;
+
+        case MOCK_LINE_CHARGING:
+            // Maintenance charging test by linemen (energization ramp)
+            sensor.voltage   = 226.0f + ((rand() % 10) * 0.1f);
+            sensor.current   = (POLE_ID == 1) ? 0.350f : 0.330f; // Minimal magnetizing / test current
+            sensor.power     = sensor.voltage * sensor.current * 0.85f;
+            sensor.frequency = 50.0f;
+            sensor.pf        = 0.85f;
+            sensor.energy    = accumulatedEnergyWh;
+            sensor.alarm     = false;
+            sensor.isValid   = true;
+            break;
+
         case MOCK_NORMAL:
         default:
             // Normal healthy grid: Pole 1 and Pole 2 carry virtually identical current
@@ -137,34 +165,78 @@ void generateMockData() {
     }
 }
 
+const char* getScenarioString(MockScenario s) {
+    switch (s) {
+        case MOCK_DIFFERENTIAL_FAULT: return "DIFF_FAULT";
+        case MOCK_OVERCURRENT_FAULT:  return "OVERCURRENT";
+        case MOCK_UNDERVOLTAGE_FAULT: return "UNDERVOLTAGE";
+        case MOCK_POWERCUT:           return "POWERCUT";
+        case MOCK_LINE_CHARGING:      return "LINE_CHARGING";
+        case MOCK_AUTO_CYCLE:         return "AUTO_CYCLE";
+        default:                      return "NORMAL";
+    }
+}
+
+void handleCommand(char ch) {
+    if (ch == 'n' || ch == 'N') {
+        mockScenario = MOCK_NORMAL;
+        Serial.println("\n[CMD] Injected MOCK_NORMAL (Normal Grid Operation)");
+        #if ENABLE_BLE_LINEMAN_ACCESS
+        sendPoleBLEMessage("[ALERT] Mode set to NORMAL.\n");
+        #endif
+    } else if (ch == 'd' || ch == 'D') {
+        mockScenario = MOCK_DIFFERENTIAL_FAULT;
+        Serial.println("\n[CMD] Injected MOCK_DIFFERENTIAL_FAULT (Differential current mismatch)");
+        #if ENABLE_BLE_LINEMAN_ACCESS
+        sendPoleBLEMessage("[ALERT] Injected DIFFERENTIAL FAULT.\n");
+        #endif
+    } else if (ch == 'o' || ch == 'O') {
+        mockScenario = MOCK_OVERCURRENT_FAULT;
+        Serial.println("\n[CMD] Injected MOCK_OVERCURRENT_FAULT (Overload > 16A)");
+        #if ENABLE_BLE_LINEMAN_ACCESS
+        sendPoleBLEMessage("[ALERT] Injected OVERCURRENT.\n");
+        #endif
+    } else if (ch == 'u' || ch == 'U') {
+        mockScenario = MOCK_UNDERVOLTAGE_FAULT;
+        Serial.println("\n[CMD] Injected MOCK_UNDERVOLTAGE_FAULT (Brownout < 180V)");
+        #if ENABLE_BLE_LINEMAN_ACCESS
+        sendPoleBLEMessage("[ALERT] Injected UNDERVOLTAGE.\n");
+        #endif
+    } else if (ch == 'p' || ch == 'P') {
+        mockScenario = MOCK_POWERCUT;
+        Serial.println("\n[CMD] Injected MOCK_POWERCUT (0V / 0A De-energized Outage)");
+        #if ENABLE_BLE_LINEMAN_ACCESS
+        sendPoleBLEMessage("[ALERT] Injected POWERCUT / OUTAGE (0V).\n");
+        #endif
+    } else if (ch == 'c' || ch == 'C') {
+        mockScenario = MOCK_LINE_CHARGING;
+        Serial.println("\n[CMD] Injected MOCK_LINE_CHARGING (Maintenance test energization)");
+        #if ENABLE_BLE_LINEMAN_ACCESS
+        sendPoleBLEMessage("[ALERT] Injected LINE CHARGING TEST.\n");
+        #endif
+    } else if (ch == 'a' || ch == 'A') {
+        mockScenario = MOCK_AUTO_CYCLE;
+        autoCycleCounter = 0;
+        Serial.println("\n[CMD] Switched to MOCK_AUTO_CYCLE (Automated periodic fault cycling)");
+        #if ENABLE_BLE_LINEMAN_ACCESS
+        sendPoleBLEMessage("[ALERT] Switched to AUTO CYCLE.\n");
+        #endif
+    }
+}
+
 void processSerialCommands() {
     if (Serial.available()) {
         char ch = Serial.read();
-        if (ch == 'n' || ch == 'N') {
-            mockScenario = MOCK_NORMAL;
-            Serial.println("\n[CMD] Injected MOCK_NORMAL (Normal Grid Operation)");
-        } else if (ch == 'd' || ch == 'D') {
-            mockScenario = MOCK_DIFFERENTIAL_FAULT;
-            Serial.println("\n[CMD] Injected MOCK_DIFFERENTIAL_FAULT (Differential current mismatch)");
-        } else if (ch == 'o' || ch == 'O') {
-            mockScenario = MOCK_OVERCURRENT_FAULT;
-            Serial.println("\n[CMD] Injected MOCK_OVERCURRENT_FAULT (Overload > 16A)");
-        } else if (ch == 'u' || ch == 'U') {
-            mockScenario = MOCK_UNDERVOLTAGE_FAULT;
-            Serial.println("\n[CMD] Injected MOCK_UNDERVOLTAGE_FAULT (Brownout < 180V)");
-        } else if (ch == 'a' || ch == 'A') {
-            mockScenario = MOCK_AUTO_CYCLE;
-            autoCycleCounter = 0;
-            Serial.println("\n[CMD] Switched to MOCK_AUTO_CYCLE (Automated periodic fault cycling)");
-        }
+        handleCommand(ch);
     }
 }
 
 void printDiagnostics() {
     Serial.println("-------------------------------------------------------");
-    Serial.printf(" [Electric Pole #%d] %s | V: %.1f V | I: %.3f A | P: %.1f W | F: %.1f Hz | PF: %.2f\n",
+    Serial.printf(" [Electric Pole #%d] %s | V: %.1f V | I: %.3f A | P: %.1f W | F: %.1f Hz | PF: %.2f | %s\n",
                   POLE_ID, sensor.isValid ? "ONLINE " : "OFFLINE",
-                  sensor.voltage, sensor.current, sensor.power, sensor.frequency, sensor.pf);
+                  sensor.voltage, sensor.current, sensor.power, sensor.frequency, sensor.pf,
+                  getScenarioString(mockScenario));
     Serial.println("-------------------------------------------------------");
 }
 
@@ -177,11 +249,18 @@ void setup() {
     Serial.println("   MCA Project - FISAT                           ");
     #if USE_MOCK_SENSORS
     Serial.println("   >> MOCK SIMULATION MODE ACTIVE <<              ");
-    Serial.println("   Type 'n'=Norm, 'd'=Diff, 'o'=OverI, 'u'=UnderV, 'a'=Auto");
+    Serial.println("   Keys: 'n'=Norm, 'd'=Diff, 'o'=OverI, 'u'=UnderV");
+    Serial.println("         'p'=Powercut, 'c'=Charging, 'a'=Auto     ");
     #else
     Serial.println("   >> LIVE PZEM-004T V4.0 SENSOR ACTIVE <<        ");
     #endif
     Serial.println("   >> LBT (CAD) Collision Avoidance: ENABLED <<   ");
+
+    #if ENABLE_BLE_LINEMAN_ACCESS
+    Serial.println("   >> BLE Lineman Smartphone Access: ENABLED <<   ");
+    initPoleBLE(POLE_ID, handleCommand);
+    #endif
+
     Serial.println("**************************************************");
 
     #if !USE_MOCK_SENSORS
@@ -203,6 +282,10 @@ void loop() {
     // Process any ongoing LoRa TX interrupts
     lora_tx_irq_process();
 
+    #if ENABLE_BLE_LINEMAN_ACCESS
+    updatePoleBLE();
+    #endif
+
     #if USE_MOCK_SENSORS
     processSerialCommands();
     #endif
@@ -220,6 +303,12 @@ void loop() {
         #endif
 
         printDiagnostics();
+
+        #if ENABLE_BLE_LINEMAN_ACCESS
+        sendPoleBLEData(sensor.voltage, sensor.current, sensor.power,
+                        sensor.frequency, sensor.pf, sensor.energy,
+                        getScenarioString(mockScenario));
+        #endif
 
         // Format compact JSON telemetry payload for this Pole
         char payload[160];

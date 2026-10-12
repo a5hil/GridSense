@@ -47,6 +47,8 @@ enum FaultType {
     FAULT_OVERCURRENT,
     FAULT_UNDERVOLTAGE,
     FAULT_OVERVOLTAGE,
+    FAULT_POWERCUT,
+    FAULT_LINE_BREAK,
     FAULT_POLE_OFFLINE
 };
 
@@ -58,6 +60,8 @@ const char* faultTypeToString(FaultType f) {
         case FAULT_OVERCURRENT:  return "OVERCURRENT";
         case FAULT_UNDERVOLTAGE: return "UNDERVOLTAGE";
         case FAULT_OVERVOLTAGE:  return "OVERVOLTAGE";
+        case FAULT_POWERCUT:     return "POWERCUT";
+        case FAULT_LINE_BREAK:   return "LINE_BREAK";
         case FAULT_POLE_OFFLINE: return "POLE_OFFLINE";
         default:                 return "NORMAL";
     }
@@ -98,22 +102,34 @@ void evaluateCentralFDIR() {
         return;
     }
 
-    // 1. Calculate Differential Current between Pole 1 and Pole 2
+    // 1. Check for Complete Feeder De-energization (Scheduled Power Cut / Load Shedding)
+    if (pole1.voltage < 50.0f && pole2.voltage < 50.0f) {
+        current_fault = FAULT_POWERCUT;
+        return;
+    }
+
+    // 2. Check for Physical Conductor Snap between Pole 1 and Pole 2
+    if (pole1.voltage >= 180.0f && pole2.voltage < 50.0f) {
+        current_fault = FAULT_LINE_BREAK;
+        return;
+    }
+
+    // 3. Calculate Differential Current between Pole 1 and Pole 2
     current_idiff = fabs(pole1.current - pole2.current);
 
-    // 2. Differential Protection Check
+    // 4. Differential Protection Check (Vegetation touch / tapping leakage)
     if (current_idiff >= DIFF_CURRENT_THRESHOLD_A) {
         current_fault = FAULT_DIFFERENTIAL;
         return;
     }
 
-    // 3. Overcurrent Protection Check
+    // 5. Overcurrent Protection Check
     if (pole1.current >= OVERCURRENT_THRESHOLD_A || pole2.current >= OVERCURRENT_THRESHOLD_A) {
         current_fault = FAULT_OVERCURRENT;
         return;
     }
 
-    // 4. Voltage Sag / Swell Check
+    // 6. Voltage Sag / Swell Check
     if (pole1.voltage > 10.0f && pole2.voltage > 10.0f) {
         if (pole1.voltage <= UNDERVOLTAGE_THRESHOLD_V || pole2.voltage <= UNDERVOLTAGE_THRESHOLD_V) {
             current_fault = FAULT_UNDERVOLTAGE;

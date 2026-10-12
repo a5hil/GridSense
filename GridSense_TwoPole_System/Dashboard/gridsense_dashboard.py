@@ -485,6 +485,10 @@ class GridSenseDashboard(tk.Tk):
                 action = "ALARM_UNDERVOLTAGE"
             elif fault == "OVERVOLTAGE":
                 action = "ALARM_OVERVOLTAGE"
+            elif fault == "POWERCUT":
+                action = "FEEDER_DE_ENERGIZED"
+            elif fault == "LINE_BREAK":
+                action = "ISOLATE_SPAN_1_2"
             elif fault == "POLE_OFFLINE":
                 action = "WARN_POLE_OFFLINE"
             else:
@@ -509,6 +513,8 @@ class GridSenseDashboard(tk.Tk):
             if fault == "DIFF_LEAKAGE": action = "TRIP_ISOLATE_POLE_1_2"
             elif fault == "OVERCURRENT": action = "TRIP_OVERCURRENT_SHED"
             elif fault == "UNDERVOLTAGE": action = "ALARM_UNDERVOLTAGE"
+            elif fault == "POWERCUT": action = "FEEDER_DE_ENERGIZED"
+            elif fault == "LINE_BREAK": action = "ISOLATE_SPAN_1_2"
             elif fault == "POLE_OFFLINE": action = "WARN_POLE_OFFLINE"
             else: action = "LINE_HEALTHY"
 
@@ -524,27 +530,37 @@ class GridSenseDashboard(tk.Tk):
         # Color-code based on fault state
         if fault == "NORMAL":
             self.lbl_fault_badge.config(text="● SYSTEM STATUS: NORMAL", fg=ACCENT_GREEN)
-            self.lbl_action_text.config(text=f"Protection Decision: {action} (Differential < 0.35A)", fg=TEXT_MAIN)
+            self.lbl_action_text.config(text=f"Supervisory Status: {action} (Differential < 0.35A)", fg=TEXT_MAIN)
             self.lbl_summary_text.config(text="Inter-pole current is balanced. Power distribution is healthy.")
             log_tag = "NORMAL"
+        elif fault == "POWERCUT":
+            self.lbl_fault_badge.config(text="● GRID STATUS: SCHEDULED POWERCUT / LOAD SHEDDING", fg=ACCENT_BLUE)
+            self.lbl_action_text.config(text=f"Supervisory Status: {action} (Feeder De-energized)", fg=ACCENT_BLUE)
+            self.lbl_summary_text.config(text="Both poles report 0V. Upstream substation supply is off. No localized line fault.")
+            log_tag = "INFO"
+        elif fault == "LINE_BREAK":
+            self.lbl_fault_badge.config(text="⚠ CRITICAL: PHYSICAL CONDUCTOR SNAP / BREAK!", fg=ACCENT_RED)
+            self.lbl_action_text.config(text=f"Supervisory Status: {action} (Open circuit on Span 1-2)", fg=ACCENT_RED)
+            self.lbl_summary_text.config(text="Pole 1 is energized (230V) but Pole 2 has collapsed to 0V. Physical line break on span.")
+            log_tag = "FAULT"
         elif fault == "DIFF_LEAKAGE":
-            self.lbl_fault_badge.config(text="⚠ CRITICAL: DIFFERENTIAL CURRENT LEAKAGE!", fg=ACCENT_RED)
-            self.lbl_action_text.config(text=f"Protection Decision: {action} (TRIP SIGNAL ASSERTED)", fg=ACCENT_RED)
-            self.lbl_summary_text.config(text=f"Current imbalance |I₁ - I₂| = {i_diff:.3f}A exceeds 0.35A limit. Inter-pole line isolated.")
+            self.lbl_fault_badge.config(text="⚠ CRITICAL: INTER-POLE LEAKAGE DETECTED!", fg=ACCENT_RED)
+            self.lbl_action_text.config(text=f"Supervisory Status: {action} (Leakage ≥ 0.35A)", fg=ACCENT_RED)
+            self.lbl_summary_text.config(text=f"Current imbalance |I₁ - I₂| = {i_diff:.3f}A exceeds 0.35A limit. Vegetation touch / line tapping.")
             log_tag = "FAULT"
         elif fault == "OVERCURRENT":
             self.lbl_fault_badge.config(text="⚠ ALARM: LINE OVERCURRENT DETECTED!", fg=ACCENT_RED)
-            self.lbl_action_text.config(text=f"Protection Decision: {action}", fg=ACCENT_RED)
+            self.lbl_action_text.config(text=f"Supervisory Status: {action}", fg=ACCENT_RED)
             self.lbl_summary_text.config(text="Line current exceeded safety threshold (> 16A).")
             log_tag = "FAULT"
         elif fault == "UNDERVOLTAGE":
             self.lbl_fault_badge.config(text="⚠ WARNING: GRID UNDERVOLTAGE SAG", fg=ACCENT_AMBER)
-            self.lbl_action_text.config(text=f"Protection Decision: {action}", fg=ACCENT_AMBER)
+            self.lbl_action_text.config(text=f"Supervisory Status: {action}", fg=ACCENT_AMBER)
             self.lbl_summary_text.config(text="Grid voltage dipped below 180V brownout threshold.")
             log_tag = "WARN"
         elif fault == "POLE_OFFLINE":
             self.lbl_fault_badge.config(text="● NOTICE: POLE TELEMETRY OFFLINE", fg=ACCENT_AMBER)
-            self.lbl_action_text.config(text=f"Protection Decision: {action}", fg=ACCENT_AMBER)
+            self.lbl_action_text.config(text=f"Supervisory Status: {action}", fg=ACCENT_AMBER)
             self.lbl_summary_text.config(text=f"P1: {'Online' if p1_on else 'OFFLINE'} | P2: {'Online' if p2_on else 'OFFLINE'}")
             log_tag = "WARN"
         else:
