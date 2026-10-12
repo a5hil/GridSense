@@ -34,7 +34,7 @@
 /* =========================================================================
  * POLE SELECTION & MOCK TOGGLE
  * ========================================================================= */
-#define POLE_ID                     1       // Set to 1 for Pole 1, set to 2 for Pole 2
+#define POLE_ID                     2       // Set to 1 for Pole 1, set to 2 for Pole 2
 #define USE_MOCK_SENSORS            true    // Set to true for Mock Mode, false for live PZEM v4.0
 #define TELEMETRY_INTERVAL_MS       3000    // Telemetry transmission interval (3 seconds)
 

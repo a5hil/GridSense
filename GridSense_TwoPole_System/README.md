@@ -1,0 +1,101 @@
+# GridSense: Two-Pole Distributed FDIR Prototype
+**MCA Project | FISAT**
+
+---
+
+## 1. System Overview
+GridSense demonstrates an IoT-based Fault Detection, Isolation, and Restoration (FDIR) prototype using three **Waveshare ESP32-S3-LR1121-HF** LoRa modules operating at 868 MHz:
+
+1. **Pole 1 Edge Node (Incomer):** Clamped to the incoming phase conductor on Electric Pole 1 with a PZEM-004T v4.0 split-core CT.
+2. **Pole 2 Edge Node (Outgoing / Load side):** Clamped to the outgoing phase conductor on Electric Pole 2 with a PZEM-004T v4.0 split-core CT.
+3. **Central Gateway:** Continuously listens for Sub-GHz LoRa packets from both poles, evaluates inter-pole differential current ($\Delta I = |I_1 - I_2|$), triggers FDIR isolation alerts when $\Delta I \ge 0.35\text{ A}$, and streams correlated JSON over USB Serial to the host dashboard.
+
+---
+
+## 2. Flashing the Boards
+
+### Mandatory Arduino IDE Board Settings (for all 3 boards)
+- **Board:** `ESP32S3 Dev Module`
+- **USB CDC On Boot:** `Enabled`  *(Crucial for Serial.print)*
+- **Flash Size:** `4MB (32Mb)`
+- **Flash Mode:** `QIO 80MHz`
+- **Partition Scheme:** `Default 4MB with spiffs`
+- **PSRAM:** `QSPI PSRAM`
+
+---
+
+### Board 1: Electric Pole 1 (Incomer)
+- Open [`EdgeNode_Pole/EdgeNode_Pole.ino`](EdgeNode_Pole/EdgeNode_Pole.ino).
+- Verify:
+  ```cpp
+  #define POLE_ID 1
+  #define USE_MOCK_SENSORS true   // Running on Mock Mode for bench testing
+  ```
+- Select Board 1's COM Port and click **Upload**.
+
+---
+
+### Board 2: Electric Pole 2 (Outgoing)
+- Open [`EdgeNode_Pole/EdgeNode_Pole.ino`](EdgeNode_Pole/EdgeNode_Pole.ino).
+- Change to:
+  ```cpp
+  #define POLE_ID 2
+  #define USE_MOCK_SENSORS true   // Running on Mock Mode for bench testing
+  ```
+- Select Board 2's COM Port and click **Upload**.
+
+---
+
+### Board 3: Central Gateway
+- Open [`Central_Gateway/Central_Gateway.ino`](Central_Gateway/Central_Gateway.ino).
+- Select Board 3's COM Port and click **Upload**.
+- Keep Board 3 plugged into the host PC via USB.
+
+---
+
+## 3. Running the Python Supervisory Dashboard
+
+A standalone Python dashboard is provided in [`Dashboard/`](Dashboard/).
+
+1. Simply double-click [`run_dashboard.bat`](run_dashboard.bat) or run:
+   ```bash
+   python Dashboard/gridsense_dashboard.py
+   ```
+2. In the top-right corner of the dashboard:
+   - Select the COM Port of the **Central Gateway** (Board 3).
+   - Click **Connect**.
+3. Live telemetry from Pole 1 and Pole 2 will populate the dashboard, showing:
+   - Real-time Voltages, Currents, Active Power, Frequency, PF, Energy.
+   - RF Link Quality (RSSI in dBm, SNR in dB, Packet Sequence, Age).
+   - Dynamic **Differential Current Gauge** ($|I_1 - I_2|$) with safety limit marker at $0.350\text{ A}$.
+   - Central FDIR Protection Decision banner.
+   - Live timestamped event and packet log.
+
+> **Offline Demonstration:** Click **▶ Demo Mode** in the dashboard to simulate both poles and live FDIR fault injections without needing hardware plugged in.
+
+---
+
+## 4. Demonstrating Faults (Mock Mode Keyboard Commands)
+
+While running in Mock Mode, open the Arduino **Serial Monitor** (115200 baud) for either Pole Node (Board 1 or Board 2) and type any of these keys:
+
+| Key | Scenario | Edge Node Behavior | Gateway FDIR Action |
+| :---: | :--- | :--- | :--- |
+| **`n`** | **Normal Grid** | Balanced load ($I_1 \approx I_2 \approx 2.45\text{ A}$) | `LINE_HEALTHY` (Green) |
+| **`d`** | **Differential Fault** | Injects high leakage ($I_1 = 3.85\text{ A}$, $I_2 = 1.15\text{ A}$, $\Delta I = 2.70\text{ A}$) | `TRIP_ISOLATE_POLE_1_2` (Red Alert) |
+| **`o`** | **Overcurrent** | Simulates overload ($I > 18\text{ A}$) | `TRIP_OVERCURRENT_SHED` |
+| **`u`** | **Undervoltage** | Simulates voltage sag ($V < 165\text{ V}$) | `ALARM_UNDERVOLTAGE` |
+| **`a`** | **Auto-Cycle Demo** | Automatically cycles normal $\to$ fault $\to$ normal every few packets | Demonstrates full automated recovery cycle |
+
+---
+
+## 5. Wiring Live PZEM-004T v4.0 Sensors (Future Step)
+
+When you are ready to connect physical sensors:
+1. Change `#define USE_MOCK_SENSORS false` in `EdgeNode_Pole.ino`.
+2. Connect:
+   - **PZEM TX** $\to$ **ESP32-S3 GPIO 17** (Serial1 RX)
+   - **PZEM RX** $\to$ **ESP32-S3 GPIO 18** (Serial1 TX)
+   - **PZEM 5V** $\to$ **5V / VBUS**
+   - **PZEM GND** $\to$ **GND**
+   - **Split CT clamp** $\to$ Clamp around the phase conductor on that pole.
