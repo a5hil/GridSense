@@ -10,6 +10,9 @@
  */
 
 #include "lr1121_rx.h"
+#include "gridsense_packet.h"
+
+PacketDeduplicator gatewayDeduplicator;
 
 /* =========================================================================
  * FDIR PROTECTION THRESHOLDS
@@ -180,10 +183,39 @@ void printConsoleSummary() {
     Serial.println("=======================================================\n");
 }
 
-void processIncomingPacket(const char* json, int16_t rssi, int8_t snr) {
-    int pole = parseJsonInt(json, "pole");
+void processIncomingPacket(const char* rawPacket, int16_t rssi, int8_t snr) {
+    GridSensePacket pkt;
+    int pole = 0;
+    uint32_t seq = 0;
+    uint8_t hops = 0;
+    const char* json = rawPacket;
+
+    if (deserializeGridSensePacket(rawPacket, pkt)) {
+        // Check Deduplication Table (Drop duplicate packets seen in last 30s)
+        if (gatewayDeduplicator.isDuplicate(pkt.header.srcId, pkt.header.seq)) {
+            Serial.printf("[GW DEDUP] Dropping duplicate packet from Pole %u (Seq %u | Hops: %u)\n",
+                          pkt.header.srcId, pkt.header.seq, pkt.header.hopsTaken);
+            return;
+        }
+        gatewayDeduplicator.record(pkt.header.srcId, pkt.header.seq);
+
+        pole = pkt.header.srcId;
+        seq  = pkt.header.seq;
+        hops = pkt.header.hopsTaken;
+        json = pkt.payload;
+
+        Serial.printf("[GW RX HOP-FRAMED] Pole: %u | Relay: %u | Seq: %u | TTL: %u | Hops: %u\n",
+                      pkt.header.srcId, pkt.header.relayId, pkt.header.seq, pkt.header.hopLimit, pkt.header.hopsTaken);
+    } else {
+        // Fallback for legacy JSON
+        pole = parseJsonInt(rawPacket, "pole");
+        seq  = parseJsonInt(rawPacket, "seq");
+        if (pole == 0) return;
+        json = rawPacket;
+    }
+
     if (pole == 1) {
-        pole1.seq          = parseJsonInt(json, "seq");
+        pole1.seq          = seq;
         pole1.voltage      = parseJsonFloat(json, "v");
         pole1.current      = parseJsonFloat(json, "i");
         pole1.power        = parseJsonFloat(json, "p");
@@ -195,7 +227,7 @@ void processIncomingPacket(const char* json, int16_t rssi, int8_t snr) {
         pole1.lastUpdateMs = millis();
         pole1.hasData      = true;
     } else if (pole == 2) {
-        pole2.seq          = parseJsonInt(json, "seq");
+        pole2.seq          = seq;
         pole2.voltage      = parseJsonFloat(json, "v");
         pole2.current      = parseJsonFloat(json, "i");
         pole2.power        = parseJsonFloat(json, "p");

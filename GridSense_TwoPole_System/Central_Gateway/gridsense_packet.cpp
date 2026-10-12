@@ -1,25 +1,23 @@
-/*!
- * @file      gridsense_packet.cpp
- * @brief     Implementation of Packet Deduplication and Protocol Framing
- */
-
 #include "gridsense_packet.h"
 
-PacketDeduplicator::PacketDeduplicator() : insertIndex(0) {
-    for (uint8_t i = 0; i < CACHE_SIZE; i++) {
-        cache[i].valid = false;
-        cache[i].src = 0;
-        cache[i].seq = 0;
-        cache[i].timestamp_ms = 0;
-    }
+PacketDeduplicator::PacketDeduplicator() {
+    clear();
 }
 
-bool PacketDeduplicator::isDuplicate(uint8_t src, uint32_t seq) {
+void PacketDeduplicator::clear() {
+    for (size_t i = 0; i < CAPACITY; i++) {
+        entries[i].srcId = 0;
+        entries[i].seq = 0;
+        entries[i].seenTimeMs = 0;
+    }
+    head = 0;
+}
+
+bool PacketDeduplicator::isDuplicate(uint8_t srcId, uint16_t seq) {
     uint32_t now = millis();
-    for (uint8_t i = 0; i < CACHE_SIZE; i++) {
-        if (cache[i].valid && cache[i].src == src && cache[i].seq == seq) {
-            // Check if seen recently (within last 30 seconds)
-            if (now - cache[i].timestamp_ms < 30000) {
+    for (size_t i = 0; i < CAPACITY; i++) {
+        if (entries[i].srcId == srcId && entries[i].seq == seq) {
+            if (now - entries[i].seenTimeMs < 30000) {
                 return true;
             }
         }
@@ -27,67 +25,69 @@ bool PacketDeduplicator::isDuplicate(uint8_t src, uint32_t seq) {
     return false;
 }
 
-void PacketDeduplicator::record(uint8_t src, uint32_t seq) {
-    cache[insertIndex].src = src;
-    cache[insertIndex].seq = seq;
-    cache[insertIndex].timestamp_ms = millis();
-    cache[insertIndex].valid = true;
-    insertIndex = (insertIndex + 1) % CACHE_SIZE;
+void PacketDeduplicator::record(uint8_t srcId, uint16_t seq) {
+    entries[head].srcId = srcId;
+    entries[head].seq = seq;
+    entries[head].seenTimeMs = millis();
+    head = (head + 1) % CAPACITY;
 }
 
-void PacketDeduplicator::cleanup() {
-    uint32_t now = millis();
-    for (uint8_t i = 0; i < CACHE_SIZE; i++) {
-        if (cache[i].valid && (now - cache[i].timestamp_ms >= 30000)) {
-            cache[i].valid = false;
-        }
-    }
-}
-
-bool serializeGridPacket(const GridPacket& pkt, const char* telemetryFields, char* outBuf, size_t outSize) {
-    if (!outBuf || outSize == 0) return false;
-
-    // Constructs packet with Meshtastic-style routing header + sensor telemetry
-    int written = snprintf(outBuf, outSize,
-        "{\"src\":%d,\"rly\":%d,\"dst\":%d,\"seq\":%lu,\"ttl\":%d,\"type\":\"%s\",%s}",
-        pkt.src, pkt.rly, pkt.dst, pkt.seq, pkt.ttl, pkt.type,
-        telemetryFields ? telemetryFields : ""
+bool serializeGridSensePacket(const GridSensePacket& pkt, char* outBuf, size_t maxLen) {
+    // Format: GS|<src>|<relay>|<dest>|<seq>|<hopLimit>|<hopsTaken>|<msgType>|<payload>
+    int written = snprintf(outBuf, maxLen,
+        "GS|%u|%u|%u|%u|%u|%u|%u|%s",
+        pkt.header.srcId,
+        pkt.header.relayId,
+        pkt.header.destId,
+        pkt.header.seq,
+        pkt.header.hopLimit,
+        pkt.header.hopsTaken,
+        pkt.header.msgType,
+        pkt.payload
     );
-
-    return (written > 0 && (size_t)written < outSize);
+    return (written > 0 && (size_t)written < maxLen);
 }
 
-// Lightweight JSON header extractor without external library dependencies
-bool parseGridPacket(const char* jsonStr, GridPacket& pkt) {
-    if (!jsonStr) return false;
-
-    const char* pSrc = strstr(jsonStr, "\"src\":");
-    const char* pRly = strstr(jsonStr, "\"rly\":");
-    const char* pDst = strstr(jsonStr, "\"dst\":");
-    const char* pSeq = strstr(jsonStr, "\"seq\":");
-    const char* pTtl = strstr(jsonStr, "\"ttl\":");
-
-    // Backward-compatibility: if "src" not found, check legacy "pole"
-    if (!pSrc) {
-        const char* pPole = strstr(jsonStr, "\"pole\":");
-        if (pPole) {
-            pkt.src = atoi(pPole + 7);
-            pkt.rly = pkt.src;
-            pkt.dst = ADDR_GATEWAY;
-            pkt.seq = pSeq ? strtoul(pSeq + 6, nullptr, 10) : 0;
-            pkt.ttl = DEFAULT_HOP_LIMIT;
-            pkt.type = "TEL";
-            return true;
-        }
+bool deserializeGridSensePacket(const char* inBuf, GridSensePacket& outPkt) {
+    if (!inBuf || strncmp(inBuf, "GS|", 3) != 0) {
         return false;
     }
 
-    pkt.src = atoi(pSrc + 6);
-    pkt.rly = pRly ? atoi(pRly + 6) : pkt.src;
-    pkt.dst = pDst ? atoi(pDst + 6) : ADDR_GATEWAY;
-    pkt.seq = pSeq ? strtoul(pSeq + 6, nullptr, 10) : 0;
-    pkt.ttl = pTtl ? atoi(pTtl + 6) : 1;
-    pkt.type = "TEL";
+    const char* ptr = inBuf + 3;
+    unsigned int src = 0, relay = 0, dest = 0, seq = 0, hopLim = 0, hops = 0, type = 0;
 
+    int n = sscanf(ptr, "%u|%u|%u|%u|%u|%u|%u|", &src, &relay, &dest, &seq, &hopLim, &hops, &type);
+    if (n < 7) {
+        return false;
+    }
+
+    outPkt.header.srcId     = (uint8_t)src;
+    outPkt.header.relayId   = (uint8_t)relay;
+    outPkt.header.destId    = (uint8_t)dest;
+    outPkt.header.seq       = (uint16_t)seq;
+    outPkt.header.hopLimit  = (uint8_t)hopLim;
+    outPkt.header.hopsTaken = (uint8_t)hops;
+    outPkt.header.msgType   = (uint8_t)type;
+
+    // Locate the 7th delimiter '|' to find payload
+    int pipes = 0;
+    while (*ptr) {
+        if (*ptr == '|') {
+            pipes++;
+            if (pipes == 7) {
+                ptr++;
+                break;
+            }
+        }
+        ptr++;
+    }
+
+    if (pipes < 7) {
+        outPkt.payload[0] = '\0';
+        return false;
+    }
+
+    strncpy(outPkt.payload, ptr, sizeof(outPkt.payload) - 1);
+    outPkt.payload[sizeof(outPkt.payload) - 1] = '\0';
     return true;
 }

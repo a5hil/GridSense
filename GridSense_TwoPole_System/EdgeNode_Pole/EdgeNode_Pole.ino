@@ -31,6 +31,9 @@
 #include "PZEM004T_Modbus.h"
 #include "lr1121_lbt_tx.h"
 #include "pole_ble_service.h"
+#include "gridsense_packet.h"
+
+PacketDeduplicator deduplicator;
 
 /* =========================================================================
  * POLE SELECTION & MOCK TOGGLE
@@ -310,12 +313,10 @@ void loop() {
                         getScenarioString(mockScenario));
         #endif
 
-        // Format compact JSON telemetry payload for this Pole
-        char payload[160];
-        snprintf(payload, sizeof(payload),
-            "{\"pole\":%d,\"seq\":%u,\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"freq\":%.1f,\"pf\":%.2f,\"e\":%.1f}",
-            POLE_ID,
-            packet_seq,
+        // Format compact inner JSON telemetry payload for this Pole
+        char innerJson[140];
+        snprintf(innerJson, sizeof(innerJson),
+            "{\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"freq\":%.1f,\"pf\":%.2f,\"e\":%.1f}",
             sensor.isValid ? sensor.voltage   : 0.0f,
             sensor.isValid ? sensor.current   : 0.0f,
             sensor.isValid ? sensor.power     : 0.0f,
@@ -324,15 +325,34 @@ void loop() {
             sensor.isValid ? sensor.energy    : 0.0f
         );
 
-        Serial.printf("[POLE #%d TX #%u] Checking channel & sending...\n", POLE_ID, packet_seq);
+        // Wrap into Hop-Limited GridSense Packet with TTL & Deduplication info
+        GridSensePacket pkt;
+        pkt.header.srcId     = POLE_ID;
+        pkt.header.relayId   = POLE_ID;
+        pkt.header.destId    = 0x00; // Target Gateway
+        pkt.header.seq       = (uint16_t)packet_seq;
+        pkt.header.hopLimit  = 3;    // TTL = 3 hops max
+        pkt.header.hopsTaken = 0;    // 0 hops initially
+        pkt.header.msgType   = MSG_TYPE_TELEMETRY;
+        strncpy(pkt.payload, innerJson, sizeof(pkt.payload) - 1);
+        pkt.payload[sizeof(pkt.payload) - 1] = '\0';
+
+        char loraTxBuf[192];
+        serializeGridSensePacket(pkt, loraTxBuf, sizeof(loraTxBuf));
+
+        // Record our sequence in the local deduplication cache
+        deduplicator.record(POLE_ID, (uint16_t)packet_seq);
+
+        Serial.printf("[POLE #%d TX #%u | TTL: %d] Checking channel & sending...\n",
+                      POLE_ID, packet_seq, pkt.header.hopLimit);
 
         // Perform Listen-Before-Talk (LBT) using Hardware CAD with random backoff (100-1500ms)
-        bool sent = lora_send_with_lbt(payload, 5, 100, 1500);
+        bool sent = lora_send_with_lbt(loraTxBuf, 5, 100, 1500);
 
         if (sent) {
-            Serial.printf("[POLE #%d TX OK] >>> %s\n\n", POLE_ID, payload);
+            Serial.printf("[POLE #%d TX OK] >>> %s\n\n", POLE_ID, loraTxBuf);
         } else {
-            Serial.printf("[POLE #%d TX RETRY_LIMIT] >>> %s\n\n", POLE_ID, payload);
+            Serial.printf("[POLE #%d TX RETRY_LIMIT] >>> %s\n\n", POLE_ID, loraTxBuf);
         }
     }
 
