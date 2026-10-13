@@ -442,6 +442,8 @@ class GridSenseDashboard(tk.Tk):
                 "pf": float(p1_b.get("pf", 0.95)),
                 "rssi": int(p1_b.get("rssi", -30)),
                 "snr": int(p1_b.get("snr", 15)),
+                "relay": int(p1_b.get("relay", 1)),
+                "hops": int(p1_b.get("hops", 0)),
                 "last_ms": time.time() - (age_ms / 1000.0)
             })
             self._update_pole_ui(1, self.p1_data)
@@ -459,6 +461,8 @@ class GridSenseDashboard(tk.Tk):
                 "pf": float(p2_b.get("pf", 0.95)),
                 "rssi": int(p2_b.get("rssi", -35)),
                 "snr": int(p2_b.get("snr", 15)),
+                "relay": int(p2_b.get("relay", 2)),
+                "hops": int(p2_b.get("hops", 0)),
                 "last_ms": time.time() - (age_ms / 1000.0)
             })
             self._update_pole_ui(2, self.p2_data)
@@ -581,8 +585,12 @@ class GridSenseDashboard(tk.Tk):
         w["pf"].config(text=f"{data['pf']:.2f}")
         w["e"].config(text=f"{data['e']:.1f}")
 
+        hops = data.get("hops", 0)
+        relay = data.get("relay", pid)
+        route_str = "Direct (1-hop)" if hops == 0 else f"Relayed via P{relay} ({hops}h)"
+
         w["rf"].config(
-            text=f"LoRa: RSSI: {data['rssi']} dBm | SNR: {data['snr']} dB | Pkt Seq: {data['seq']} | Just now",
+            text=f"LoRa: RSSI: {data['rssi']} dBm | SNR: {data['snr']} dB | Route: {route_str} | Just now",
             fg=ACCENT_BLUE
         )
 
@@ -596,8 +604,11 @@ class GridSenseDashboard(tk.Tk):
                     w["badge"].config(text="● OFFLINE", fg=ACCENT_RED)
                     w["rf"].config(fg=TEXT_DIM)
                 else:
+                    hops = data.get("hops", 0)
+                    relay = data.get("relay", pid)
+                    route_str = "Direct" if hops == 0 else f"via P{relay}"
                     w["rf"].config(
-                        text=f"LoRa: RSSI: {data['rssi']} dBm | SNR: {data['snr']} dB | Pkt Seq: {data['seq']} | Age: {age}s"
+                        text=f"LoRa: RSSI: {data['rssi']} dBm | Route: {route_str} | Age: {age}s"
                     )
 
         self.after(1000, self._start_heartbeat_checker)

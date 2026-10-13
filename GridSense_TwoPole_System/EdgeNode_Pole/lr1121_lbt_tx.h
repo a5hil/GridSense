@@ -1,6 +1,6 @@
 /*!
  * @file      lr1121_lbt_tx.h
- * @brief     LoRa Transmitter with Listen-Before-Talk (LBT) using Channel Activity Detection (CAD)
+ * @brief     LoRa Node Transceiver with LBT CAD Transmission and Background Relay RX
  * @project   GridSense - MCA Project, FISAT
  */
 
@@ -9,27 +9,22 @@
 
 #include "lr1121_config.h"
 
+struct LoRaRxPacketInfo {
+    uint8_t payload[256];
+    uint8_t length;
+    int16_t packet_rssi;
+    int8_t  snr;
+};
+
+extern volatile bool node_rx_ready;
+extern LoRaRxPacketInfo last_node_rx_packet;
 extern volatile bool tx_done_flag;
 extern volatile bool tx_timeout_flag;
 
-void lora_transmitter_init(void);
-
-/**
- * @brief Checks if the RF channel currently has active LoRa packets using Hardware CAD
- * @return true if channel is BUSY, false if channel is CLEAR
- */
+void lora_node_radio_init(void);
+void lora_start_node_rx(void);
+void lora_node_radio_irq_process(void);
 bool lora_is_channel_busy(void);
-
-/**
- * @brief Transmits a LoRa packet using Listen-Before-Talk (LBT) and random backoff jitter
- * @param message The string payload to send
- * @param maxRetries Maximum backoff retry attempts if channel is occupied
- * @param minBackoffMs Minimum backoff jitter (default 100 ms)
- * @param maxBackoffMs Maximum backoff jitter (default 1500 ms)
- * @return true if transmitted successfully, false if channel was persistently occupied
- */
 bool lora_send_with_lbt(const char* message, uint8_t maxRetries = 5, uint32_t minBackoffMs = 100, uint32_t maxBackoffMs = 1500);
-
-void lora_tx_irq_process(void);
 
 #endif // LR1121_LBT_TX_H

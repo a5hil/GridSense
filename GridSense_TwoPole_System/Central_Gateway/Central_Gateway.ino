@@ -36,10 +36,12 @@ struct PoleTelemetry {
     int8_t   snr;
     uint32_t lastUpdateMs;
     bool     hasData;
+    uint8_t  relayId;
+    uint8_t  hops;
 };
 
-PoleTelemetry pole1 = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false};
-PoleTelemetry pole2 = {2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false};
+PoleTelemetry pole1 = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, 1, 0};
+PoleTelemetry pole2 = {2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, 2, 0};
 
 uint32_t total_packets = 0;
 float current_idiff = 0.0f;
@@ -152,16 +154,16 @@ void streamFDIRJsonToHost() {
     // Stream single-line compact JSON directly over USB Serial to host dashboard
     Serial.printf(
         "{\"gw_ms\":%lu,\"status\":\"%s\",\"fault\":\"%s\",\"idiff\":%.3f,\"trip_limit\":%.3f,"
-        "\"p1\":{\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"pf\":%.2f,\"rssi\":%d,\"snr\":%d,\"age_ms\":%lu},"
-        "\"p2\":{\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"pf\":%.2f,\"rssi\":%d,\"snr\":%d,\"age_ms\":%lu}}\n",
+        "\"p1\":{\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"pf\":%.2f,\"rssi\":%d,\"snr\":%d,\"relay\":%u,\"hops\":%u,\"age_ms\":%lu},"
+        "\"p2\":{\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"pf\":%.2f,\"rssi\":%d,\"snr\":%d,\"relay\":%u,\"hops\":%u,\"age_ms\":%lu}}\n",
         now,
         statusStr,
         faultStr,
         current_idiff,
         DIFF_CURRENT_THRESHOLD_A,
-        pole1.voltage, pole1.current, pole1.power, pole1.pf, pole1.rssi, pole1.snr,
+        pole1.voltage, pole1.current, pole1.power, pole1.pf, pole1.rssi, pole1.snr, pole1.relayId, pole1.hops,
         pole1.hasData ? (now - pole1.lastUpdateMs) : 99999,
-        pole2.voltage, pole2.current, pole2.power, pole2.pf, pole2.rssi, pole2.snr,
+        pole2.voltage, pole2.current, pole2.power, pole2.pf, pole2.rssi, pole2.snr, pole2.relayId, pole2.hops,
         pole2.hasData ? (now - pole2.lastUpdateMs) : 99999
     );
 }
@@ -171,10 +173,10 @@ void printConsoleSummary() {
     Serial.println("\n=======================================================");
     Serial.println("           GridSense Gateway - Central FDIR Status      ");
     Serial.println("=======================================================");
-    Serial.printf(" Pole 1 (Incomer) : V: %.1f V | I: %.3f A | P: %.1f W | RSSI: %d dBm | Age: %lu ms\n",
-                  pole1.voltage, pole1.current, pole1.power, pole1.rssi, (now - pole1.lastUpdateMs));
-    Serial.printf(" Pole 2 (Outgoing): V: %.1f V | I: %.3f A | P: %.1f W | RSSI: %d dBm | Age: %lu ms\n",
-                  pole2.voltage, pole2.current, pole2.power, pole2.rssi, (now - pole2.lastUpdateMs));
+    Serial.printf(" Pole 1 (Incomer) : V: %.1f V | I: %.3f A | P: %.1f W | RSSI: %d dBm | Relay: Pole %u (Hops: %u)\n",
+                  pole1.voltage, pole1.current, pole1.power, pole1.rssi, pole1.relayId, pole1.hops);
+    Serial.printf(" Pole 2 (Outgoing): V: %.1f V | I: %.3f A | P: %.1f W | RSSI: %d dBm | Relay: Pole %u (Hops: %u)\n",
+                  pole2.voltage, pole2.current, pole2.power, pole2.rssi, pole2.relayId, pole2.hops);
     Serial.println("-------------------------------------------------------");
     Serial.printf(" Inter-Pole Diff Current (Idiff) : %.3f A (Trip limit: %.3f A)\n", 
                   current_idiff, DIFF_CURRENT_THRESHOLD_A);
@@ -188,6 +190,7 @@ void processIncomingPacket(const char* rawPacket, int16_t rssi, int8_t snr) {
     int pole = 0;
     uint32_t seq = 0;
     uint8_t hops = 0;
+    uint8_t relay = 0;
     const char* json = rawPacket;
 
     if (deserializeGridSensePacket(rawPacket, pkt)) {
@@ -199,19 +202,21 @@ void processIncomingPacket(const char* rawPacket, int16_t rssi, int8_t snr) {
         }
         gatewayDeduplicator.record(pkt.header.srcId, pkt.header.seq);
 
-        pole = pkt.header.srcId;
-        seq  = pkt.header.seq;
-        hops = pkt.header.hopsTaken;
-        json = pkt.payload;
+        pole  = pkt.header.srcId;
+        relay = pkt.header.relayId;
+        seq   = pkt.header.seq;
+        hops  = pkt.header.hopsTaken;
+        json  = pkt.payload;
 
         Serial.printf("[GW RX HOP-FRAMED] Pole: %u | Relay: %u | Seq: %u | TTL: %u | Hops: %u\n",
                       pkt.header.srcId, pkt.header.relayId, pkt.header.seq, pkt.header.hopLimit, pkt.header.hopsTaken);
     } else {
         // Fallback for legacy JSON
-        pole = parseJsonInt(rawPacket, "pole");
-        seq  = parseJsonInt(rawPacket, "seq");
+        pole  = parseJsonInt(rawPacket, "pole");
+        relay = pole;
+        seq   = parseJsonInt(rawPacket, "seq");
         if (pole == 0) return;
-        json = rawPacket;
+        json  = rawPacket;
     }
 
     if (pole == 1) {
@@ -226,6 +231,8 @@ void processIncomingPacket(const char* rawPacket, int16_t rssi, int8_t snr) {
         pole1.snr          = snr;
         pole1.lastUpdateMs = millis();
         pole1.hasData      = true;
+        pole1.relayId      = relay;
+        pole1.hops         = hops;
     } else if (pole == 2) {
         pole2.seq          = seq;
         pole2.voltage      = parseJsonFloat(json, "v");
@@ -238,6 +245,8 @@ void processIncomingPacket(const char* rawPacket, int16_t rssi, int8_t snr) {
         pole2.snr          = snr;
         pole2.lastUpdateMs = millis();
         pole2.hasData      = true;
+        pole2.relayId      = relay;
+        pole2.hops         = hops;
     } else {
         return; // Unknown pole ID
     }

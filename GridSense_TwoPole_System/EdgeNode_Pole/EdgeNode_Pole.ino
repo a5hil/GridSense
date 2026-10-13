@@ -36,9 +36,15 @@
 PacketDeduplicator deduplicator;
 
 /* =========================================================================
- * POLE SELECTION & MOCK TOGGLE
+ * POLE SELECTION, ROLE & MOCK TOGGLE
  * ========================================================================= */
+enum NodeRole {
+    ROLE_ENDPOINT = 0,  // Leaf pole: monitors own AC line & transmits
+    ROLE_REPEATER = 1   // Relay pole: monitors own line + relays downstream packets
+};
+
 #define POLE_ID                     2       // Set to 1 for Pole 1, set to 2 for Pole 2
+#define NODE_ROLE                   (POLE_ID == 1 ? ROLE_REPEATER : ROLE_ENDPOINT)
 #define USE_MOCK_SENSORS            true    // Set to true for Mock Mode, false for live PZEM v4.0
 #define TELEMETRY_INTERVAL_MS       3000    // Telemetry transmission interval (3 seconds)
 #define ENABLE_BLE_LINEMAN_ACCESS   true    // Enable Bluetooth Low Energy for field technicians
@@ -264,6 +270,8 @@ void setup() {
     initPoleBLE(POLE_ID, handleCommand);
     #endif
 
+    Serial.printf("   >> Pole Role: %s <<\n",
+                  (NODE_ROLE == ROLE_REPEATER) ? "REPEATER (Relays downstream poles)" : "ENDPOINT (Leaf node)");
     Serial.println("**************************************************");
 
     #if !USE_MOCK_SENSORS
@@ -273,17 +281,66 @@ void setup() {
     Serial.println("[INIT] Mock sensor generator initialized.");
     #endif
 
-    // Initialize LR1121 with Hardware CAD support
-    Serial.println("[INIT] Initializing Waveshare LR1121 Sub-GHz LoRa...");
-    lora_transmitter_init();
+    // Initialize LR1121 Transceiver with Hardware CAD support
+    Serial.println("[INIT] Initializing Waveshare LR1121 Sub-GHz LoRa Transceiver...");
+    lora_node_radio_init();
 
     Serial.printf("[INIT] Ready. Frequency: %u MHz | Output: %d dBm\n\n",
                   (uint32_t)(RF_FREQ_IN_HZ / 1000000UL), TX_OUTPUT_POWER_DBM);
 }
 
+void handleRepeaterRelay() {
+    #if (NODE_ROLE == ROLE_REPEATER)
+    if (!node_rx_ready) return;
+    node_rx_ready = false;
+
+    GridSensePacket rxPkt;
+    if (deserializeGridSensePacket((const char*)last_node_rx_packet.payload, rxPkt)) {
+        // Drop if originating from self
+        if (rxPkt.header.srcId == POLE_ID) return;
+
+        // Check deduplication (Drop if already seen within 30 seconds)
+        if (deduplicator.isDuplicate(rxPkt.header.srcId, rxPkt.header.seq)) {
+            return;
+        }
+        deduplicator.record(rxPkt.header.srcId, rxPkt.header.seq);
+
+        // Check TTL
+        if (rxPkt.header.hopLimit <= 1) {
+            Serial.printf("[REPEATER] Packet from Pole %u dropped (TTL expired)\n", rxPkt.header.srcId);
+            return;
+        }
+
+        // Decrement TTL, increment hops, update relayId
+        rxPkt.header.hopLimit--;
+        rxPkt.header.hopsTaken++;
+        rxPkt.header.relayId = POLE_ID;
+
+        char relayBuf[192];
+        serializeGridSensePacket(rxPkt, relayBuf, sizeof(relayBuf));
+
+        Serial.printf("[REPEATER RELAY] Relaying packet from Pole %u -> Gateway (Seq: %u | Hops: %u | TTL: %u)\n",
+                      rxPkt.header.srcId, rxPkt.header.seq, rxPkt.header.hopsTaken, rxPkt.header.hopLimit);
+
+        #if ENABLE_BLE_LINEMAN_ACCESS
+        char bleRelayMsg[96];
+        snprintf(bleRelayMsg, sizeof(bleRelayMsg), "[RELAY] Forwarded P%u packet (Seq %u)\n", rxPkt.header.srcId, rxPkt.header.seq);
+        sendPoleBLEMessage(bleRelayMsg);
+        #endif
+
+        // Transmit upstream using LBT CAD with brief jitter backoff (50-250ms)
+        lora_send_with_lbt(relayBuf, 3, 50, 250);
+    }
+    #endif
+}
+
 void loop() {
-    // Process any ongoing LoRa TX interrupts
-    lora_tx_irq_process();
+    // Process any ongoing LoRa radio interrupts (RX and TX)
+    lora_node_radio_irq_process();
+
+    #if (NODE_ROLE == ROLE_REPEATER)
+    handleRepeaterRelay();
+    #endif
 
     #if ENABLE_BLE_LINEMAN_ACCESS
     updatePoleBLE();
