@@ -61,6 +61,9 @@ PZEMData sensor;
 // Telemetry state tracking
 uint32_t packet_seq = 0;
 unsigned long last_tx_ms = 0;
+float last_known_voltage = 230.0f;
+float last_known_current = 2.45f;
+bool last_gasp_broadcast_sent = false;
 
 // Mock Simulation Scenarios (Including Kerala Grid Operational States)
 enum MockScenario {
@@ -186,9 +189,58 @@ const char* getScenarioString(MockScenario s) {
     }
 }
 
+void sendLastGaspBroadcast(float last_v, float last_i) {
+    packet_seq++;
+
+    char dyingJson[140];
+    snprintf(dyingJson, sizeof(dyingJson),
+        "{\"event\":\"LAST_GASP\",\"v\":0.0,\"v_prev\":%.1f,\"i_prev\":%.3f,\"cause\":\"POWER_LOSS\"}",
+        last_v, last_i
+    );
+
+    GridSensePacket pkt;
+    pkt.header.srcId     = POLE_ID;
+    pkt.header.relayId   = POLE_ID;
+    pkt.header.destId    = 0x00; // Gateway
+    pkt.header.seq       = (uint16_t)packet_seq;
+    pkt.header.hopLimit  = 3;
+    pkt.header.hopsTaken = 0;
+    pkt.header.msgType   = MSG_TYPE_LAST_GASP;
+    strncpy(pkt.payload, dyingJson, sizeof(pkt.payload) - 1);
+    pkt.payload[sizeof(pkt.payload) - 1] = '\0';
+
+    char loraTxBuf[192];
+    serializeGridSensePacket(pkt, loraTxBuf, sizeof(loraTxBuf));
+
+    // Record in local deduplication cache
+    deduplicator.record(POLE_ID, (uint16_t)packet_seq);
+
+    Serial.println("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+    Serial.printf(" [POLE #%d LAST GASP] SUDDEN POWER COLLAPSE! Broadcast Dying Outage (Seq: %u)...\n",
+                  POLE_ID, packet_seq);
+    Serial.printf("  Prior Line Status: V: %.1f V | I: %.3f A -> Current: 0.0 V\n", last_v, last_i);
+    Serial.println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!");
+
+    #if ENABLE_BLE_LINEMAN_ACCESS
+    char bleGaspMsg[96];
+    snprintf(bleGaspMsg, sizeof(bleGaspMsg), "[EMERGENCY] P%u LAST GASP: Outage broadcast transmitted!\n", POLE_ID);
+    sendPoleBLEMessage(bleGaspMsg);
+    #endif
+
+    // High priority expedited transmission with minimal jitter backoff (20-80ms)
+    bool sent = lora_send_with_lbt(loraTxBuf, 5, 20, 80);
+
+    if (sent) {
+        Serial.printf("[POLE #%d LAST GASP TX OK] >>> %s\n\n", POLE_ID, loraTxBuf);
+    } else {
+        Serial.printf("[POLE #%d LAST GASP TX RETRY_LIMIT] >>> %s\n\n", POLE_ID, loraTxBuf);
+    }
+}
+
 void handleCommand(char ch) {
     if (ch == 'n' || ch == 'N') {
         mockScenario = MOCK_NORMAL;
+        last_gasp_broadcast_sent = false;
         Serial.println("\n[CMD] Injected MOCK_NORMAL (Normal Grid Operation)");
         #if ENABLE_BLE_LINEMAN_ACCESS
         sendPoleBLEMessage("[ALERT] Mode set to NORMAL.\n");
@@ -217,8 +269,19 @@ void handleCommand(char ch) {
         #if ENABLE_BLE_LINEMAN_ACCESS
         sendPoleBLEMessage("[ALERT] Injected POWERCUT / OUTAGE (0V).\n");
         #endif
+        if (!last_gasp_broadcast_sent) {
+            float v_rep = (sensor.isValid && sensor.voltage > 10.0f) ? sensor.voltage : last_known_voltage;
+            float i_rep = (sensor.isValid && sensor.current > 0.01f) ? sensor.current : last_known_current;
+            sendLastGaspBroadcast(v_rep, i_rep);
+            last_gasp_broadcast_sent = true;
+            // Update sensor readings immediately to 0
+            sensor.voltage = 0.0f;
+            sensor.current = 0.0f;
+            sensor.power   = 0.0f;
+        }
     } else if (ch == 'c' || ch == 'C') {
         mockScenario = MOCK_LINE_CHARGING;
+        last_gasp_broadcast_sent = false;
         Serial.println("\n[CMD] Injected MOCK_LINE_CHARGING (Maintenance test energization)");
         #if ENABLE_BLE_LINEMAN_ACCESS
         sendPoleBLEMessage("[ALERT] Injected LINE CHARGING TEST.\n");
@@ -226,6 +289,7 @@ void handleCommand(char ch) {
     } else if (ch == 'a' || ch == 'A') {
         mockScenario = MOCK_AUTO_CYCLE;
         autoCycleCounter = 0;
+        last_gasp_broadcast_sent = false;
         Serial.println("\n[CMD] Switched to MOCK_AUTO_CYCLE (Automated periodic fault cycling)");
         #if ENABLE_BLE_LINEMAN_ACCESS
         sendPoleBLEMessage("[ALERT] Switched to AUTO CYCLE.\n");
@@ -319,17 +383,32 @@ void handleRepeaterRelay() {
         char relayBuf[192];
         serializeGridSensePacket(rxPkt, relayBuf, sizeof(relayBuf));
 
-        Serial.printf("[REPEATER RELAY] Relaying packet from Pole %u -> Gateway (Seq: %u | Hops: %u | TTL: %u)\n",
-                      rxPkt.header.srcId, rxPkt.header.seq, rxPkt.header.hopsTaken, rxPkt.header.hopLimit);
+        bool isEmergency = (rxPkt.header.msgType == MSG_TYPE_LAST_GASP);
+
+        if (isEmergency) {
+            Serial.printf("[REPEATER EMERGENCY RELAY] Relaying LAST GASP from Pole %u -> Gateway (Seq: %u | Hops: %u)\n",
+                          rxPkt.header.srcId, rxPkt.header.seq, rxPkt.header.hopsTaken);
+        } else {
+            Serial.printf("[REPEATER RELAY] Relaying packet from Pole %u -> Gateway (Seq: %u | Hops: %u | TTL: %u)\n",
+                          rxPkt.header.srcId, rxPkt.header.seq, rxPkt.header.hopsTaken, rxPkt.header.hopLimit);
+        }
 
         #if ENABLE_BLE_LINEMAN_ACCESS
         char bleRelayMsg[96];
-        snprintf(bleRelayMsg, sizeof(bleRelayMsg), "[RELAY] Forwarded P%u packet (Seq %u)\n", rxPkt.header.srcId, rxPkt.header.seq);
+        if (isEmergency) {
+            snprintf(bleRelayMsg, sizeof(bleRelayMsg), "[EMERGENCY RELAY] Forwarded P%u LAST GASP (Seq %u)\n", rxPkt.header.srcId, rxPkt.header.seq);
+        } else {
+            snprintf(bleRelayMsg, sizeof(bleRelayMsg), "[RELAY] Forwarded P%u packet (Seq %u)\n", rxPkt.header.srcId, rxPkt.header.seq);
+        }
         sendPoleBLEMessage(bleRelayMsg);
         #endif
 
-        // Transmit upstream using LBT CAD with brief jitter backoff (50-250ms)
-        lora_send_with_lbt(relayBuf, 3, 50, 250);
+        // Transmit upstream using LBT CAD:
+        // If emergency Last Gasp, use expedited priority jitter (15-50ms)
+        // Otherwise regular jitter backoff (50-250ms)
+        uint16_t minJitter = isEmergency ? 15 : 50;
+        uint16_t maxJitter = isEmergency ? 50 : 250;
+        lora_send_with_lbt(relayBuf, 3, minJitter, maxJitter);
     }
     #endif
 }
@@ -356,11 +435,27 @@ void loop() {
         last_tx_ms = current_ms;
         packet_seq++;
 
+        float prev_v = sensor.voltage;
+        float prev_i = sensor.current;
+
         #if USE_MOCK_SENSORS
         generateMockData();
         #else
         pzem.read(sensor);
         #endif
+
+        // Track last known healthy voltage & current
+        if (sensor.isValid && sensor.voltage >= 150.0f) {
+            last_known_voltage = sensor.voltage;
+            last_known_current = sensor.current;
+            last_gasp_broadcast_sent = false; // Reset when power is healthy
+        }
+
+        // Automatic voltage collapse detection (e.g. real AC mains cut or feeder trip)
+        if (sensor.isValid && prev_v >= 150.0f && sensor.voltage < 50.0f && !last_gasp_broadcast_sent) {
+            sendLastGaspBroadcast(prev_v, prev_i);
+            last_gasp_broadcast_sent = true;
+        }
 
         printDiagnostics();
 

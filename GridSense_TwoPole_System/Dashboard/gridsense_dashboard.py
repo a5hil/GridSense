@@ -426,6 +426,51 @@ class GridSenseDashboard(tk.Tk):
         self._log(line, "TIMESTAMP")
 
     def _handle_gateway_json(self, data):
+        # Emergency Outage Broadcast ("Last Gasp") handling
+        if data.get("type") == "LAST_GASP" or data.get("fault") == "OUTAGE_LAST_GASP":
+            pole = data.get("pole", 1)
+            relay = data.get("relay", pole)
+            hops = data.get("hops", 0)
+            v_prev = float(data.get("v_prev", 230.0))
+            i_prev = float(data.get("i_prev", 2.45))
+            rssi = data.get("rssi", -35)
+            snr = data.get("snr", 15)
+
+            route_str = "Direct (1-hop)" if hops == 0 else f"Relayed via P{relay} ({hops}h)"
+
+            dying_pole_data = {
+                "online": True,
+                "v": 0.0,
+                "i": 0.0,
+                "p": 0.0,
+                "f": 0.0,
+                "pf": 0.0,
+                "e": self.p1_data["e"] if pole == 1 else self.p2_data["e"],
+                "rssi": rssi,
+                "snr": snr,
+                "relay": relay,
+                "hops": hops,
+                "last_ms": time.time()
+            }
+            if pole == 1:
+                self.p1_data.update(dying_pole_data)
+                self._update_pole_ui(1, self.p1_data)
+                self.p1_widgets["badge"].config(text="● LAST GASP (0V)", fg=ACCENT_RED)
+            elif pole == 2:
+                self.p2_data.update(dying_pole_data)
+                self._update_pole_ui(2, self.p2_data)
+                self.p2_widgets["badge"].config(text="● LAST GASP (0V)", fg=ACCENT_RED)
+
+            self.fdir_state["fault"] = "OUTAGE_LAST_GASP"
+            self.fdir_state["action"] = "DISPATCH_CREW_OUTAGE"
+            self.fdir_state["last_update"] = time.time()
+
+            self.lbl_fault_badge.config(text=f"⚡ CRITICAL: LAST GASP OUTAGE BROADCAST (POLE #{pole})", fg=ACCENT_RED)
+            self.lbl_action_text.config(text=f"Supervisory Action: DISPATCH_CREW_OUTAGE (Route: {route_str})", fg=ACCENT_RED)
+            self.lbl_summary_text.config(text=f"Pole {pole} experienced catastrophic power collapse (V dropped from {v_prev:.1f}V to 0.0V). Final dying breath packet captured via LoRa.")
+            self._log(f"[LAST GASP ALERT] Pole #{pole} Outage Broadcast! Prior: {v_prev:.1f}V, {i_prev:.3f}A -> 0V. Route: {route_str}, RSSI: {rssi} dBm", "FAULT")
+            return
+
         fault = data.get("fault", "NORMAL")
         i_diff = float(data.get("idiff", data.get("i_diff", 0.0)))
 
@@ -520,6 +565,7 @@ class GridSenseDashboard(tk.Tk):
             elif fault == "POWERCUT": action = "FEEDER_DE_ENERGIZED"
             elif fault == "LINE_BREAK": action = "ISOLATE_SPAN_1_2"
             elif fault == "POLE_OFFLINE": action = "WARN_POLE_OFFLINE"
+            elif fault == "OUTAGE_LAST_GASP": action = "DISPATCH_CREW_OUTAGE"
             else: action = "LINE_HEALTHY"
 
         self.fdir_state["fault"] = fault
@@ -537,6 +583,11 @@ class GridSenseDashboard(tk.Tk):
             self.lbl_action_text.config(text=f"Supervisory Status: {action} (Differential < 0.35A)", fg=TEXT_MAIN)
             self.lbl_summary_text.config(text="Inter-pole current is balanced. Power distribution is healthy.")
             log_tag = "NORMAL"
+        elif fault == "OUTAGE_LAST_GASP":
+            self.lbl_fault_badge.config(text="⚡ CRITICAL: LAST GASP DYING OUTAGE BROADCAST!", fg=ACCENT_RED)
+            self.lbl_action_text.config(text=f"Supervisory Status: {action} (Feeder Power Collapse)", fg=ACCENT_RED)
+            self.lbl_summary_text.config(text="Edge Node broadcast its final dying breath packet before power depletion.")
+            log_tag = "FAULT"
         elif fault == "POWERCUT":
             self.lbl_fault_badge.config(text="● GRID STATUS: SCHEDULED POWERCUT / LOAD SHEDDING", fg=ACCENT_BLUE)
             self.lbl_action_text.config(text=f"Supervisory Status: {action} (Feeder De-energized)", fg=ACCENT_BLUE)
@@ -651,6 +702,25 @@ class GridSenseDashboard(tk.Tk):
                 i1, i2 = 18.4, 18.2
                 fault = "OVERCURRENT"
                 action = "TRIP_OVERCURRENT_SHED"
+            elif (step % 20) == 18:
+                # Simulated Last Gasp dying outage from Pole 2 relayed via Pole 1
+                last_gasp_json = json.dumps({
+                    "gw_ms": int(time.time() * 1000),
+                    "type": "LAST_GASP",
+                    "pole": 2,
+                    "relay": 1,
+                    "hops": 1,
+                    "v_prev": 229.8,
+                    "i_prev": 2.45,
+                    "rssi": -42,
+                    "snr": 12,
+                    "status": "ALERT",
+                    "fault": "OUTAGE_LAST_GASP",
+                    "action": "DISPATCH_CREW_OUTAGE"
+                })
+                self.after(0, self._process_gateway_line, last_gasp_json)
+                time.sleep(2.5)
+                continue
             else:
                 # Normal State: Balanced currents
                 v1 = 230.2 + random.uniform(-0.8, 0.8)

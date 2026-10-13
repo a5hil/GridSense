@@ -191,6 +191,7 @@ void processIncomingPacket(const char* rawPacket, int16_t rssi, int8_t snr) {
     uint32_t seq = 0;
     uint8_t hops = 0;
     uint8_t relay = 0;
+    uint8_t msgType = MSG_TYPE_TELEMETRY;
     const char* json = rawPacket;
 
     if (deserializeGridSensePacket(rawPacket, pkt)) {
@@ -202,14 +203,20 @@ void processIncomingPacket(const char* rawPacket, int16_t rssi, int8_t snr) {
         }
         gatewayDeduplicator.record(pkt.header.srcId, pkt.header.seq);
 
-        pole  = pkt.header.srcId;
-        relay = pkt.header.relayId;
-        seq   = pkt.header.seq;
-        hops  = pkt.header.hopsTaken;
-        json  = pkt.payload;
+        pole    = pkt.header.srcId;
+        relay   = pkt.header.relayId;
+        seq     = pkt.header.seq;
+        hops    = pkt.header.hopsTaken;
+        msgType = pkt.header.msgType;
+        json    = pkt.payload;
 
-        Serial.printf("[GW RX HOP-FRAMED] Pole: %u | Relay: %u | Seq: %u | TTL: %u | Hops: %u\n",
-                      pkt.header.srcId, pkt.header.relayId, pkt.header.seq, pkt.header.hopLimit, pkt.header.hopsTaken);
+        if (msgType == MSG_TYPE_LAST_GASP) {
+            Serial.printf("[GW RX LAST-GASP] Pole: %u | Relay: %u | Seq: %u | TTL: %u | Hops: %u\n",
+                          pkt.header.srcId, pkt.header.relayId, pkt.header.seq, pkt.header.hopLimit, pkt.header.hopsTaken);
+        } else {
+            Serial.printf("[GW RX HOP-FRAMED] Pole: %u | Relay: %u | Seq: %u | TTL: %u | Hops: %u\n",
+                          pkt.header.srcId, pkt.header.relayId, pkt.header.seq, pkt.header.hopLimit, pkt.header.hopsTaken);
+        }
     } else {
         // Fallback for legacy JSON
         pole  = parseJsonInt(rawPacket, "pole");
@@ -217,6 +224,25 @@ void processIncomingPacket(const char* rawPacket, int16_t rssi, int8_t snr) {
         seq   = parseJsonInt(rawPacket, "seq");
         if (pole == 0) return;
         json  = rawPacket;
+    }
+
+    // Emergency Outage Broadcast ("Last Gasp") handling
+    if (msgType == MSG_TYPE_LAST_GASP) {
+        float v_prev = parseJsonFloat(json, "v_prev");
+        float i_prev = parseJsonFloat(json, "i_prev");
+
+        // Stream immediate high-priority JSON event to Host Dashboard
+        Serial.printf(
+            "{\"gw_ms\":%lu,\"type\":\"LAST_GASP\",\"pole\":%d,\"relay\":%u,\"hops\":%u,\"v_prev\":%.1f,\"i_prev\":%.3f,\"rssi\":%d,\"snr\":%d,\"status\":\"ALERT\",\"fault\":\"OUTAGE_LAST_GASP\",\"action\":\"DISPATCH_CREW_OUTAGE\"}\n",
+            millis(), pole, relay, hops, v_prev, i_prev, rssi, snr
+        );
+
+        Serial.println("\n*******************************************************");
+        Serial.printf(" [GW EMERGENCY] LAST GASP OUTAGE BROADCAST FROM POLE #%d!\n", pole);
+        Serial.printf(" Relay: Pole #%u | Hops: %u | RSSI: %d dBm | Prior V: %.1fV | Prior I: %.3fA\n",
+                      relay, hops, rssi, v_prev, i_prev);
+        Serial.println(" Immediate Action: Lineman crew alerted for feeder section dispatch.");
+        Serial.println("*******************************************************\n");
     }
 
     if (pole == 1) {
