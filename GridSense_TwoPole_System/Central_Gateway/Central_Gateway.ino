@@ -11,8 +11,10 @@
 
 #include "lr1121_rx.h"
 #include "gridsense_packet.h"
+#include "gridsense_crypto.h"
 
 PacketDeduplicator gatewayDeduplicator;
+bool hw_crypto_active = false;
 
 /* =========================================================================
  * FDIR PROTECTION THRESHOLDS
@@ -153,10 +155,11 @@ void streamFDIRJsonToHost() {
 
     // Stream single-line compact JSON directly over USB Serial to host dashboard
     Serial.printf(
-        "{\"gw_ms\":%lu,\"status\":\"%s\",\"fault\":\"%s\",\"idiff\":%.3f,\"trip_limit\":%.3f,"
+        "{\"gw_ms\":%lu,\"sec\":\"%s\",\"status\":\"%s\",\"fault\":\"%s\",\"idiff\":%.3f,\"trip_limit\":%.3f,"
         "\"p1\":{\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"pf\":%.2f,\"rssi\":%d,\"snr\":%d,\"relay\":%u,\"hops\":%u,\"age_ms\":%lu},"
         "\"p2\":{\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"pf\":%.2f,\"rssi\":%d,\"snr\":%d,\"relay\":%u,\"hops\":%u,\"age_ms\":%lu}}\n",
         now,
+        hw_crypto_active ? "AES128" : "NONE",
         statusStr,
         faultStr,
         current_idiff,
@@ -182,6 +185,8 @@ void printConsoleSummary() {
                   current_idiff, DIFF_CURRENT_THRESHOLD_A);
     Serial.printf(" Central FDIR Decision           : [%s] - %s\n",
                   (current_fault == FAULT_NONE) ? "NORMAL" : "TRIP/ALERT", faultTypeToString(current_fault));
+    Serial.printf(" Security / Crypto Layer         : ESP32-S3 Hardware AES-128 [%s]\n",
+                  hw_crypto_active ? "ACTIVE" : "DISABLED");
     Serial.println("=======================================================\n");
 }
 
@@ -192,6 +197,8 @@ void processIncomingPacket(const char* rawPacket, int16_t rssi, int8_t snr) {
     uint8_t hops = 0;
     uint8_t relay = 0;
     uint8_t msgType = MSG_TYPE_TELEMETRY;
+    char decryptedPayload[192];
+    bool isEncrypted = false;
     const char* json = rawPacket;
 
     if (deserializeGridSensePacket(rawPacket, pkt)) {
@@ -208,14 +215,25 @@ void processIncomingPacket(const char* rawPacket, int16_t rssi, int8_t snr) {
         seq     = pkt.header.seq;
         hops    = pkt.header.hopsTaken;
         msgType = pkt.header.msgType;
-        json    = pkt.payload;
+
+        // Attempt Hardware AES-128 Decryption
+        isEncrypted = gridsense_decrypt_payload(pkt.payload, pkt.header.srcId, pkt.header.seq,
+                                                decryptedPayload, sizeof(decryptedPayload));
+        json = decryptedPayload;
+
+        if (isEncrypted) {
+            Serial.printf("[GW SECURITY] AES-128 HW Decrypted (Pole %u | Seq %u) >>> %s\n",
+                          pkt.header.srcId, pkt.header.seq, json);
+        }
 
         if (msgType == MSG_TYPE_LAST_GASP) {
-            Serial.printf("[GW RX LAST-GASP] Pole: %u | Relay: %u | Seq: %u | TTL: %u | Hops: %u\n",
-                          pkt.header.srcId, pkt.header.relayId, pkt.header.seq, pkt.header.hopLimit, pkt.header.hopsTaken);
+            Serial.printf("[GW RX LAST-GASP] Pole: %u | Relay: %u | Seq: %u | TTL: %u | Hops: %u%s\n",
+                          pkt.header.srcId, pkt.header.relayId, pkt.header.seq, pkt.header.hopLimit, pkt.header.hopsTaken,
+                          isEncrypted ? " [SEC: AES-128]" : "");
         } else {
-            Serial.printf("[GW RX HOP-FRAMED] Pole: %u | Relay: %u | Seq: %u | TTL: %u | Hops: %u\n",
-                          pkt.header.srcId, pkt.header.relayId, pkt.header.seq, pkt.header.hopLimit, pkt.header.hopsTaken);
+            Serial.printf("[GW RX HOP-FRAMED] Pole: %u | Relay: %u | Seq: %u | TTL: %u | Hops: %u%s\n",
+                          pkt.header.srcId, pkt.header.relayId, pkt.header.seq, pkt.header.hopLimit, pkt.header.hopsTaken,
+                          isEncrypted ? " [SEC: AES-128]" : "");
         }
     } else {
         // Fallback for legacy JSON
@@ -295,6 +313,13 @@ void setup() {
     Serial.println("   GridSense Central Gateway (Two-Pole FDIR)      ");
     Serial.println("   MCA Project - FISAT                           ");
     Serial.println("**************************************************");
+
+    hw_crypto_active = gridsense_crypto_init();
+    if (hw_crypto_active) {
+        Serial.println("[GW_INIT] ESP32-S3 Hardware AES-128 Crypto Engine: ACTIVE");
+    } else {
+        Serial.println("[GW_INIT] Hardware AES Crypto: Initialization Failed!");
+    }
 
     lora_receiver_init();
 

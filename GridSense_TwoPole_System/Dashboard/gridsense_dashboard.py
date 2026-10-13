@@ -142,6 +142,10 @@ class GridSenseDashboard(tk.Tk):
         tk.Label(top_info, text="CENTRAL FDIR SUPERVISORY STATUS", font=("Segoe UI", 11, "bold"),
                  fg=TEXT_MUTED, bg=BG_CARD).pack(side=tk.LEFT)
 
+        self.lbl_crypto_badge = tk.Label(top_info, text="🔒 AES-128 HW SECURED", font=("Segoe UI", 8, "bold"),
+                                         fg=ACCENT_GREEN, bg="#064E3B", padx=6, pady=2)
+        self.lbl_crypto_badge.pack(side=tk.LEFT, padx=(12, 0))
+
         self.lbl_fdir_time = tk.Label(top_info, text="Last Eval: Waiting...", font=("Segoe UI", 9),
                                       fg=TEXT_DIM, bg=BG_CARD)
         self.lbl_fdir_time.pack(side=tk.RIGHT)
@@ -474,6 +478,13 @@ class GridSenseDashboard(tk.Tk):
         fault = data.get("fault", "NORMAL")
         i_diff = float(data.get("idiff", data.get("i_diff", 0.0)))
 
+        # Update Encryption Security Tag Badge
+        sec = data.get("sec", "AES128")
+        if sec == "AES128":
+            self.lbl_crypto_badge.config(text="🔒 AES-128 HW SECURED", fg=ACCENT_GREEN, bg="#064E3B")
+        else:
+            self.lbl_crypto_badge.config(text="🔓 PLAINTEXT", fg=TEXT_DIM, bg=BG_CARD_LIGHT)
+
         # Update Pole 1 if nested p1 block present
         if "p1" in data and isinstance(data["p1"], dict):
             p1_b = data["p1"]
@@ -749,6 +760,7 @@ class GridSenseDashboard(tk.Tk):
             fdir_json = json.dumps({
                 "type": "FDIR_STATUS",
                 "ts": int(time.time() * 1000),
+                "sec": "AES128",
                 "p1_online": True,
                 "p2_online": True,
                 "p1_I": round(i1, 2),

@@ -20,7 +20,7 @@ struct GridSenseHeader {
 
 struct GridSensePacket {
     GridSenseHeader header;
-    char payload[160];    // Inner JSON payload
+    char payload[192];    // Inner payload (Plaintext JSON or AES-128 Ciphertext)
 };
 
 class PacketDeduplicator {

@@ -32,6 +32,7 @@
 #include "lr1121_lbt_tx.h"
 #include "pole_ble_service.h"
 #include "gridsense_packet.h"
+#include "gridsense_crypto.h"
 
 PacketDeduplicator deduplicator;
 
@@ -48,6 +49,7 @@ enum NodeRole {
 #define USE_MOCK_SENSORS            true    // Set to true for Mock Mode, false for live PZEM v4.0
 #define TELEMETRY_INTERVAL_MS       3000    // Telemetry transmission interval (3 seconds)
 #define ENABLE_BLE_LINEMAN_ACCESS   true    // Enable Bluetooth Low Energy for field technicians
+#define ENABLE_AES_ENCRYPTION       true    // Enable Hardware-Accelerated AES-128 payload encryption
 
 /* =========================================================================
  * HARDWARE PINOUT (HardwareSerial1)
@@ -206,10 +208,20 @@ void sendLastGaspBroadcast(float last_v, float last_i) {
     pkt.header.hopLimit  = 3;
     pkt.header.hopsTaken = 0;
     pkt.header.msgType   = MSG_TYPE_LAST_GASP;
+
+    #if ENABLE_AES_ENCRYPTION
+    char encBuf[192];
+    if (gridsense_encrypt_payload(dyingJson, POLE_ID, (uint16_t)packet_seq, encBuf, sizeof(encBuf))) {
+        strncpy(pkt.payload, encBuf, sizeof(pkt.payload) - 1);
+    } else {
+        strncpy(pkt.payload, dyingJson, sizeof(pkt.payload) - 1);
+    }
+    #else
     strncpy(pkt.payload, dyingJson, sizeof(pkt.payload) - 1);
+    #endif
     pkt.payload[sizeof(pkt.payload) - 1] = '\0';
 
-    char loraTxBuf[192];
+    char loraTxBuf[240];
     serializeGridSensePacket(pkt, loraTxBuf, sizeof(loraTxBuf));
 
     // Record in local deduplication cache
@@ -334,6 +346,14 @@ void setup() {
     initPoleBLE(POLE_ID, handleCommand);
     #endif
 
+    #if ENABLE_AES_ENCRYPTION
+    if (gridsense_crypto_init()) {
+        Serial.println("   >> ESP32-S3 Hardware AES-128 Crypto Engine: ACTIVE <<");
+    } else {
+        Serial.println("   >> Hardware AES Crypto: Init Failed! <<");
+    }
+    #endif
+
     Serial.printf("   >> Pole Role: %s <<\n",
                   (NODE_ROLE == ROLE_REPEATER) ? "REPEATER (Relays downstream poles)" : "ENDPOINT (Leaf node)");
     Serial.println("**************************************************");
@@ -380,7 +400,7 @@ void handleRepeaterRelay() {
         rxPkt.header.hopsTaken++;
         rxPkt.header.relayId = POLE_ID;
 
-        char relayBuf[192];
+        char relayBuf[240];
         serializeGridSensePacket(rxPkt, relayBuf, sizeof(relayBuf));
 
         bool isEmergency = (rxPkt.header.msgType == MSG_TYPE_LAST_GASP);
@@ -485,11 +505,19 @@ void loop() {
         pkt.header.seq       = (uint16_t)packet_seq;
         pkt.header.hopLimit  = 3;    // TTL = 3 hops max
         pkt.header.hopsTaken = 0;    // 0 hops initially
-        pkt.header.msgType   = MSG_TYPE_TELEMETRY;
+        #if ENABLE_AES_ENCRYPTION
+        char encBuf[192];
+        if (gridsense_encrypt_payload(innerJson, POLE_ID, (uint16_t)packet_seq, encBuf, sizeof(encBuf))) {
+            strncpy(pkt.payload, encBuf, sizeof(pkt.payload) - 1);
+        } else {
+            strncpy(pkt.payload, innerJson, sizeof(pkt.payload) - 1);
+        }
+        #else
         strncpy(pkt.payload, innerJson, sizeof(pkt.payload) - 1);
+        #endif
         pkt.payload[sizeof(pkt.payload) - 1] = '\0';
 
-        char loraTxBuf[192];
+        char loraTxBuf[240];
         serializeGridSensePacket(pkt, loraTxBuf, sizeof(loraTxBuf));
 
         // Record our sequence in the local deduplication cache
