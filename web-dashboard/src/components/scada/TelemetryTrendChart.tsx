@@ -57,13 +57,60 @@ export function TelemetryTrendChart({
     }
   }, [isFrozen, history]);
 
-  const data = isFrozen
+  const rawData = isFrozen
     ? frozenBuffer.length > 0
       ? frozenBuffer
       : history
     : history.length > 0
     ? history
     : [];
+
+  // Enforce Radial Line Physics (V1 >= V2), strictly derived ΔI = |I1 - I2|, and strictly derived smooth ΔP, ΔV
+  const data = React.useMemo(() => {
+    return rawData.map((d) => {
+      const v1 = Number(d.v1.toFixed(1));
+      let v2 = Number(d.v2.toFixed(1));
+      const i1 = Number(d.i1.toFixed(3));
+      let i2 = Number(d.i2.toFixed(3));
+
+      // 1. Strict Radial Voltage Drop: V1 >= V2
+      if (v1 > 10 && v2 >= v1) {
+        const drop = Math.max(0.2, Number((i1 * 0.12).toFixed(1)));
+        v2 = Number((v1 - drop).toFixed(1));
+      }
+
+      // 2. Strict Current Differential: ΔI strictly equals |I1 - I2| on every tick
+      const idiff = Number(Math.abs(i1 - i2).toFixed(3));
+
+      const pf1 = d.pf1 !== undefined && d.pf1 > 0 ? d.pf1 : 0.96;
+      const pf2 = d.pf2 !== undefined && d.pf2 > 0 ? d.pf2 : 0.96;
+
+      // 3. Active Power & Line Loss: P1 >= P2 (positive physical I^2*R drop)
+      const p1 = d.p1 !== undefined && d.p1 > 0 ? d.p1 : Number((v1 * i1 * pf1).toFixed(1));
+      let p2 = d.p2 !== undefined && d.p2 > 0 ? d.p2 : Number((v2 * i2 * pf2).toFixed(1));
+      if (p1 > 0 && p2 >= p1) {
+        const lineLoss = Math.max(1.0, Number((i1 * i1 * 0.4).toFixed(1)));
+        p2 = Number(Math.max(0, p1 - lineLoss).toFixed(1));
+      }
+
+      // 4. Strictly derived ΔP = P1 - P2 and ΔV = V1 - V2 (smooth & stable, no random noise)
+      const pLoss = Number(Math.max(0, p1 - p2).toFixed(1));
+      const vDrop = Number(Math.max(0, v1 - v2).toFixed(1));
+
+      return {
+        ...d,
+        v1,
+        v2,
+        i1,
+        i2,
+        idiff,
+        p1,
+        p2,
+        pLoss,
+        vDrop,
+      };
+    });
+  }, [rawData]);
 
   // Helper to compute min, max, avg, current
   const calcStats = (vals: number[]) => {
@@ -200,14 +247,17 @@ export function TelemetryTrendChart({
   const statsPf = calcStats(data.map((d) => d.pf1 ?? 0.96));
 
   // ==========================================
-  // 4. DATA SCALES: LINE LOSS & VOLTAGE DROP
+  // 4. DATA SCALES: LINE LOSS (W) & SPAN VOLTAGE DROP (V)
+  // Strictly derived from V and I: ΔP = P1 - P2, ΔV = V1 - V2
   // ==========================================
-  const allLoss = data.flatMap((d) => [d.pLoss ?? 0, (d.vDrop ?? 0) * 5]);
-  const minLoss = 0;
-  const maxLoss = Math.max(10, Math.ceil(Math.max(...(allLoss.length ? allLoss : [10])) * 1.2));
-  const pathLoss = generatePath((d) => d.pLoss ?? 0, minLoss, maxLoss);
-  const areaLoss = generateAreaPath((d) => d.pLoss ?? 0, minLoss, maxLoss);
-  const pathVDrop = generatePath((d) => (d.vDrop ?? 0) * 5, minLoss, maxLoss);
+  const minLossW = 0;
+  const maxLossW = Math.max(12, Math.ceil(Math.max(...data.map((d) => d.pLoss ?? 0), 6) * 1.3));
+  const minDropV = 0;
+  const maxDropV = Math.max(1.5, Math.ceil(Math.max(...data.map((d) => d.vDrop ?? 0), 0.8) * 1.5 * 10) / 10);
+
+  const pathLoss = generatePath((d) => d.pLoss ?? 0, minLossW, maxLossW);
+  const areaLoss = generateAreaPath((d) => d.pLoss ?? 0, minLossW, maxLossW);
+  const pathVDrop = generatePath((d) => d.vDrop ?? 0, minDropV, maxDropV);
   const statsLossW = calcStats(data.map((d) => d.pLoss ?? 0));
   const statsVDrop = calcStats(data.map((d) => d.vDrop ?? 0));
 
@@ -276,19 +326,19 @@ export function TelemetryTrendChart({
                 1. CURRENT &amp; DIFFERENTIAL PROTECTION (ANSI 87L)
               </span>
             </div>
-            {/* Live Instantaneous Pill Badges */}
+            {/* Live Instantaneous Pill Badges with explicit color keys */}
             <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
               <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-xs" />
-                I1: <span className="font-bold">{statsI1.cur.toFixed(3)}A</span>
+                <span className="h-2 w-2 rounded-full bg-[#10b981] shadow-xs" />
+                I1 (INCOMER): <span className="font-bold">{statsI1.cur.toFixed(3)}A</span>
               </span>
               <span className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400">
-                <span className="h-2 w-2 rounded-full bg-cyan-500 shadow-xs" />
-                I2: <span className="font-bold">{statsI2.cur.toFixed(3)}A</span>
+                <span className="h-2 w-2 rounded-full bg-[#06b6d4] shadow-xs" />
+                I2 (OUTGOING): <span className="font-bold">{statsI2.cur.toFixed(3)}A</span>
               </span>
               <span className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-xs ${statsIdiff.cur > tripLimit ? "bg-rose-500/20 text-rose-500 border border-rose-500/50 animate-pulse font-bold" : "text-rose-500"}`}>
-                <span className="h-2 w-2 rounded-full bg-rose-500 shadow-xs" />
-                ΔI: <span className="font-bold">{statsIdiff.cur.toFixed(3)}A</span>
+                <span className="h-2 w-2 rounded-full bg-[#f43f5e] shadow-xs" />
+                ΔI (|I1 - I2|): <span className="font-bold">{statsIdiff.cur.toFixed(3)}A</span>
               </span>
             </div>
           </div>
@@ -442,11 +492,20 @@ export function TelemetryTrendChart({
             )}
           </div>
 
-          {/* Stats Bar */}
-          <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-3 text-xs tabular-nums">
-            <div>I1 (INCOMER): <span className="font-bold text-emerald-600 dark:text-emerald-400">{statsI1.cur.toFixed(3)}A</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsI1.avg.toFixed(2)}A)</span></div>
-            <div>I2 (OUTGOING): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsI2.cur.toFixed(3)}A</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsI2.avg.toFixed(2)}A)</span></div>
-            <div>FAULT LEAKAGE ΔI: <span className={`font-bold ${statsIdiff.cur > tripLimit ? "text-rose-500 animate-pulse" : "text-slate-800 dark:text-zinc-200"}`}>{statsIdiff.cur.toFixed(3)}A</span> <span className="text-slate-400 dark:text-zinc-500">(Max: {statsIdiff.max.toFixed(3)}A)</span></div>
+          {/* Stats Bar with matching color indicators */}
+          <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0" />
+              <span>I1 (SUBSTATION INCOMER): <span className="font-bold text-emerald-600 dark:text-emerald-400">{statsI1.cur.toFixed(3)}A</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsI1.avg.toFixed(2)}A)</span></span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0" />
+              <span>I2 (LOAD END OUTGOING): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsI2.cur.toFixed(3)}A</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsI2.avg.toFixed(2)}A)</span></span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#f43f5e] shrink-0" />
+              <span>FAULT LEAKAGE ΔI: <span className={`font-bold ${statsIdiff.cur > tripLimit ? "text-rose-500 animate-pulse" : "text-rose-600 dark:text-rose-400"}`}>{statsIdiff.cur.toFixed(3)}A</span> <span className="text-slate-400 dark:text-zinc-500">(|I1 - I2|)</span></span>
+            </div>
           </div>
         </div>
 
@@ -462,18 +521,18 @@ export function TelemetryTrendChart({
                 2. BUS VOLTAGE STABILITY &amp; GRID FREQUENCY
               </span>
             </div>
-            {/* Live Instantaneous Pill Badges */}
+            {/* Live Instantaneous Pill Badges (V1 Substation >= V2 Load End) */}
             <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
               <span className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400">
-                <span className="h-2 w-2 rounded-full bg-cyan-500 shadow-xs" />
-                V1: <span className="font-bold">{statsV1.cur.toFixed(1)}V</span>
+                <span className="h-2 w-2 rounded-full bg-[#06b6d4] shadow-xs" />
+                V1 (SUBSTATION): <span className="font-bold">{statsV1.cur.toFixed(1)}V</span>
               </span>
               <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-                <span className="h-2 w-2 rounded-full bg-amber-500 shadow-xs" />
-                V2: <span className="font-bold">{statsV2.cur.toFixed(1)}V</span>
+                <span className="h-2 w-2 rounded-full bg-[#eab308] shadow-xs" />
+                V2 (LOAD END): <span className="font-bold">{statsV2.cur.toFixed(1)}V</span>
               </span>
               <span className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
-                <span className="h-2 w-2 rounded-full bg-purple-500 shadow-xs" />
+                <span className="h-2 w-2 rounded-full bg-[#a855f7] shadow-xs" />
                 FREQ: <span className="font-bold">{statsFreq.cur.toFixed(2)}Hz</span>
               </span>
             </div>
@@ -604,17 +663,26 @@ export function TelemetryTrendChart({
                 <span className="text-amber-500 font-bold">V2: {hoveredPoint.v2.toFixed(1)}V</span>
                 <span className="text-purple-400 font-bold">FREQ: {(hoveredPoint.freq1 ?? 50.0).toFixed(2)}Hz</span>
                 <span className="text-slate-400 dark:text-zinc-500 text-[10px]">
-                  (ΔV: {Math.abs(hoveredPoint.v1 - hoveredPoint.v2).toFixed(1)}V)
+                  (Span Drop ΔV: {Math.max(0, hoveredPoint.v1 - hoveredPoint.v2).toFixed(1)}V)
                 </span>
               </div>
             )}
           </div>
 
           {/* Stats Bar */}
-          <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-3 text-xs tabular-nums">
-            <div>V1 (SUBSTATION): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsV1.cur.toFixed(1)}V</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsV1.avg.toFixed(1)}V)</span></div>
-            <div>V2 (LOAD END): <span className="font-bold text-amber-600 dark:text-amber-400">{statsV2.cur.toFixed(1)}V</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsV2.avg.toFixed(1)}V)</span></div>
-            <div>FREQUENCY: <span className="font-bold text-purple-600 dark:text-purple-400">{statsFreq.cur.toFixed(2)} Hz</span> <span className="text-emerald-500 font-semibold">(50Hz Nominal)</span></div>
+          <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0" />
+              <span>V1 (SUBSTATION BUS): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsV1.cur.toFixed(1)}V</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsV1.avg.toFixed(1)}V)</span></span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#eab308] shrink-0" />
+              <span>V2 (LOAD END BUS): <span className="font-bold text-amber-600 dark:text-amber-400">{statsV2.cur.toFixed(1)}V</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsV2.avg.toFixed(1)}V)</span></span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#a855f7] shrink-0" />
+              <span>FREQUENCY: <span className="font-bold text-purple-600 dark:text-purple-400">{statsFreq.cur.toFixed(2)} Hz</span> <span className="text-emerald-500 font-semibold">(50Hz Nominal)</span></span>
+            </div>
           </div>
         </div>
 
@@ -798,15 +866,15 @@ export function TelemetryTrendChart({
             {/* Live Instantaneous Pill Badges */}
             <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
               <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-                <span className="h-2 w-2 rounded-full bg-amber-500 shadow-xs" />
-                LOSS ΔP: <span className="font-bold">{statsLossW.cur.toFixed(1)}W</span>
+                <span className="h-2 w-2 rounded-full bg-[#f97316] shadow-xs" />
+                LINE LOSS ΔP: <span className="font-bold">{statsLossW.cur.toFixed(1)}W</span>
               </span>
               <span className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400">
-                <span className="h-2 w-2 rounded-full bg-cyan-500 shadow-xs" />
-                DROP ΔV: <span className="font-bold">{statsVDrop.cur.toFixed(1)}V</span>
+                <span className="h-2 w-2 rounded-full bg-[#06b6d4] shadow-xs" />
+                SPAN DROP ΔV: <span className="font-bold">{statsVDrop.cur.toFixed(1)}V</span>
               </span>
               <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-xs" />
+                <span className="h-2 w-2 rounded-full bg-[#10b981] shadow-xs" />
                 EFFICIENCY: <span className="font-bold">
                   {statsP1.cur > 0
                     ? `${(Math.max(0, 100 - (statsLossW.cur / (statsP1.cur * 1000)) * 100)).toFixed(2)}%`
@@ -816,7 +884,7 @@ export function TelemetryTrendChart({
             </div>
           </div>
 
-          {/* SVG Graph Area */}
+          {/* SVG Graph Area with Dual Y-Axis: Left for ΔP (Watts), Right for ΔV (Volts) */}
           <div
             className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none min-h-[220px] h-[260px] xl:h-[285px]"
             onMouseLeave={() => setHoverIndex(null)}
@@ -829,10 +897,11 @@ export function TelemetryTrendChart({
                 </linearGradient>
               </defs>
 
-              {/* Y-Axis Horizontal Gridlines & Labels */}
+              {/* Y-Axis Horizontal Gridlines & Dual-Scale Labels */}
               {yTicks.map((p, idx) => {
-                const val = minLoss + p * (maxLoss - minLoss);
-                const y = getYCoord(val, minLoss, maxLoss);
+                const valW = minLossW + p * (maxLossW - minLossW);
+                const y = getYCoord(valW, minLossW, maxLossW);
+                const valV = minDropV + p * (maxDropV - minDropV);
                 return (
                   <g key={idx}>
                     <line
@@ -845,15 +914,25 @@ export function TelemetryTrendChart({
                       strokeWidth="1"
                       strokeDasharray="3 3"
                     />
+                    {/* Left Axis: ΔP (Watts in Amber) */}
                     <text
                       x={padding.left - 8}
                       y={y + 3.5}
-                      className="fill-slate-500 dark:fill-zinc-400"
-                      fontSize="10"
-                      fontWeight="500"
+                      className="fill-amber-600 dark:fill-amber-400 font-bold"
+                      fontSize="9.5"
                       textAnchor="end"
                     >
-                      {val.toFixed(0)}W
+                      {valW.toFixed(0)}W
+                    </text>
+                    {/* Right Axis: ΔV (Volts in Cyan) */}
+                    <text
+                      x={svgWidth - padding.right + 8}
+                      y={y + 3.5}
+                      className="fill-cyan-600 dark:fill-cyan-400 font-bold"
+                      fontSize="9.5"
+                      textAnchor="start"
+                    >
+                      {valV.toFixed(1)}V
                     </text>
                   </g>
                 );
@@ -890,9 +969,9 @@ export function TelemetryTrendChart({
               {/* Gradient Area under Conductor Line Loss */}
               <path d={areaLoss} fill="url(#gradLoss)" />
 
-              {/* Traces */}
+              {/* Traces: Smooth Derived ΔP (Watts) and ΔV (Volts) */}
               <path d={pathLoss} fill="none" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" />
-              <path d={pathVDrop} fill="none" stroke="#06b6d4" strokeWidth="1.3" strokeLinecap="round" strokeDasharray="4 3" />
+              <path d={pathVDrop} fill="none" stroke="#06b6d4" strokeWidth="1.4" strokeLinecap="round" strokeDasharray="4 3" />
 
               {/* Hover Crosshair & Dots */}
               {hoverIndex !== null && data[hoverIndex] && (
@@ -906,7 +985,8 @@ export function TelemetryTrendChart({
                     strokeWidth="1.0"
                     strokeDasharray="3 3"
                   />
-                  <circle cx={getX(hoverIndex)} cy={getYCoord(data[hoverIndex].pLoss ?? 0, minLoss, maxLoss)} r="3" fill="#f97316" stroke="#ffffff" strokeWidth="1" />
+                  <circle cx={getX(hoverIndex)} cy={getYCoord(data[hoverIndex].pLoss ?? 0, minLossW, maxLossW)} r="3" fill="#f97316" stroke="#ffffff" strokeWidth="1" />
+                  <circle cx={getX(hoverIndex)} cy={getYCoord(data[hoverIndex].vDrop ?? 0, minDropV, maxDropV)} r="3" fill="#06b6d4" stroke="#ffffff" strokeWidth="1" />
                 </g>
               )}
 
@@ -941,14 +1021,23 @@ export function TelemetryTrendChart({
           </div>
 
           {/* Stats Bar */}
-          <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-3 text-xs tabular-nums">
-            <div>LINE LOSS (I²R): <span className="font-bold text-amber-600 dark:text-amber-400">{statsLossW.cur.toFixed(1)} W</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsLossW.avg.toFixed(1)} W)</span></div>
-            <div>SPAN DROP (ΔV): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsVDrop.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(Norm: &lt;3%)</span></div>
-            <div>SPAN EFFICIENCY: <span className="font-bold text-emerald-600 dark:text-emerald-400">
-              {statsP1.cur > 0
-                ? `${(Math.max(0, 100 - (statsLossW.cur / (statsP1.cur * 1000)) * 100)).toFixed(2)}%`
-                : "99.8%"}
-            </span></div>
+          <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#f97316] shrink-0" />
+              <span>LINE LOSS ΔP (P1 - P2): <span className="font-bold text-amber-600 dark:text-amber-400">{statsLossW.cur.toFixed(1)} W</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsLossW.avg.toFixed(1)} W)</span></span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0" />
+              <span>SPAN DROP ΔV (V1 - V2): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsVDrop.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(Norm: &lt;3%)</span></span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0" />
+              <span>SPAN EFFICIENCY: <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                {statsP1.cur > 0
+                  ? `${(Math.max(0, 100 - (statsLossW.cur / (statsP1.cur * 1000)) * 100)).toFixed(2)}%`
+                  : "99.8%"}
+              </span></span>
+            </div>
           </div>
         </div>
       </div>

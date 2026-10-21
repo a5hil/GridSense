@@ -41,8 +41,8 @@ export interface HistoricalTelemetryPoint {
   pf2?: number; // Power Factor Pole 2 (0.00 - 1.00)
   freq1?: number; // Frequency Pole 1 (Hz)
   freq2?: number; // Frequency Pole 2 (Hz)
-  pLoss?: number; // Technical Line Loss (W) = |p1 - p2|
-  vDrop?: number; // Voltage Drop (V) = |v1 - v2|
+  pLoss?: number; // Technical Line Loss (W) = Math.max(0, p1 - p2)
+  vDrop?: number; // Voltage Drop along Span (V) = Math.max(0, v1 - v2)
 }
 
 export interface FeederAsset {

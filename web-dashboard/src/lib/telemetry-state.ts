@@ -127,21 +127,63 @@ class TelemetryStore extends EventEmitter {
       }
 
       if (history && history.length > 0) {
-        this.telemetryHistory = history.map((h) => ({
-          timestamp: h.timestamp,
-          timeLabel: new Date(h.timestamp).toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-          }),
-          v1: Number((h.p1?.v ?? 0).toFixed(1)),
-          v2: Number((h.p2?.v ?? 0).toFixed(1)),
-          i1: Number((h.p1?.i ?? 0).toFixed(3)),
-          i2: Number((h.p2?.i ?? 0).toFixed(3)),
-          idiff: Number((h.idiff ?? 0).toFixed(3)),
-          tripLimit: h.trip_limit ?? 0.35,
-          isFault: !!h.fault,
-        })).reverse();
+        this.telemetryHistory = history.map((h) => {
+          const v1 = Number((h.p1?.v ?? 0).toFixed(1));
+          let v2 = Number((h.p2?.v ?? 0).toFixed(1));
+          const i1 = Number((h.p1?.i ?? 0).toFixed(3));
+          let i2 = Number((h.p2?.i ?? 0).toFixed(3));
+
+          // Enforce radial voltage drop V1 >= V2
+          if (v1 > 10 && v2 >= v1) {
+            v2 = Number((v1 - Math.max(0.2, Number((i1 * 0.12).toFixed(1)))).toFixed(1));
+          }
+
+          // Enforce ΔI strictly equals |I1 - I2|
+          const idiff = Number(Math.abs(i1 - i2).toFixed(3));
+
+          const pf1 = h.p1?.pf ?? 0.96;
+          const pf2 = h.p2?.pf ?? 0.96;
+          let p1 = h.p1?.p ?? Number((v1 * i1 * pf1).toFixed(1));
+          let p2 = h.p2?.p ?? Number((v2 * i2 * pf2).toFixed(1));
+          if (p1 > 0 && p2 >= p1) {
+            p2 = Number(Math.max(0, p1 - Math.max(1.0, i1 * i1 * 0.4)).toFixed(1));
+          }
+
+          const s1 = Number((v1 * i1).toFixed(1));
+          const s2 = Number((v2 * i2).toFixed(1));
+          const q1 = Number(Math.sqrt(Math.max(0, s1 * s1 - p1 * p1)).toFixed(1));
+          const q2 = Number(Math.sqrt(Math.max(0, s2 * s2 - p2 * p2)).toFixed(1));
+          const pLoss = Number(Math.max(0, p1 - p2).toFixed(1));
+          const vDrop = Number(Math.max(0, v1 - v2).toFixed(1));
+
+          return {
+            timestamp: h.timestamp,
+            timeLabel: new Date(h.timestamp).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            }),
+            v1,
+            v2,
+            i1,
+            i2,
+            idiff,
+            tripLimit: h.trip_limit ?? 0.35,
+            isFault: !!h.fault,
+            p1,
+            p2,
+            q1,
+            q2,
+            s1,
+            s2,
+            pf1: Number(pf1.toFixed(2)),
+            pf2: Number(pf2.toFixed(2)),
+            freq1: Number((h.p1?.freq ?? 50.0).toFixed(2)),
+            freq2: Number((h.p2?.freq ?? 50.0).toFixed(2)),
+            pLoss,
+            vDrop,
+          };
+        }).reverse();
         this.currentTelemetry.history = this.telemetryHistory;
       }
 
@@ -370,7 +412,21 @@ class TelemetryStore extends EventEmitter {
         dtrId: "DTR_SECTOR4_01",
       };
 
-      const idiff = Math.abs(p1.i - p2.i);
+      // 1. Enforce Radial Feeder Physics (V1 >= V2, P1 >= P2)
+      if (p1.v > 10) {
+        const drop = Math.max(0.2, Number((p1.i * 0.12).toFixed(1)));
+        if (p2.v >= p1.v) {
+          p2.v = Number((p1.v - drop).toFixed(1));
+        }
+        const p1p = p1.p ?? 0;
+        const p2p = p2.p ?? 0;
+        if (p2p >= p1p && p1p > 0) {
+          p2.p = Number(Math.max(0, p1p - Math.max(1.5, p1.i * p1.i * 0.4)).toFixed(1));
+        }
+      }
+
+      // 2. Enforce ΔI strictly equals |I1 - I2| on every tick
+      const idiff = Number(Math.abs(p1.i - p2.i).toFixed(3));
       const isFault = parsed.fault === true || idiff >= 0.35;
 
       this.updateTelemetry({
@@ -379,7 +435,7 @@ class TelemetryStore extends EventEmitter {
         status: isFault ? "TRIP" : "OK",
         fault: isFault,
         fault_code: isFault ? "DIFF_CURRENT_FAULT" : "NORMAL",
-        idiff: Number(idiff.toFixed(3)),
+        idiff,
         trip_limit: 0.35,
         nodes: [p1, p2],
         p1,
@@ -437,13 +493,10 @@ class TelemetryStore extends EventEmitter {
       };
 
       // 1. Guard against uninitialized node startup race-conditions:
-      // Both nodes must have active, initialized power flow readings (V > 50V and I > 0.05A on both)
-      // before differential protection (|I1 - I2| >= 0.35A) is evaluated.
       const bothNodesActive = (p1.v > 50 && p1.i > 0.05) && (p2.v > 50 && p2.i > 0.05);
 
-      const idiff = bothNodesActive
-        ? Number(parsed.idiff ?? Math.abs(p1.i - p2.i).toFixed(3))
-        : 0.0;
+      // Enforce ΔI strictly equals |I1 - I2| on every tick
+      const idiff = Number(Math.abs(p1.i - p2.i).toFixed(3));
       const tripLimit = Number(parsed.trip_limit ?? 0.35);
 
       const isDiffTrip = bothNodesActive && (parsed.fault === "DIFF_LEAKAGE" || idiff >= tripLimit);
@@ -456,17 +509,18 @@ class TelemetryStore extends EventEmitter {
 
       const isElectricalTrip = isDiffTrip || isOtherTrip;
 
-      // 2. Voltage & Power Calibration Consistency along Radial Series Feeder (V1 >= V2, P1 >= P2)
+      // 2. Strict Radial Voltage Drop: Upstream Substation V1 >= Downstream Load End V2
       // Under healthy radial flow, power flows from Incomer (Pole 1) to Load (Pole 2).
-      // Compensate for minor sensor quantization/tolerance drift so series drop and loss are physically positive.
-      if (bothNodesActive && !isElectricalTrip) {
-        if (p2.v > p1.v) {
-          p1.v = Number((p2.v + 0.4).toFixed(1));
+      // Compensate for sensor calibration tolerance so V1 >= V2 and P1 >= P2 are always physically respected.
+      if (p1.v > 10 && !isElectricalTrip) {
+        const drop = Math.max(0.2, Number((p1.i * 0.12).toFixed(1)));
+        if (p2.v >= p1.v) {
+          p2.v = Number((p1.v - drop).toFixed(1));
         }
         const p1p = p1.p ?? 0;
         const p2p = p2.p ?? 0;
-        if (p2p > p1p) {
-          p1.p = Number((p2p + Math.max(1.5, p1.i * p1.i * 0.3)).toFixed(1));
+        if (p2p >= p1p && p1p > 0) {
+          p2.p = Number(Math.max(0, p1p - Math.max(1.5, p1.i * p1.i * 0.4)).toFixed(1));
         }
       }
 
@@ -512,20 +566,31 @@ class TelemetryStore extends EventEmitter {
     freq1?: number;
     freq2?: number;
   }) {
-    let v2Val = params.v2;
-    let i2Val = params.i2;
+    const v1Val = Number(params.v1.toFixed(1));
+    let v2Val = Number(params.v2.toFixed(1));
+    const i1Val = Number(params.i1.toFixed(3));
+    let i2Val = Number(params.i2.toFixed(3));
 
     // Prevent Pole 2 from initializing at 0.00A before its first LoRa packet arrives (eliminates diagonal chart spike)
-    if (i2Val === 0 && params.i1 > 0) {
+    if (i2Val === 0 && i1Val > 0) {
       const prev = this.telemetryHistory[this.telemetryHistory.length - 1];
       if (prev && prev.i2 > 0) {
         i2Val = prev.i2;
         v2Val = prev.v2;
       } else {
-        i2Val = params.i1;
-        v2Val = params.v1;
+        i2Val = i1Val;
+        v2Val = Math.max(0, Number((v1Val - 0.3).toFixed(1)));
       }
     }
+
+    // 1. Enforce Radial Feeder Physics: Upstream V1 >= Downstream V2
+    if (v1Val > 10 && v2Val >= v1Val) {
+      const drop = Math.max(0.2, Number((i1Val * 0.12).toFixed(1)));
+      v2Val = Number((v1Val - drop).toFixed(1));
+    }
+
+    // 2. Enforce ΔI strictly equals |I1 - I2| on every tick
+    const idiffVal = Number(Math.abs(i1Val - i2Val).toFixed(3));
 
     const pf1Val = params.pf1 !== undefined && params.pf1 > 0 ? params.pf1 : 0.96;
     const pf2Val = params.pf2 !== undefined && params.pf2 > 0 ? params.pf2 : 0.96;
@@ -533,20 +598,26 @@ class TelemetryStore extends EventEmitter {
     const freq2Val = params.freq2 !== undefined && params.freq2 > 0 ? params.freq2 : 50.0;
 
     // Active power (W): use sensor reading if provided or calculate V * I * PF
-    const p1Val = params.p1 !== undefined && params.p1 > 0 ? params.p1 : Number((params.v1 * params.i1 * pf1Val).toFixed(1));
-    const p2Val = params.p2 !== undefined && params.p2 > 0 ? params.p2 : Number((v2Val * i2Val * pf2Val).toFixed(1));
+    const p1Val = params.p1 !== undefined && params.p1 > 0 ? params.p1 : Number((v1Val * i1Val * pf1Val).toFixed(1));
+    let p2Val = params.p2 !== undefined && params.p2 > 0 ? params.p2 : Number((v2Val * i2Val * pf2Val).toFixed(1));
+
+    // Enforce radial line loss: P1 >= P2 (I^2*R line loss is strictly positive)
+    if (p1Val > 0 && p2Val >= p1Val) {
+      const lineLoss = Math.max(1.0, Number((i1Val * i1Val * 0.4).toFixed(1)));
+      p2Val = Number(Math.max(0, p1Val - lineLoss).toFixed(1));
+    }
 
     // Apparent power (VA): V * I
-    const s1Val = Number((params.v1 * params.i1).toFixed(1));
+    const s1Val = Number((v1Val * i1Val).toFixed(1));
     const s2Val = Number((v2Val * i2Val).toFixed(1));
 
     // Reactive power (VAR): sqrt(max(0, S^2 - P^2))
     const q1Val = Number(Math.sqrt(Math.max(0, s1Val * s1Val - p1Val * p1Val)).toFixed(1));
     const q2Val = Number(Math.sqrt(Math.max(0, s2Val * s2Val - p2Val * p2Val)).toFixed(1));
 
-    // Technical line loss & voltage drop along radial series feeder
+    // Strictly derived line loss & voltage drop (smooth & stable, no random noise)
     const pLossVal = Number(Math.max(0, p1Val - p2Val).toFixed(1));
-    const vDropVal = Number(Math.max(0, params.v1 - v2Val).toFixed(1));
+    const vDropVal = Number(Math.max(0, v1Val - v2Val).toFixed(1));
 
     const timeLabel = new Date(params.timestamp).toLocaleTimeString([], {
       hour: "2-digit",
@@ -557,11 +628,11 @@ class TelemetryStore extends EventEmitter {
     this.telemetryHistory.push({
       timestamp: params.timestamp,
       timeLabel,
-      v1: Number(params.v1.toFixed(1)),
-      v2: Number(v2Val.toFixed(1)),
-      i1: Number(params.i1.toFixed(3)),
-      i2: Number(i2Val.toFixed(3)),
-      idiff: Number(params.idiff.toFixed(3)),
+      v1: v1Val,
+      v2: v2Val,
+      i1: i1Val,
+      i2: i2Val,
+      idiff: idiffVal,
       tripLimit: params.tripLimit,
       isFault: params.isFault,
       p1: p1Val,
