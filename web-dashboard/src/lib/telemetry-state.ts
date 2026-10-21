@@ -9,6 +9,7 @@ import {
   saveTelemetryRecord,
 } from "./db";
 import { omsManager } from "./oms-state";
+import { liveCalibration } from "./calibration";
 
 class TelemetryStore extends EventEmitter {
   private currentTelemetry: GridTelemetry;
@@ -197,14 +198,21 @@ class TelemetryStore extends EventEmitter {
   }
 
   public sanitizeHistoryBuffer() {
-    if (this.telemetryHistory.length === 0) return;
-    const latest = this.telemetryHistory[this.telemetryHistory.length - 1];
-    const stablePLoss = Number(Math.max(0, (latest.p1 ?? 0) - (latest.p2 ?? 0)).toFixed(1));
-    const stableVDrop = Number(Math.max(0, latest.v1 - latest.v2).toFixed(1));
-    for (const pt of this.telemetryHistory) {
-      if (!pt.isFault && pt.idiff < pt.tripLimit) {
-        pt.pLoss = stablePLoss;
-        pt.vDrop = stableVDrop;
+    if (this.telemetryHistory.length < 3) return;
+    // Apply a 3-point moving average to filter single-sample ADC quantization noise
+    // while preserving authentic physical trends and true fault excursions.
+    for (let i = 1; i < this.telemetryHistory.length - 1; i++) {
+      const prev = this.telemetryHistory[i - 1];
+      const cur = this.telemetryHistory[i];
+      const next = this.telemetryHistory[i + 1];
+
+      if (!cur.isFault && !prev.isFault && !next.isFault) {
+        if (cur.pLoss !== undefined && prev.pLoss !== undefined && next.pLoss !== undefined) {
+          cur.pLoss = Number(((prev.pLoss + cur.pLoss + next.pLoss) / 3).toFixed(1));
+        }
+        if (cur.vDrop !== undefined && prev.vDrop !== undefined && next.vDrop !== undefined) {
+          cur.vDrop = Number(((prev.vDrop + cur.vDrop + next.vDrop) / 3).toFixed(1));
+        }
       }
     }
   }
@@ -667,6 +675,17 @@ class TelemetryStore extends EventEmitter {
 
   private updateTelemetry(next: GridTelemetry) {
     this.currentTelemetry = next;
+
+    // Continuously learn physical calibration between Node A and Node B
+    liveCalibration.observe({
+      v1: next.p1.v,
+      v2: next.p2.v,
+      i1: next.p1.i,
+      i2: next.p2.i,
+      p1: next.p1.p ?? 0,
+      p2: next.p2.p ?? 0,
+      fault: next.fault,
+    });
 
     this.recordHistoryPoint({
       timestamp: next.timestamp,

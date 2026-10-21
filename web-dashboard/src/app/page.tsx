@@ -57,6 +57,8 @@ import { FeederAssetTree } from "@/components/scada/FeederAssetTree";
 import { WorkforceOmsPanel } from "@/components/scada/WorkforceOmsPanel";
 import { SingleLinePowerFlow } from "@/components/scada/SingleLinePowerFlow";
 import { EngineeringDiagnostics } from "@/components/scada/EngineeringDiagnostics";
+import { NetworkTwinView } from "@/components/scada/NetworkTwinView";
+import { NetworkSnapshot } from "@/lib/network/types";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ENTERPRISE_CONFIG } from "@/lib/constants";
 
@@ -64,6 +66,7 @@ export default function SCADADashboard() {
   const { addToast, removeToast, clearAll } = useToast();
 
   const [telemetry, setTelemetry] = React.useState<GridTelemetry | null>(null);
+  const [networkSnapshot, setNetworkSnapshot] = React.useState<NetworkSnapshot | null>(null);
   const [systemStatus, setSystemStatus] = React.useState<SystemStatus | null>(null);
   const [logs, setLogs] = React.useState<SCADAEventLog[]>([]);
   const [history, setHistory] = React.useState<HistoricalTelemetryPoint[]>([]);
@@ -76,7 +79,7 @@ export default function SCADADashboard() {
   const [selectedPoleId, setSelectedPoleId] = React.useState<string>("Pole-A");
   const [isBreakerTripped, setIsBreakerTripped] = React.useState(false);
   const [activeView, setActiveView] = React.useState<
-    "OPERATOR" | "GIS" | "WAVEFORMS" | "OMS" | "DIAGNOSTICS" | "LOGS"
+    "OPERATOR" | "GIS" | "NETWORK" | "WAVEFORMS" | "OMS" | "DIAGNOSTICS" | "LOGS"
   >("OPERATOR");
 
   // Waveform Freeze / Capture State
@@ -181,6 +184,19 @@ export default function SCADADashboard() {
     }
   }, []);
 
+  // Fetch 3-Phase Network Twin Snapshot
+  const fetchNetworkSnapshot = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/network/snapshot");
+      const json = await res.json();
+      if (json.snapshot) {
+        setNetworkSnapshot(json.snapshot);
+      }
+    } catch (err) {
+      console.error("Failed to fetch network snapshot", err);
+    }
+  }, []);
+
   // 1. Establish SSE real-time stream
   React.useEffect(() => {
     let eventSource: EventSource | null = null;
@@ -211,11 +227,14 @@ export default function SCADADashboard() {
             if (data.status) setSystemStatus(data.status);
             if (data.logs) setLogs(data.logs);
             if (data.history) setHistory(data.history);
+            if (data.networkSnapshot) setNetworkSnapshot(data.networkSnapshot);
             if (data.tickets) {
               setTickets(data.tickets);
             } else if (data.telemetry?.tickets) {
               setTickets(data.telemetry.tickets);
             }
+          } else if (data.type === "NETWORK_SNAPSHOT" && data.networkSnapshot) {
+            setNetworkSnapshot(data.networkSnapshot);
           } else if (data.type === "LOG" && data.log) {
             setLogs((prev) => [data.log, ...prev.slice(0, 30)]);
           }
@@ -234,6 +253,7 @@ export default function SCADADashboard() {
 
     connectSSE();
     fetchTickets();
+    fetchNetworkSnapshot();
 
     // Query available serial ports
     fetch("/api/telemetry/ports")
@@ -253,7 +273,7 @@ export default function SCADADashboard() {
     return () => {
       if (eventSource) eventSource.close();
     };
-  }, [fetchTickets]);
+  }, [fetchTickets, fetchNetworkSnapshot]);
 
   // 1B. SSE 5-second Watchdog to detect stalled stream or disconnected backend
   React.useEffect(() => {
@@ -496,14 +516,15 @@ export default function SCADADashboard() {
         }
       }
 
-      // Alt + 1..6: Switch between the 6 primary SCADA tabs
+      // Alt + 1..7: Switch between the 7 primary SCADA tabs
       if (e.altKey && !e.ctrlKey && !e.shiftKey) {
         if (e.key === "1") { e.preventDefault(); setActiveView("OPERATOR"); }
         else if (e.key === "2") { e.preventDefault(); setActiveView("GIS"); }
-        else if (e.key === "3") { e.preventDefault(); setActiveView("WAVEFORMS"); }
-        else if (e.key === "4") { e.preventDefault(); setActiveView("OMS"); }
-        else if (e.key === "5") { e.preventDefault(); setActiveView("DIAGNOSTICS"); }
-        else if (e.key === "6") { e.preventDefault(); setActiveView("LOGS"); }
+        else if (e.key === "3") { e.preventDefault(); setActiveView("NETWORK"); }
+        else if (e.key === "4") { e.preventDefault(); setActiveView("WAVEFORMS"); }
+        else if (e.key === "5") { e.preventDefault(); setActiveView("OMS"); }
+        else if (e.key === "6") { e.preventDefault(); setActiveView("DIAGNOSTICS"); }
+        else if (e.key === "7") { e.preventDefault(); setActiveView("LOGS"); }
       }
 
       // Space: Freeze / Resume Waveform when viewing WAVEFORMS tab
@@ -565,6 +586,22 @@ export default function SCADADashboard() {
             }`}
           >
             GIS MAP
+          </button>
+          <button
+            onClick={() => setActiveView("NETWORK")}
+            className={`px-2.5 py-1.5 text-[11px] uppercase rounded-sm transition-colors flex items-center gap-1.5 ${
+              activeView === "NETWORK"
+                ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
+                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+            }`}
+          >
+            <Activity className="h-3 w-3" />
+            <span>NETWORK TWIN</span>
+            {networkSnapshot && networkSnapshot.detections.length > 0 && (
+              <span className="bg-rose-500/20 text-rose-500 border border-rose-500/50 px-1 py-0.2 text-[9px] rounded-sm font-bold animate-pulse">
+                {networkSnapshot.detections.length}
+              </span>
+            )}
           </button>
           <button
             onClick={() => setActiveView("WAVEFORMS")}
@@ -1103,6 +1140,21 @@ export default function SCADADashboard() {
                         variant="outline"
                         size="sm"
                         className="w-full justify-between text-xs font-mono"
+                        onClick={() => setActiveView("NETWORK")}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Activity className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                          <span>3-PHASE NETWORK TWIN</span>
+                        </span>
+                        <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded-sm text-[10px]">
+                          28 POLES
+                        </span>
+                      </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-between text-xs font-mono"
                         onClick={() => setActiveView("WAVEFORMS")}
                       >
                         <span className="flex items-center gap-2">
@@ -1175,6 +1227,20 @@ export default function SCADADashboard() {
                 onSelectPole={(id) => setSelectedPoleId(id)}
               />
             </div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* VIEW B2: 3-PHASE NETWORK DIGITAL TWIN & SIMULATOR */}
+        {/* ============================================================== */}
+        {activeView === "NETWORK" && (
+          <div className="flex-1 flex flex-col">
+            <NetworkTwinView
+              snapshot={networkSnapshot}
+              onRefresh={fetchNetworkSnapshot}
+              selectedPoleId={selectedPoleId}
+              onSelectPole={(id) => setSelectedPoleId(id)}
+            />
           </div>
         )}
 

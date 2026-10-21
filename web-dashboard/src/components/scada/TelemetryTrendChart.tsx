@@ -103,21 +103,29 @@ export function TelemetryTrendChart({
       };
     });
 
-    // 2. Identify the stable header baseline metrics (exact variables Math.max(0, P1 - P2) and Math.max(0, V1 - V2))
-    const latest = points.length > 0 ? points[points.length - 1] : null;
-    const stablePLoss = latest ? Number(Math.max(0, latest.p1 - latest.p2).toFixed(1)) : 3.3;
-    const stableVDrop = latest ? Number(Math.max(0, latest.v1 - latest.v2).toFixed(1)) : 0.0;
-
-    // 3. Second pass: Direct Data Passthrough perfectly matching the stable header text
-    return points.map((p) => {
-      const isFaultPoint = p.isFault || p.idiff >= (p.tripLimit ?? tripLimit);
-      const pLoss = isFaultPoint ? Number(Math.max(0, p.p1 - p.p2).toFixed(1)) : stablePLoss;
-      const vDrop = isFaultPoint ? Number(Math.max(0, p.v1 - p.v2).toFixed(1)) : stableVDrop;
-
+    // 2. Compute true physical line loss and span drop for every point
+    const mapped = points.map((p) => {
+      const pLoss = Number(Math.max(0, p.p1 - p.p2).toFixed(1));
+      const vDrop = Number(Math.max(0, p.v1 - p.v2).toFixed(1));
       return {
         ...p,
         pLoss,
         vDrop,
+      };
+    });
+
+    // 3. Apply a 3-point moving average to filter ADC quantization noise while preserving true dynamics
+    if (mapped.length < 3) return mapped;
+    return mapped.map((p, idx, arr) => {
+      if (idx === 0 || idx === arr.length - 1 || p.isFault) return p;
+      const prev = arr[idx - 1];
+      const next = arr[idx + 1];
+      if (prev.isFault || next.isFault) return p;
+
+      return {
+        ...p,
+        pLoss: Number(((prev.pLoss + p.pLoss + next.pLoss) / 3).toFixed(1)),
+        vDrop: Number(((prev.vDrop + p.vDrop + next.vDrop) / 3).toFixed(1)),
       };
     });
   }, [rawData, tripLimit]);

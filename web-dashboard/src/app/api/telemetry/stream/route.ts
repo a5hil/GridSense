@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { telemetryStore } from "@/lib/telemetry-state";
+import { networkTwin } from "@/lib/network/twin";
 import "@/lib/serial-reader"; // Trigger serial reader discovery
-
 
 export async function GET(req: NextRequest) {
   const encoder = new TextEncoder();
@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
         telemetry: telemetryStore.getTelemetry(),
         status: telemetryStore.getStatus(),
         logs: telemetryStore.getLogs().slice(0, 20),
+        networkSnapshot: networkTwin.getSnapshot(),
       });
       controller.enqueue(encoder.encode(`data: ${initialPayload}\n\n`));
 
@@ -30,7 +31,20 @@ export async function GET(req: NextRequest) {
         }
       };
 
-      // 3. Listener for new event logs
+      // 3. Listener for digital twin updates
+      const snapshotListener = (snapshot: any) => {
+        try {
+          const payload = JSON.stringify({
+            type: "NETWORK_SNAPSHOT",
+            networkSnapshot: snapshot,
+          });
+          controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
+        } catch (err) {
+          // stream closed
+        }
+      };
+
+      // 4. Listener for new event logs
       const logListener = (log: any) => {
         try {
           const payload = JSON.stringify({
@@ -45,6 +59,7 @@ export async function GET(req: NextRequest) {
 
       telemetryStore.on("update", updateListener);
       telemetryStore.on("log", logListener);
+      networkTwin.on("snapshot", snapshotListener);
 
       // Heartbeat ping every 10 seconds to keep connection alive
       const pingInterval = setInterval(() => {
@@ -60,6 +75,7 @@ export async function GET(req: NextRequest) {
         clearInterval(pingInterval);
         telemetryStore.off("update", updateListener);
         telemetryStore.off("log", logListener);
+        networkTwin.off("snapshot", snapshotListener);
       });
     },
   });

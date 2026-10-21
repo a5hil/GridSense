@@ -1,0 +1,843 @@
+"use client";
+
+import * as React from "react";
+import {
+  Activity,
+  AlertOctagon,
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Cpu,
+  Flame,
+  Info,
+  Layers,
+  Lock,
+  Play,
+  Plus,
+  Radio,
+  RefreshCw,
+  Scale,
+  Settings,
+  ShieldAlert,
+  ShieldCheck,
+  Sliders,
+  Trash2,
+  Wifi,
+  WifiOff,
+  Wrench,
+  Zap,
+} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Detection,
+  FeederSummary,
+  InjectedFault,
+  InjectedFaultType,
+  NetworkSnapshot,
+  NodeState,
+  Phase,
+  PHASES,
+  UninstrumentedPhaseMode,
+} from "@/lib/network/types";
+import { ENTERPRISE_CONFIG } from "@/lib/constants";
+
+interface NetworkTwinViewProps {
+  snapshot: NetworkSnapshot | null;
+  onRefresh?: () => void;
+  onSelectPole?: (poleId: string) => void;
+  selectedPoleId?: string;
+}
+
+export function NetworkTwinView({
+  snapshot,
+  onRefresh,
+  onSelectPole,
+  selectedPoleId,
+}: NetworkTwinViewProps) {
+  const [selectedFeederId, setSelectedFeederId] = React.useState<string>("LT-1");
+  const [isInjecting, setIsInjecting] = React.useState(false);
+  const [isSwitchingMode, setIsSwitchingMode] = React.useState(false);
+
+  // Form state for fault injector
+  const [faultType, setFaultType] = React.useState<InjectedFaultType>("LEAKAGE");
+  const [faultFeederId, setFaultFeederId] = React.useState<string>("LT-1");
+  const [faultSpanChildId, setFaultSpanChildId] = React.useState<string>("F1-P03");
+  const [faultPhase, setFaultPhase] = React.useState<Phase>("R");
+  const [faultMagnitudeA, setFaultMagnitudeA] = React.useState<number>(1.5);
+  const [injectionFeedback, setInjectionFeedback] = React.useState<{ error?: string; success?: string } | null>(null);
+
+  if (!snapshot) {
+    return (
+      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-8 rounded-sm text-center font-mono">
+        <RefreshCw className="h-6 w-6 animate-spin mx-auto text-emerald-500 mb-2" />
+        <p className="text-xs text-slate-500 dark:text-zinc-400">Initializing 3-Phase Network Twin...</p>
+      </div>
+    );
+  }
+
+  const { dtr, feeders, nodes, detections, injectedFaults, uninstrumentedMode, calibration, liveLinkUp } = snapshot;
+
+  // Filter nodes for the selected feeder (+ DTR as root)
+  const feederNodes = nodes.filter(
+    (n) => n.feederId === selectedFeederId || (selectedFeederId === "ALL" && n.feederId !== null)
+  );
+
+  const activeFeederSummary = feeders.find((f) => f.id === selectedFeederId);
+
+  // Switch uninstrumented mode
+  const handleToggleMode = async () => {
+    setIsSwitchingMode(true);
+    const nextMode: UninstrumentedPhaseMode =
+      uninstrumentedMode === "NOT_INSTRUMENTED" ? "SIM" : "NOT_INSTRUMENTED";
+    try {
+      await fetch("/api/network/mode", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: nextMode }),
+      });
+      if (onRefresh) onRefresh();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSwitchingMode(false);
+    }
+  };
+
+  // Inject simulated fault
+  const handleInjectFault = async () => {
+    setInjectionFeedback(null);
+    try {
+      const res = await fetch("/api/network/faults", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "inject",
+          type: faultType,
+          feederId: faultFeederId,
+          spanChildId: faultType === "OVERLOAD" || faultType === "PHASE_UNBALANCE" ? undefined : faultSpanChildId,
+          phase: faultType === "BROKEN_NEUTRAL" ? undefined : faultPhase,
+          magnitudeA: faultType === "LEAKAGE" ? faultMagnitudeA : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setInjectionFeedback({ error: data.message });
+      } else {
+        setInjectionFeedback({ success: data.message });
+        if (onRefresh) onRefresh();
+      }
+    } catch (err: any) {
+      setInjectionFeedback({ error: err.message });
+    }
+  };
+
+  // Clear simulated fault
+  const handleClearFault = async (id?: string) => {
+    try {
+      await fetch("/api/network/faults", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "clear", id }),
+      });
+      if (onRefresh) onRefresh();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-3 font-mono">
+      {/* 1. TOP SUMMARY BAR: DTR SUBSTATION & 3-PHASE NETWORK METRICS */}
+      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm shadow-xs dark:shadow-none flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 border border-emerald-500/30 bg-emerald-500/10 rounded-sm">
+            <Zap className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-zinc-100">
+                DISTRIBUTION NETWORK TWIN // 3-PHASE 415V/240V LT GRID
+              </h2>
+              <Badge variant="outline" className="text-[10px] bg-slate-100 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700">
+                28 POLES • 3 FEEDERS
+              </Badge>
+              {liveLinkUp ? (
+                <Badge variant="healthy" className="text-[10px] flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  LIVE NODES ANCHORED
+                </Badge>
+              ) : (
+                <Badge variant="warning" className="text-[10px] flex items-center gap-1">
+                  <Radio className="h-3 w-3" />
+                  SIMULATION ACTIVE (HW OFFLINE)
+                </Badge>
+              )}
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
+              {ENTERPRISE_CONFIG.DTR_NAME} • {ENTERPRISE_CONFIG.SUBSTATION_NAME}
+            </p>
+          </div>
+        </div>
+
+        {/* Uninstrumented Phase Mode Toggle */}
+        <div className="flex items-center gap-2">
+          <div className="text-right hidden sm:block">
+            <div className="text-[10px] text-slate-400 dark:text-zinc-500">LIVE POLES (Y &amp; B PHASES)</div>
+            <div className="text-xs font-bold text-slate-800 dark:text-zinc-200">
+              {uninstrumentedMode === "NOT_INSTRUMENTED" ? "NOT INSTRUMENTED" : "SIMULATED DATA"}
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleToggleMode}
+            disabled={isSwitchingMode}
+            className="text-xs font-mono h-7 px-2.5 border-slate-300 dark:border-zinc-700"
+            title="Toggle whether un-instrumented phases on Pole A/B show as NOT_INSTRUMENTED or simulated"
+          >
+            <Sliders className="h-3 w-3 mr-1 text-emerald-500" />
+            <span>SWITCH TO {uninstrumentedMode === "NOT_INSTRUMENTED" ? "SIMULATED" : "NOT INSTRUMENTED"}</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsInjecting(!isInjecting)}
+            className={`text-xs font-mono h-7 px-2.5 ${
+              isInjecting
+                ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500"
+                : "border-slate-300 dark:border-zinc-700"
+            }`}
+          >
+            <Flame className="h-3 w-3 mr-1 text-amber-500" />
+            <span>FAULT INJECTOR {injectedFaults.length > 0 ? `(${injectedFaults.length})` : ""}</span>
+          </Button>
+        </div>
+      </div>
+
+      {/* 2. DTR SUBSTATION BUS 3-PHASE METRICS CARD */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5 text-xs">
+        {/* DTR Total Loading */}
+        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3 rounded-sm flex flex-col justify-between">
+          <div className="text-[11px] text-slate-500 dark:text-zinc-400 flex items-center justify-between">
+            <span>DTR-01 TOTAL LOAD</span>
+            <span className="font-bold text-slate-800 dark:text-zinc-200">{dtr.loadingPct.toFixed(1)}%</span>
+          </div>
+          <div className="mt-1 flex items-baseline gap-1.5">
+            <span className="text-lg font-bold text-slate-900 dark:text-zinc-100">{dtr.kva.toFixed(1)}</span>
+            <span className="text-[11px] text-slate-400">kVA</span>
+            <span className="text-[11px] text-slate-400">({dtr.kw.toFixed(1)} kW)</span>
+          </div>
+          <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full mt-2 overflow-hidden">
+            <div
+              className={`h-full ${
+                dtr.loadingPct > 90 ? "bg-rose-500" : dtr.loadingPct > 75 ? "bg-amber-500" : "bg-emerald-500"
+              }`}
+              style={{ width: `${Math.min(100, dtr.loadingPct)}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Phase R (Red Phase) */}
+        <div className="border border-rose-500/30 bg-rose-500/5 dark:bg-rose-950/20 p-3 rounded-sm flex flex-col justify-between">
+          <div className="text-[11px] text-rose-600 dark:text-rose-400 font-bold flex items-center justify-between">
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-rose-500" />
+              PHASE R (RED // LIVE BUS)
+            </span>
+            <Badge variant="outline" className="text-[9px] border-rose-500/50 text-rose-500 py-0">
+              ANCHOR
+            </Badge>
+          </div>
+          <div className="mt-1 grid grid-cols-2 gap-2">
+            <div>
+              <div className="text-[10px] text-slate-400">VOLTAGE</div>
+              <div className="text-base font-bold text-slate-900 dark:text-zinc-100">{dtr.voltage.R.toFixed(1)} V</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-slate-400">TOTAL CURRENT</div>
+              <div className="text-base font-bold text-rose-600 dark:text-rose-400">{dtr.current.R.toFixed(1)} A</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Phase Y (Yellow Phase) */}
+        <div className="border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 p-3 rounded-sm flex flex-col justify-between">
+          <div className="text-[11px] text-amber-600 dark:text-amber-400 font-bold flex items-center justify-between">
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-amber-400" />
+              PHASE Y (YELLOW // 120° LAG)
+            </span>
+            <span className="text-[10px] text-slate-400 font-normal">LT BUS</span>
+          </div>
+          <div className="mt-1 grid grid-cols-2 gap-2">
+            <div>
+              <div className="text-[10px] text-slate-400">VOLTAGE</div>
+              <div className="text-base font-bold text-slate-900 dark:text-zinc-100">{dtr.voltage.Y.toFixed(1)} V</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-slate-400">TOTAL CURRENT</div>
+              <div className="text-base font-bold text-amber-600 dark:text-amber-400">{dtr.current.Y.toFixed(1)} A</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Phase B (Blue Phase) */}
+        <div className="border border-cyan-500/30 bg-cyan-500/5 dark:bg-cyan-950/20 p-3 rounded-sm flex flex-col justify-between">
+          <div className="text-[11px] text-cyan-600 dark:text-cyan-400 font-bold flex items-center justify-between">
+            <span className="flex items-center gap-1">
+              <span className="h-2 w-2 rounded-full bg-cyan-400" />
+              PHASE B (BLUE // 240° LAG)
+            </span>
+            <span className="text-[10px] text-slate-400 font-normal">UNBALANCE: {dtr.unbalancePct.toFixed(1)}%</span>
+          </div>
+          <div className="mt-1 grid grid-cols-2 gap-2">
+            <div>
+              <div className="text-[10px] text-slate-400">VOLTAGE</div>
+              <div className="text-base font-bold text-slate-900 dark:text-zinc-100">{dtr.voltage.B.toFixed(1)} V</div>
+            </div>
+            <div>
+              <div className="text-[10px] text-slate-400">TOTAL CURRENT</div>
+              <div className="text-base font-bold text-cyan-600 dark:text-cyan-400">{dtr.current.B.toFixed(1)} A</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. INTERACTIVE FAULT INJECTION SIMULATOR CONSOLE (COLLAPSIBLE) */}
+      {isInjecting && (
+        <div className="border border-amber-500/50 bg-amber-500/5 dark:bg-amber-950/30 p-3.5 rounded-sm flex flex-col gap-3 text-xs">
+          <div className="flex items-center justify-between border-b border-amber-500/30 pb-2">
+            <div className="flex items-center gap-2">
+              <Flame className="h-4 w-4 text-amber-500 animate-pulse" />
+              <span className="font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                DISTRIBUTION NETWORK FAULT INJECTOR // REAL-TIME VIVA &amp; SCADA SIMULATOR
+              </span>
+            </div>
+            <span className="text-[11px] text-slate-500 dark:text-zinc-400">
+              Injects physical anomalies on simulated spans to demonstrate automated section-KCL FDIR &amp; OMS
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5">
+            {/* Fault Type */}
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">FAULT SCENARIO</label>
+              <select
+                value={faultType}
+                onChange={(e) => setFaultType(e.target.value as InjectedFaultType)}
+                className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-sm px-2 py-1 text-xs font-mono"
+              >
+                <option value="LEAKAGE">⚡ Current Leakage / Theft (87L)</option>
+                <option value="BROKEN_CONDUCTOR">✂️ Broken Conductor / Open (46BC)</option>
+                <option value="BROKEN_NEUTRAL">⚠️ Broken Neutral (59N)</option>
+                <option value="OVERLOAD">📈 Feeder Overload (51)</option>
+                <option value="PHASE_UNBALANCE">⚖️ Phase Load Unbalance (46)</option>
+              </select>
+            </div>
+
+            {/* Feeder Selection */}
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">TARGET FEEDER</label>
+              <select
+                value={faultFeederId}
+                onChange={(e) => setFaultFeederId(e.target.value)}
+                className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-sm px-2 py-1 text-xs font-mono"
+              >
+                {feeders.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Target Span Child (if span fault) */}
+            {faultType !== "OVERLOAD" && faultType !== "PHASE_UNBALANCE" && (
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">TARGET SPAN (CHILD POLE)</label>
+                <select
+                  value={faultSpanChildId}
+                  onChange={(e) => setFaultSpanChildId(e.target.value)}
+                  className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-sm px-2 py-1 text-xs font-mono"
+                >
+                  {nodes
+                    .filter((n) => n.id !== "DTR-01" && n.feederId === faultFeederId && !n.isLive)
+                    .map((n) => (
+                      <option key={n.id} value={n.id}>
+                        {n.parentId} ➔ {n.label} ({n.id})
+                      </option>
+                    ))}
+                </select>
+              </div>
+            )}
+
+            {/* Target Phase (if applicable) */}
+            {faultType !== "BROKEN_NEUTRAL" && faultType !== "OVERLOAD" && faultType !== "PHASE_UNBALANCE" && (
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">TARGET PHASE</label>
+                <div className="flex gap-1">
+                  {PHASES.map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setFaultPhase(p)}
+                      className={`flex-1 py-1 rounded-sm text-xs font-bold ${
+                        faultPhase === p
+                          ? p === "R"
+                            ? "bg-rose-500 text-white"
+                            : p === "Y"
+                            ? "bg-amber-400 text-black"
+                            : "bg-cyan-500 text-white"
+                          : "bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Magnitude (if leakage) */}
+            {faultType === "LEAKAGE" && (
+              <div>
+                <label className="text-[10px] text-slate-400 block mb-1">LEAKAGE CURRENT (A)</label>
+                <div className="flex gap-1">
+                  {[0.5, 1.5, 3.0, 7.5].map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => setFaultMagnitudeA(m)}
+                      className={`flex-1 py-1 rounded-sm text-[11px] ${
+                        faultMagnitudeA === m
+                          ? "bg-amber-500 text-white font-bold"
+                          : "bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400"
+                      }`}
+                    >
+                      {m}A
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Inject Button */}
+            <div className="flex items-end">
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleInjectFault}
+                className="w-full text-xs font-mono h-7 bg-amber-600 hover:bg-amber-700 text-white"
+              >
+                <Play className="h-3 w-3 mr-1 fill-white" />
+                <span>TRIGGER FAULT</span>
+              </Button>
+            </div>
+          </div>
+
+          {injectionFeedback && (
+            <div
+              className={`text-xs px-2.5 py-1 rounded-sm ${
+                injectionFeedback.error
+                  ? "bg-rose-500/20 text-rose-500 border border-rose-500/40"
+                  : "bg-emerald-500/20 text-emerald-500 border border-emerald-500/40"
+              }`}
+            >
+              {injectionFeedback.error || injectionFeedback.success}
+            </div>
+          )}
+
+          {/* Active Faults List */}
+          {injectedFaults.length > 0 && (
+            <div className="border-t border-amber-500/30 pt-2 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300">ACTIVE INJECTIONS:</span>
+                {injectedFaults.map((f) => (
+                  <Badge
+                    key={f.id}
+                    variant="outline"
+                    className="text-[10px] bg-amber-500/10 border-amber-500/40 text-amber-600 dark:text-amber-300 py-0.5 flex items-center gap-1.5"
+                  >
+                    <span>
+                      {f.type} {f.phase ? `[${f.phase}]` : ""} {f.spanChildId ? `➔ ${f.spanChildId}` : `(${f.feederId})`}
+                      {f.magnitudeA ? ` (${f.magnitudeA}A)` : ""}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => handleClearFault(f.id)}
+                      className="hover:text-rose-400 font-bold ml-1"
+                      title="Clear this fault"
+                    >
+                      ×
+                    </button>
+                  </Badge>
+                ))}
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleClearFault()}
+                className="text-[11px] h-6 px-2 text-rose-500 border-rose-500/40 hover:bg-rose-500/10"
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                <span>CLEAR ALL FAULTS</span>
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 4. ACTIVE DETECTIONS & FLISR ISOLATION MATRIX */}
+      {detections.length > 0 && (
+        <div className="border border-rose-500/60 bg-rose-500/10 dark:bg-rose-950/40 p-3 rounded-sm flex flex-col gap-2 font-mono text-xs shadow-md">
+          <div className="flex items-center justify-between border-b border-rose-500/30 pb-1.5">
+            <div className="flex items-center gap-2 text-rose-600 dark:text-rose-300 font-bold">
+              <AlertOctagon className="h-4 w-4 animate-bounce" />
+              <span>CENTRAL FDIR ALARMS // AUTOMATED FAULT DETECTION &amp; FLISR MATRIX ({detections.length})</span>
+            </div>
+            <span className="text-[11px] text-slate-400">Section-KCL &amp; Threshold Excursions</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+            {detections.map((d) => (
+              <div
+                key={d.key}
+                className={`p-2.5 rounded-sm border flex flex-col justify-between ${
+                  d.severity === "CRITICAL"
+                    ? "bg-rose-900/40 border-rose-500 text-rose-100"
+                    : d.severity === "HIGH"
+                    ? "bg-amber-900/30 border-amber-500 text-amber-100"
+                    : "bg-slate-900/40 border-slate-700 text-slate-200"
+                }`}
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <div className="flex items-center gap-1.5">
+                    <Badge variant="destructive" className="text-[9px] py-0 font-bold">
+                      {d.ansi}
+                    </Badge>
+                    <Badge variant="outline" className="text-[9px] py-0 border-slate-600">
+                      {d.source}
+                    </Badge>
+                    {d.phase && (
+                      <span
+                        className={`text-[10px] px-1 rounded-xs font-bold ${
+                          d.phase === "R"
+                            ? "bg-rose-500 text-white"
+                            : d.phase === "Y"
+                            ? "bg-amber-400 text-black"
+                            : "bg-cyan-500 text-white"
+                        }`}
+                      >
+                        PHASE {d.phase}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-slate-400">{d.feederId}</span>
+                </div>
+
+                <div className="text-[11px] font-bold leading-tight my-1">{d.message}</div>
+
+                {d.isolate && (
+                  <div className="text-[10px] text-amber-300/90 bg-black/40 px-1.5 py-1 rounded-xs mt-1 border border-amber-500/30">
+                    <span className="font-bold text-amber-400">FLISR ISOLATION:</span> Open switch at {d.isolate.upstream} ➔ isolate downstream {d.isolate.downstream.join(", ")}
+                    {d.customersAffected !== undefined && (
+                      <span className="text-slate-400 ml-1">({d.customersAffected} customers isolated)</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 5. FEEDER SELECTION & 3-PHASE TREE VIEW */}
+      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm flex flex-col gap-3">
+        {/* Feeder Tabs */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-zinc-800/80 pb-2.5">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] text-slate-400">SELECT FEEDER CORRIDOR:</span>
+            <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5 text-xs">
+              {feeders.map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setSelectedFeederId(f.id)}
+                  className={`px-3 py-1 rounded-sm text-xs uppercase font-bold transition-colors ${
+                    selectedFeederId === f.id
+                      ? "bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
+                      : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+                  }`}
+                >
+                  {f.id} ({f.name.split(" ")[1]})
+                </button>
+              ))}
+              <button
+                onClick={() => setSelectedFeederId("ALL")}
+                className={`px-3 py-1 rounded-sm text-xs uppercase font-bold transition-colors ${
+                  selectedFeederId === "ALL"
+                    ? "bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
+                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
+                }`}
+              >
+                ALL POLES (28)
+              </button>
+            </div>
+          </div>
+
+          {activeFeederSummary && (
+            <div className="flex items-center gap-3 text-xs tabular-nums">
+              <span>
+                HEAD LOAD: <span className="font-bold text-slate-800 dark:text-zinc-200">{activeFeederSummary.kw.toFixed(1)} kW</span>
+              </span>
+              <span>•</span>
+              <span>
+                CURRENTS: <span className="text-rose-500 font-bold">{activeFeederSummary.headCurrent.R.toFixed(1)}A</span> /{" "}
+                <span className="text-amber-500 font-bold">{activeFeederSummary.headCurrent.Y.toFixed(1)}A</span> /{" "}
+                <span className="text-cyan-500 font-bold">{activeFeederSummary.headCurrent.B.toFixed(1)}A</span>
+              </span>
+              <span>•</span>
+              <span>
+                CAPACITY: <span className="font-bold text-slate-800 dark:text-zinc-200">{activeFeederSummary.loadingPct.toFixed(0)}%</span> of {activeFeederSummary.ampacityA}A
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Poles 3-Phase Grid Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-slate-200 dark:border-zinc-800 text-[10px] text-slate-400 uppercase tracking-wider">
+                <th className="py-2 px-2.5">POLE / NODE ID</th>
+                <th className="py-2 px-2.5">FEEDER &amp; SPAN</th>
+                <th className="py-2 px-2.5">DATA SOURCE</th>
+                <th className="py-2 px-2.5">
+                  <span className="text-rose-500">PHASE R (240V)</span>
+                </th>
+                <th className="py-2 px-2.5">
+                  <span className="text-amber-500">PHASE Y (240V)</span>
+                </th>
+                <th className="py-2 px-2.5">
+                  <span className="text-cyan-500">PHASE B (240V)</span>
+                </th>
+                <th className="py-2 px-2.5">SECTION KCL LEAKAGE</th>
+                <th className="py-2 px-2.5 text-right">STATUS</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/60 font-mono">
+              {feederNodes.map((n) => {
+                const isSelected = selectedPoleId === n.id;
+                const rSec = snapshot.sections.filter((s) => s.parentId === n.id);
+                const hasTrippedSection = rSec.some((s) => s.tripped);
+
+                return (
+                  <tr
+                    key={n.id}
+                    onClick={() => onSelectPole && onSelectPole(n.id)}
+                    className={`hover:bg-slate-50 dark:hover:bg-zinc-900/60 transition-colors cursor-pointer ${
+                      isSelected
+                        ? "bg-emerald-500/10 dark:bg-emerald-500/15"
+                        : n.isLive
+                        ? "bg-emerald-500/5 dark:bg-emerald-950/20"
+                        : ""
+                    }`}
+                  >
+                    {/* Pole ID & Label */}
+                    <td className="py-2.5 px-2.5">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`h-2 w-2 rounded-full shrink-0 ${
+                            n.status === "ALARM"
+                              ? "bg-rose-500 animate-ping"
+                              : n.status === "WARN"
+                              ? "bg-amber-400"
+                              : n.isLive
+                              ? "bg-emerald-400"
+                              : "bg-slate-400"
+                          }`}
+                        />
+                        <div>
+                          <div className="font-bold text-slate-800 dark:text-zinc-100">{n.label}</div>
+                          <div className="text-[10px] text-slate-400">{n.id}</div>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Feeder & Span */}
+                    <td className="py-2.5 px-2.5 text-[11px] text-slate-500 dark:text-zinc-400">
+                      <div>{n.feederId || "SUBSTATION BUS"}</div>
+                      <div className="text-[10px] text-slate-400">
+                        {n.parentId ? `from ${n.parentId}` : "ROOT (DTR)"}
+                      </div>
+                    </td>
+
+                    {/* Data Source Badge */}
+                    <td className="py-2.5 px-2.5">
+                      {n.isLive ? (
+                        <Badge
+                          variant="healthy"
+                          className="text-[9px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/50 py-0.5 flex items-center gap-1 w-fit font-bold"
+                        >
+                          <Wifi className="h-3 w-3" />
+                          <span>LIVE HARDWARE</span>
+                        </Badge>
+                      ) : (
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] bg-slate-100 dark:bg-zinc-800/80 border-slate-300 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 py-0.5 w-fit"
+                        >
+                          SIMULATED POLE
+                        </Badge>
+                      )}
+                    </td>
+
+                    {/* Phase R */}
+                    <td className="py-2.5 px-2.5">
+                      <div className="font-bold text-rose-600 dark:text-rose-400">
+                        {n.phases.R.v.toFixed(1)}V • {n.phases.R.i.toFixed(3)}A
+                      </div>
+                      <div className="text-[10px] text-slate-400">
+                        {n.phases.R.p.toFixed(0)}W • PF {n.phases.R.pf.toFixed(2)}
+                      </div>
+                    </td>
+
+                    {/* Phase Y */}
+                    <td className="py-2.5 px-2.5">
+                      {n.phases.Y.source === "NOT_INSTRUMENTED" ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] border-amber-500/40 text-amber-500 bg-amber-500/10 py-0 font-normal"
+                          title="Hardware node carries 1 PZEM module (Phase R). Phase Y is un-instrumented."
+                        >
+                          NOT INSTRUMENTED
+                        </Badge>
+                      ) : (
+                        <>
+                          <div className="font-bold text-amber-600 dark:text-amber-400">
+                            {n.phases.Y.v.toFixed(1)}V • {n.phases.Y.i.toFixed(3)}A
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            {n.phases.Y.p.toFixed(0)}W
+                            {n.phases.Y.source === "SIM" && n.isLive && (
+                              <span className="ml-1 text-[9px] text-amber-500">(SIM)</span>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </td>
+
+                    {/* Phase B */}
+                    <td className="py-2.5 px-2.5">
+                      {n.phases.B.source === "NOT_INSTRUMENTED" ? (
+                        <Badge
+                          variant="outline"
+                          className="text-[9px] border-cyan-500/40 text-cyan-500 bg-cyan-500/10 py-0 font-normal"
+                          title="Hardware node carries 1 PZEM module (Phase R). Phase B is un-instrumented."
+                        >
+                          NOT INSTRUMENTED
+                        </Badge>
+                      ) : (
+                        <>
+                          <div className="font-bold text-cyan-600 dark:text-cyan-400">
+                            {n.phases.B.v.toFixed(1)}V • {n.phases.B.i.toFixed(3)}A
+                          </div>
+                          <div className="text-[10px] text-slate-400">
+                            {n.phases.B.p.toFixed(0)}W
+                            {n.phases.B.source === "SIM" && n.isLive && (
+                              <span className="ml-1 text-[9px] text-cyan-500">(SIM)</span>
+                            )}
+                          </div>
+                        </>
+                      )}
+                    </td>
+
+                    {/* Section KCL Leakage */}
+                    <td className="py-2.5 px-2.5">
+                      {rSec.length === 0 ? (
+                        <span className="text-[10px] text-slate-400">END OF LINE / LEAF</span>
+                      ) : (
+                        <div className="flex flex-col gap-0.5">
+                          {rSec.map((s) => (
+                            <div
+                              key={s.phase}
+                              className={`text-[10px] font-mono flex items-center gap-1 ${
+                                s.tripped
+                                  ? "text-rose-500 font-bold bg-rose-500/10 px-1 py-0.2 rounded-xs"
+                                  : "text-slate-500 dark:text-zinc-400"
+                              }`}
+                            >
+                              <span className="font-bold">[{s.phase}]</span>
+                              <span>ΔI: {s.leakA.toFixed(3)}A</span>
+                              {s.tripped && <span>(TRIP &gt; {s.thresholdA.toFixed(3)}A)</span>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Status */}
+                    <td className="py-2.5 px-2.5 text-right">
+                      {n.status === "ALARM" || hasTrippedSection ? (
+                        <Badge variant="destructive" className="text-[9px] py-0 font-bold animate-pulse">
+                          FAULT
+                        </Badge>
+                      ) : n.status === "WARN" ? (
+                        <Badge variant="warning" className="text-[9px] py-0 font-bold">
+                          WARN
+                        </Badge>
+                      ) : (
+                        <Badge variant="healthy" className="text-[9px] py-0">
+                          NORMAL
+                        </Badge>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 6. LIVE SENSOR CROSS-CALIBRATION HUD */}
+      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3 rounded-sm flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2">
+          <Scale className="h-4 w-4 text-emerald-500" />
+          <span className="font-bold text-slate-800 dark:text-zinc-200">
+            LIVE HARDWARE CALIBRATION STATUS (POLE A ➔ POLE B)
+          </span>
+          <Badge
+            variant={calibration.status === "CALIBRATED" ? "healthy" : "outline"}
+            className="text-[9px] py-0"
+          >
+            {calibration.status}
+          </Badge>
+        </div>
+
+        <div className="flex items-center gap-4 text-xs tabular-nums text-slate-600 dark:text-zinc-400">
+          <div>
+            <span>VOLTAGE OFFSET: </span>
+            <span className="font-bold text-slate-800 dark:text-zinc-200">{calibration.vOffset.toFixed(3)} V</span>
+            <span className="text-[10px] text-slate-400 ml-1">({calibration.vSamples} samples)</span>
+          </div>
+          <div>
+            <span>POWER GAIN FACTOR: </span>
+            <span className="font-bold text-slate-800 dark:text-zinc-200">{calibration.pGain.toFixed(5)}×</span>
+            <span className="text-[10px] text-slate-400 ml-1">({calibration.pSamples} samples)</span>
+          </div>
+        </div>
+
+        <div className="text-[11px] text-slate-400 max-w-md hidden lg:block">
+          Learned under healthy load to correct ±0.5% PZEM-004T tolerance. Preserves authentic conductor line loss
+          (0.544 Ω/km) without clamping.
+        </div>
+      </div>
+    </div>
+  );
+}
