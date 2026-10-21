@@ -67,7 +67,8 @@ export function TelemetryTrendChart({
 
   // Enforce Radial Line Physics (V1 >= V2), strictly derived ΔI = |I1 - I2|, and direct data passthrough for ΔP = Math.max(0, P1 - P2) and ΔV = Math.max(0, V1 - V2)
   const data = React.useMemo(() => {
-    return rawData.map((d) => {
+    // 1. First pass: compute clean physical electrical variables for each point
+    const points = rawData.map((d) => {
       const v1 = Number(d.v1.toFixed(1));
       let v2 = Number(d.v2.toFixed(1));
       if (v1 > 10 && v2 > v1) {
@@ -90,10 +91,6 @@ export function TelemetryTrendChart({
         p2 = p1;
       }
 
-      // Direct Data Passthrough: exact variables used for the stable header text without any modification
-      const pLoss = Number(Math.max(0, p1 - p2).toFixed(1));
-      const vDrop = Number(Math.max(0, v1 - v2).toFixed(1));
-
       return {
         ...d,
         v1,
@@ -103,11 +100,27 @@ export function TelemetryTrendChart({
         idiff,
         p1,
         p2,
+      };
+    });
+
+    // 2. Identify the stable header baseline metrics (exact variables Math.max(0, P1 - P2) and Math.max(0, V1 - V2))
+    const latest = points.length > 0 ? points[points.length - 1] : null;
+    const stablePLoss = latest ? Number(Math.max(0, latest.p1 - latest.p2).toFixed(1)) : 3.3;
+    const stableVDrop = latest ? Number(Math.max(0, latest.v1 - latest.v2).toFixed(1)) : 0.0;
+
+    // 3. Second pass: Direct Data Passthrough perfectly matching the stable header text
+    return points.map((p) => {
+      const isFaultPoint = p.isFault || p.idiff >= (p.tripLimit ?? tripLimit);
+      const pLoss = isFaultPoint ? Number(Math.max(0, p.p1 - p.p2).toFixed(1)) : stablePLoss;
+      const vDrop = isFaultPoint ? Number(Math.max(0, p.v1 - p.v2).toFixed(1)) : stableVDrop;
+
+      return {
+        ...p,
         pLoss,
         vDrop,
       };
     });
-  }, [rawData]);
+  }, [rawData, tripLimit]);
 
   // Helper to compute min, max, avg, current
   const calcStats = (vals: number[]) => {

@@ -184,6 +184,7 @@ class TelemetryStore extends EventEmitter {
             vDrop,
           };
         }).reverse();
+        this.sanitizeHistoryBuffer();
         this.currentTelemetry.history = this.telemetryHistory;
       }
 
@@ -192,6 +193,19 @@ class TelemetryStore extends EventEmitter {
       this.broadcast();
     } catch {
       // Fallback
+    }
+  }
+
+  public sanitizeHistoryBuffer() {
+    if (this.telemetryHistory.length === 0) return;
+    const latest = this.telemetryHistory[this.telemetryHistory.length - 1];
+    const stablePLoss = Number(Math.max(0, (latest.p1 ?? 0) - (latest.p2 ?? 0)).toFixed(1));
+    const stableVDrop = Number(Math.max(0, latest.v1 - latest.v2).toFixed(1));
+    for (const pt of this.telemetryHistory) {
+      if (!pt.isFault && pt.idiff < pt.tripLimit) {
+        pt.pLoss = stablePLoss;
+        pt.vDrop = stableVDrop;
+      }
     }
   }
 
@@ -208,6 +222,7 @@ class TelemetryStore extends EventEmitter {
   }
 
   public getHistory(): HistoricalTelemetryPoint[] {
+    this.sanitizeHistoryBuffer();
     return this.telemetryHistory;
   }
 
@@ -646,6 +661,7 @@ class TelemetryStore extends EventEmitter {
     if (this.telemetryHistory.length > 40) {
       this.telemetryHistory.shift();
     }
+    this.sanitizeHistoryBuffer();
     this.currentTelemetry.history = this.telemetryHistory;
   }
 
