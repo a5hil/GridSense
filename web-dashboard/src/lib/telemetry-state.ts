@@ -134,8 +134,8 @@ class TelemetryStore extends EventEmitter {
           let i2 = Number((h.p2?.i ?? 0).toFixed(3));
 
           // Enforce radial voltage drop V1 >= V2
-          if (v1 > 10 && v2 >= v1) {
-            v2 = Number((v1 - Math.max(0.2, Number((i1 * 0.12).toFixed(1)))).toFixed(1));
+          if (v1 > 10 && v2 > v1) {
+            v2 = v1;
           }
 
           // Enforce ΔI strictly equals |I1 - I2|
@@ -143,10 +143,10 @@ class TelemetryStore extends EventEmitter {
 
           const pf1 = h.p1?.pf ?? 0.96;
           const pf2 = h.p2?.pf ?? 0.96;
-          let p1 = h.p1?.p ?? Number((v1 * i1 * pf1).toFixed(1));
-          let p2 = h.p2?.p ?? Number((v2 * i2 * pf2).toFixed(1));
-          if (p1 > 0 && p2 >= p1) {
-            p2 = Number(Math.max(0, p1 - Math.max(1.0, i1 * i1 * 0.4)).toFixed(1));
+          const p1 = Number((v1 * i1 * pf1).toFixed(1));
+          let p2 = Number((v2 * i2 * pf2).toFixed(1));
+          if (p1 > 0 && p2 > p1) {
+            p2 = p1;
           }
 
           const s1 = Number((v1 * i1).toFixed(1));
@@ -414,14 +414,13 @@ class TelemetryStore extends EventEmitter {
 
       // 1. Enforce Radial Feeder Physics (V1 >= V2, P1 >= P2)
       if (p1.v > 10) {
-        const drop = Math.max(0.2, Number((p1.i * 0.12).toFixed(1)));
-        if (p2.v >= p1.v) {
-          p2.v = Number((p1.v - drop).toFixed(1));
+        if (p2.v > p1.v) {
+          p2.v = p1.v;
         }
         const p1p = p1.p ?? 0;
         const p2p = p2.p ?? 0;
-        if (p2p >= p1p && p1p > 0) {
-          p2.p = Number(Math.max(0, p1p - Math.max(1.5, p1.i * p1.i * 0.4)).toFixed(1));
+        if (p2p > p1p && p1p > 0) {
+          p2.p = p1p;
         }
       }
 
@@ -513,14 +512,13 @@ class TelemetryStore extends EventEmitter {
       // Under healthy radial flow, power flows from Incomer (Pole 1) to Load (Pole 2).
       // Compensate for sensor calibration tolerance so V1 >= V2 and P1 >= P2 are always physically respected.
       if (p1.v > 10 && !isElectricalTrip) {
-        const drop = Math.max(0.2, Number((p1.i * 0.12).toFixed(1)));
-        if (p2.v >= p1.v) {
-          p2.v = Number((p1.v - drop).toFixed(1));
+        if (p2.v > p1.v) {
+          p2.v = p1.v;
         }
         const p1p = p1.p ?? 0;
         const p2p = p2.p ?? 0;
-        if (p2p >= p1p && p1p > 0) {
-          p2.p = Number(Math.max(0, p1p - Math.max(1.5, p1.i * p1.i * 0.4)).toFixed(1));
+        if (p2p > p1p && p1p > 0) {
+          p2.p = p1p;
         }
       }
 
@@ -584,9 +582,8 @@ class TelemetryStore extends EventEmitter {
     }
 
     // 1. Enforce Radial Feeder Physics: Upstream V1 >= Downstream V2
-    if (v1Val > 10 && v2Val >= v1Val) {
-      const drop = Math.max(0.2, Number((i1Val * 0.12).toFixed(1)));
-      v2Val = Number((v1Val - drop).toFixed(1));
+    if (v1Val > 10 && v2Val > v1Val) {
+      v2Val = v1Val;
     }
 
     // 2. Enforce ΔI strictly equals |I1 - I2| on every tick
@@ -597,14 +594,11 @@ class TelemetryStore extends EventEmitter {
     const freq1Val = params.freq1 !== undefined && params.freq1 > 0 ? params.freq1 : 50.0;
     const freq2Val = params.freq2 !== undefined && params.freq2 > 0 ? params.freq2 : 50.0;
 
-    // Active power (W): use sensor reading if provided or calculate V * I * PF
-    const p1Val = params.p1 !== undefined && params.p1 > 0 ? params.p1 : Number((v1Val * i1Val * pf1Val).toFixed(1));
-    let p2Val = params.p2 !== undefined && params.p2 > 0 ? params.p2 : Number((v2Val * i2Val * pf2Val).toFixed(1));
-
-    // Enforce radial line loss: P1 >= P2 (I^2*R line loss is strictly positive)
-    if (p1Val > 0 && p2Val >= p1Val) {
-      const lineLoss = Math.max(1.0, Number((i1Val * i1Val * 0.4).toFixed(1)));
-      p2Val = Number(Math.max(0, p1Val - lineLoss).toFixed(1));
+    // Active power (W): direct calculation from stable V and I lines
+    const p1Val = Number((v1Val * i1Val * pf1Val).toFixed(1));
+    let p2Val = Number((v2Val * i2Val * pf2Val).toFixed(1));
+    if (p1Val > 0 && p2Val > p1Val) {
+      p2Val = p1Val;
     }
 
     // Apparent power (VA): V * I
@@ -615,7 +609,7 @@ class TelemetryStore extends EventEmitter {
     const q1Val = Number(Math.sqrt(Math.max(0, s1Val * s1Val - p1Val * p1Val)).toFixed(1));
     const q2Val = Number(Math.sqrt(Math.max(0, s2Val * s2Val - p2Val * p2Val)).toFixed(1));
 
-    // Strictly derived line loss & voltage drop (smooth & stable, no random noise)
+    // Direct Data Passthrough: exact variables Math.max(0, P1 - P2) and Math.max(0, V1 - V2)
     const pLossVal = Number(Math.max(0, p1Val - p2Val).toFixed(1));
     const vDropVal = Number(Math.max(0, v1Val - v2Val).toFixed(1));
 

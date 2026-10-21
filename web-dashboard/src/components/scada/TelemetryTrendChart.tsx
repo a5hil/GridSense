@@ -65,35 +65,32 @@ export function TelemetryTrendChart({
     ? history
     : [];
 
-  // Enforce Radial Line Physics (V1 >= V2), strictly derived ΔI = |I1 - I2|, and strictly derived smooth ΔP, ΔV
+  // Enforce Radial Line Physics (V1 >= V2), strictly derived ΔI = |I1 - I2|, and direct data passthrough for ΔP = Math.max(0, P1 - P2) and ΔV = Math.max(0, V1 - V2)
   const data = React.useMemo(() => {
     return rawData.map((d) => {
       const v1 = Number(d.v1.toFixed(1));
       let v2 = Number(d.v2.toFixed(1));
+      if (v1 > 10 && v2 > v1) {
+        v2 = v1;
+      }
+
       const i1 = Number(d.i1.toFixed(3));
       let i2 = Number(d.i2.toFixed(3));
 
-      // 1. Strict Radial Voltage Drop: V1 >= V2
-      if (v1 > 10 && v2 >= v1) {
-        const drop = Math.max(0.2, Number((i1 * 0.12).toFixed(1)));
-        v2 = Number((v1 - drop).toFixed(1));
-      }
-
-      // 2. Strict Current Differential: ΔI strictly equals |I1 - I2| on every tick
+      // Strict Current Differential: ΔI strictly equals |I1 - I2| on every tick
       const idiff = Number(Math.abs(i1 - i2).toFixed(3));
 
       const pf1 = d.pf1 !== undefined && d.pf1 > 0 ? d.pf1 : 0.96;
       const pf2 = d.pf2 !== undefined && d.pf2 > 0 ? d.pf2 : 0.96;
 
-      // 3. Active Power & Line Loss: P1 >= P2 (positive physical I^2*R drop)
-      const p1 = d.p1 !== undefined && d.p1 > 0 ? d.p1 : Number((v1 * i1 * pf1).toFixed(1));
-      let p2 = d.p2 !== undefined && d.p2 > 0 ? d.p2 : Number((v2 * i2 * pf2).toFixed(1));
-      if (p1 > 0 && p2 >= p1) {
-        const lineLoss = Math.max(1.0, Number((i1 * i1 * 0.4).toFixed(1)));
-        p2 = Number(Math.max(0, p1 - lineLoss).toFixed(1));
+      // Active Power directly derived from stable V and I lines:
+      const p1 = Number((v1 * i1 * pf1).toFixed(1));
+      let p2 = Number((v2 * i2 * pf2).toFixed(1));
+      if (p1 > 0 && p2 > p1) {
+        p2 = p1;
       }
 
-      // 4. Strictly derived ΔP = P1 - P2 and ΔV = V1 - V2 (smooth & stable, no random noise)
+      // Direct Data Passthrough: exact variables used for the stable header text without any modification
       const pLoss = Number(Math.max(0, p1 - p2).toFixed(1));
       const vDrop = Number(Math.max(0, v1 - v2).toFixed(1));
 
