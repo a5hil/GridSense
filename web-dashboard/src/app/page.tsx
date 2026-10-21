@@ -455,6 +455,20 @@ export default function SCADADashboard() {
     }
   }
 
+  // Network Twin FDIR Detection Fallback (promotes simulated/injected feeder faults to global alarm banner)
+  if (!activeFault && networkSnapshot && networkSnapshot.detections.length > 0) {
+    const topDet = networkSnapshot.detections.find((d) => d.severity === "CRITICAL" || d.severity === "HIGH") || networkSnapshot.detections[0];
+    if (topDet) {
+      activeFault = {
+        ansiCode: topDet.ansi,
+        title: `${topDet.type.replace(/_/g, " ")} (${topDet.sectionId ? `Section ${topDet.sectionId}` : topDet.nodeId ? `Pole ${topDet.nodeId}` : topDet.feederId})`,
+        reading: topDet.message,
+        description: topDet.message,
+        severity: topDet.severity === "CRITICAL" ? "CRITICAL" : "WARNING",
+      };
+    }
+  }
+
   const isFault = activeFault !== null;
   const isAlarmUnacked = isFault && systemStatus?.operatorAck === false;
   const openTicketsCount = tickets.filter((t) => t.status !== "CLOSED").length;
@@ -999,6 +1013,7 @@ export default function SCADADashboard() {
             {/* ROW 2: SINGLE-LINE DIAGRAM (SLD) POWER FLOW */}
             <SingleLinePowerFlow
               telemetry={telemetry}
+              networkSnapshot={networkSnapshot}
               selectedPoleId={selectedPoleId}
               onSelectPole={setSelectedPoleId}
             />
@@ -1009,6 +1024,7 @@ export default function SCADADashboard() {
               <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-[440px]">
                 <GisFeederMap
                   telemetry={telemetry}
+                  networkSnapshot={networkSnapshot}
                   selectedPoleId={selectedPoleId}
                   onSelectPole={(p) => setSelectedPoleId(p.id)}
                 />
@@ -1024,7 +1040,7 @@ export default function SCADADashboard() {
                       <span>FEEDER ASSET HEALTH &amp; SPAN</span>
                     </div>
                     <Badge variant="outline" className="text-[10px]">
-                      2 POLES • 1 SPAN
+                      {networkSnapshot ? `${networkSnapshot.nodes.length} POLES • 3 LT FEEDERS` : "2 POLES • 1 SPAN"}
                     </Badge>
                   </div>
 
@@ -1216,6 +1232,7 @@ export default function SCADADashboard() {
             <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-[550px]">
               <GisFeederMap
                 telemetry={telemetry}
+                networkSnapshot={networkSnapshot}
                 selectedPoleId={selectedPoleId}
                 onSelectPole={(p) => setSelectedPoleId(p.id)}
               />
@@ -1223,6 +1240,7 @@ export default function SCADADashboard() {
             <div className="col-span-12 lg:col-span-4 flex flex-col h-full min-h-[550px]">
               <FeederAssetTree
                 telemetry={telemetry}
+                networkSnapshot={networkSnapshot}
                 selectedPoleId={selectedPoleId}
                 onSelectPole={(id) => setSelectedPoleId(id)}
               />
@@ -1278,6 +1296,7 @@ export default function SCADADashboard() {
         {activeView === "DIAGNOSTICS" && (
           <EngineeringDiagnostics
             telemetry={telemetry}
+            networkSnapshot={networkSnapshot}
             systemStatus={systemStatus}
             availablePorts={availablePorts}
             selectedPort={selectedPort}

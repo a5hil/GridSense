@@ -14,19 +14,28 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { GridTelemetry } from "@/lib/types";
+import { NetworkSnapshot } from "@/lib/network/types";
 import { ENTERPRISE_CONFIG } from "@/lib/constants";
 
 interface SingleLinePowerFlowProps {
   telemetry: GridTelemetry | null;
+  networkSnapshot?: NetworkSnapshot | null;
   selectedPoleId?: string;
   onSelectPole?: (poleId: string) => void;
 }
 
 export function SingleLinePowerFlow({
   telemetry,
+  networkSnapshot,
   selectedPoleId,
   onSelectPole,
 }: SingleLinePowerFlowProps) {
+  const selectedNode = React.useMemo(() => {
+    if (!networkSnapshot || !selectedPoleId) return null;
+    return networkSnapshot.nodes.find(
+      (n) => n.id.toLowerCase() === selectedPoleId.toLowerCase()
+    ) || null;
+  }, [networkSnapshot, selectedPoleId]);
   const isGatewayOffline =
     telemetry?.status === "DISCONNECTED" ||
     telemetry?.status === "WAITING_DATA" ||
@@ -133,17 +142,21 @@ export function SingleLinePowerFlow({
           </div>
 
           {/* Node 2: Transformer DTR-01 */}
-          <div className="w-[130px] shrink-0 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 p-2.5 rounded-sm flex flex-col justify-between text-center">
+          <div className="w-[140px] shrink-0 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 p-2.5 rounded-sm flex flex-col justify-between text-center">
             <div>
               <div className="flex items-center justify-center gap-1 text-[10px] text-slate-500 dark:text-zinc-400 font-semibold uppercase">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 dark:bg-emerald-400" />
                 <span>DTR-01</span>
               </div>
-              <div className="text-xs font-bold text-slate-800 dark:text-zinc-200 mt-1">250 kVA DTR</div>
-              <div className="text-[10px] text-slate-500 dark:text-zinc-400">STEP-DOWN: 230V</div>
+              <div className="text-xs font-bold text-slate-800 dark:text-zinc-200 mt-1">
+                {networkSnapshot ? `${networkSnapshot.dtr.kva.toFixed(1)} kVA` : "250 kVA DTR"}
+              </div>
+              <div className="text-[10px] text-slate-500 dark:text-zinc-400">
+                {networkSnapshot ? `LOAD: ${networkSnapshot.dtr.loadingPct}%` : "STEP-DOWN: 230V"}
+              </div>
             </div>
             <div className="text-[9px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-xs py-0.5 mt-2">
-              415V LT READY
+              {networkSnapshot ? "3 LT FEEDERS" : "415V LT READY"}
             </div>
           </div>
 
@@ -159,7 +172,7 @@ export function SingleLinePowerFlow({
           </div>
 
           {/* Node 3: Feeder Incomer Bus */}
-          <div className="w-[170px] shrink-0 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 p-2.5 rounded-sm flex flex-col justify-between">
+          <div className="w-[175px] shrink-0 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 p-2.5 rounded-sm flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between text-[10px] pb-1 border-b border-slate-200 dark:border-zinc-800/60">
                 <span className="text-slate-500 dark:text-zinc-400 uppercase font-bold tracking-wider">
@@ -202,7 +215,11 @@ export function SingleLinePowerFlow({
                 )}
               </div>
               <div className="text-[9px] text-slate-500 dark:text-zinc-500 mt-0.5">
-                {isGatewayOffline ? "TELEMETRY FEED OFFLINE" : "FEEDER 04 • 230V / 50Hz"}
+                {networkSnapshot
+                  ? `LT-1, LT-2, LT-3 • ${networkSnapshot.nodes.length} POLES`
+                  : isGatewayOffline
+                  ? "TELEMETRY FEED OFFLINE"
+                  : "FEEDER 04 • 230V / 50Hz"}
               </div>
             </div>
 
@@ -489,6 +506,43 @@ export function SingleLinePowerFlow({
           </div>
         </div>
       </div>
+
+      {/* Selected Simulated / Network Pole Inspector HUD */}
+      {selectedNode && selectedNode.id !== "POLE-A" && selectedNode.id !== "POLE-B" && (
+        <div className="border border-cyan-500/40 bg-cyan-950/20 p-2.5 rounded-sm flex flex-wrap items-center justify-between gap-3 text-xs font-mono">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="border-cyan-500 text-cyan-400 font-bold">
+              INSPECTED ASSET: {selectedNode.label} ({selectedNode.id})
+            </Badge>
+            <span className="text-slate-500 dark:text-zinc-400">
+              Feeder: <strong className="text-slate-800 dark:text-zinc-200">{selectedNode.feederId}</strong>
+            </span>
+            <span className="text-slate-500 dark:text-zinc-400">
+              Role: <strong className="text-cyan-400">3-PHASE LT POLE (SIMULATED)</strong>
+            </span>
+          </div>
+          <div className="flex flex-wrap items-center gap-3 tabular-nums text-[11px]">
+            <div>
+              <span className="text-rose-400 font-bold">R:</span>{" "}
+              <span className="text-slate-800 dark:text-zinc-200">{selectedNode.phases.R.v.toFixed(1)}V / {selectedNode.phases.R.i.toFixed(2)}A</span>
+            </div>
+            <div>
+              <span className="text-amber-400 font-bold">Y:</span>{" "}
+              <span className="text-slate-800 dark:text-zinc-200">{selectedNode.phases.Y.v.toFixed(1)}V / {selectedNode.phases.Y.i.toFixed(2)}A</span>
+            </div>
+            <div>
+              <span className="text-cyan-400 font-bold">B:</span>{" "}
+              <span className="text-slate-800 dark:text-zinc-200">{selectedNode.phases.B.v.toFixed(1)}V / {selectedNode.phases.B.i.toFixed(2)}A</span>
+            </div>
+            <Badge
+              variant={selectedNode.status === "NORMAL" ? "healthy" : selectedNode.status === "WARN" ? "warning" : "destructive"}
+              className="text-[9px] py-0"
+            >
+              {selectedNode.status}
+            </Badge>
+          </div>
+        </div>
+      )}
 
       {/* Dynamic SCADA Feeder Status Summary (Pure Monitoring) */}
       <div

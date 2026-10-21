@@ -15,6 +15,7 @@
 import { EventEmitter } from "events";
 import { telemetryStore } from "../telemetry-state";
 import { liveCalibration } from "../calibration";
+import { omsManager } from "../oms-state";
 import { computeSections, round, runFdir } from "./fdir";
 import { CHILDREN, NETWORK_TOPOLOGY, NODE_BY_ID, TOPO_ORDER, mulberry32, subtree } from "./topology";
 import {
@@ -465,6 +466,21 @@ class NetworkTwin extends EventEmitter {
           ? `FLISR: open upstream of ${d.isolate.upstream}, downstream at ${d.isolate.downstream.join(", ")}`
           : undefined,
       });
+
+      // Automatically dispatch Trouble Ticket in OMS for serious electrical faults
+      if ((d.severity === "CRITICAL" || d.severity === "HIGH") && d.type !== "NODE_OFFLINE") {
+        const targetNode = d.nodeId ? NODE_BY_ID[d.nodeId] : undefined;
+        omsManager.autoCreateTicketForFault({
+          faultCode: `${d.ansi} // ${d.type}`,
+          affectedPole: targetNode ? `${targetNode.label} (${targetNode.id})` : d.sectionId ? `Section ${d.sectionId}` : "Distribution Span",
+          gps: targetNode ? { lat: targetNode.lat, lng: targetNode.lng } : { lat: 10.2318, lng: 76.4088 },
+          idiff: d.unit === "A" ? d.value : 0,
+          severity: d.severity,
+          feederId: d.feederId || targetNode?.feederId || "FEEDER_04_SECTOR4",
+          feederName: d.feederId ? `Feeder ${d.feederId}` : undefined,
+          estimatedCustomers: d.customersAffected ?? 45,
+        });
+      }
     }
     for (const [k, d] of this.activeKeys) {
       if (!now.has(k)) {

@@ -20,12 +20,14 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GridTelemetry, PoleData } from "@/lib/types";
+import { NetworkSnapshot, NodeState } from "@/lib/network/types";
 import { useTheme } from "@/lib/theme-context";
 
 interface GisFeederMapProps {
   telemetry: GridTelemetry | null;
+  networkSnapshot?: NetworkSnapshot | null;
   selectedPoleId?: string;
-  onSelectPole?: (pole: PoleData) => void;
+  onSelectPole?: (pole: any) => void;
 }
 
 // GPS Coordinates for Real Distribution Feeder Network
@@ -97,6 +99,7 @@ declare global {
 
 export function GisFeederMap({
   telemetry,
+  networkSnapshot,
   selectedPoleId,
   onSelectPole,
 }: GisFeederMapProps) {
@@ -247,46 +250,73 @@ export function GisFeederMap({
         type: "LineString",
         coordinates: [ASSETS.substation.coords, ASSETS.dtr.coords],
       },
-      properties: { name: "11kV Primary Feeder Cable" },
+      properties: { name: "11kV Primary Feeder Cable", color: "#0ea5e9" },
     };
 
-    // 415V LT Line: DTR -> Pole 1
-    const ltLeadSpec = {
-      type: "Feature",
-      geometry: {
-        type: "LineString",
-        coordinates: [ASSETS.dtr.coords, ASSETS.pole1.coords],
-      },
-      properties: { name: "415V DTR Outgoing LT" },
-    };
+    let features: any[] = [feeder11kVSpec];
 
-    // 415V Protected Span: Pole 1 -> Pole 2 (Active Differential Zone)
-    const protectedSpanSpec = {
-      type: "Feature",
-      geometry: {
-        type: "LineString",
-        coordinates: [ASSETS.pole1.coords, ASSETS.pole2.coords],
-      },
-      properties: { name: "Protected Feeder Span (FDIR Zone)" },
-    };
+    if (networkSnapshot) {
+      const topoNodes = networkSnapshot.topology.nodes;
+      const nodeCoordMap = new Map<string, [number, number]>();
+      topoNodes.forEach((n: any) => nodeCoordMap.set(n.id, [n.lng, n.lat]));
 
-    // Branch Spur: Pole 2 -> Spur 3
-    const spurSpec = {
-      type: "Feature",
-      geometry: {
-        type: "LineString",
-        coordinates: [ASSETS.pole2.coords, ASSETS.spur3.coords],
-      },
-      properties: { name: "Branch Lateral Spur 1" },
-    };
+      // Connect each pole to its parent
+      topoNodes.forEach((n: any) => {
+        if (!n.parentId) return;
+        const pCoords = nodeCoordMap.get(n.parentId);
+        const nCoords = nodeCoordMap.get(n.id);
+        if (!pCoords || !nCoords) return;
 
-    // Add or Update Sources
+        // Check if section is tripped
+        const isTripped = networkSnapshot.sections.some(
+          (s: any) => s.parentId === n.parentId && s.childIds.includes(n.id) && s.tripped
+        );
+
+        const feederDef = networkSnapshot.topology.feeders.find((f: any) => f.id === n.feederId);
+        const color = isTripped ? "#f43f5e" : feederDef?.color || "#10b981";
+
+        features.push({
+          type: "Feature",
+          geometry: {
+            type: "LineString",
+            coordinates: [pCoords, nCoords],
+          },
+          properties: {
+            name: `${n.parentId} ➔ ${n.id}`,
+            color,
+            isTripped,
+          },
+        });
+      });
+    } else {
+      // Fallback 2-Pole Vectors
+      const ltLeadSpec = {
+        type: "Feature",
+        geometry: {
+          type: "LineString",
+          coordinates: [ASSETS.dtr.coords, ASSETS.pole1.coords],
+        },
+        properties: { name: "415V DTR Outgoing LT", color: "#10b981" },
+      };
+
+      const protectedSpanSpec = {
+        type: "Feature",
+        geometry: {
+          type: "LineString",
+          coordinates: [ASSETS.pole1.coords, ASSETS.pole2.coords],
+        },
+        properties: { name: "Protected Feeder Span (FDIR Zone)", color: isFault ? "#f43f5e" : "#10b981" },
+      };
+
+      features.push(ltLeadSpec, protectedSpanSpec);
+    }
+
     if (!map.getSource("feeder-lines")) {
       map.addSource("feeder-lines", {
         type: "geojson",
         data: {
           type: "FeatureCollection",
-          features: [feeder11kVSpec, ltLeadSpec, spurSpec],
+          features,
         },
       });
 
@@ -295,38 +325,15 @@ export function GisFeederMap({
         type: "line",
         source: "feeder-lines",
         paint: {
-          "line-color": "#0ea5e9",
+          "line-color": ["get", "color"],
           "line-width": 3,
-          "line-dasharray": [2, 1],
-        },
-      });
-    }
-
-    // Protected Span Source (Dynamically Styled on Fault)
-    const spanColor = isFault ? "#f43f5e" : "#10b981";
-    const spanWidth = isFault ? 6 : 4;
-
-    if (!map.getSource("protected-span")) {
-      map.addSource("protected-span", {
-        type: "geojson",
-        data: protectedSpanSpec,
-      });
-
-      map.addLayer({
-        id: "protected-span-layer",
-        type: "line",
-        source: "protected-span",
-        paint: {
-          "line-color": spanColor,
-          "line-width": spanWidth,
         },
       });
     } else {
-      map.getSource("protected-span").setData(protectedSpanSpec);
-      if (map.getLayer("protected-span-layer")) {
-        map.setPaintProperty("protected-span-layer", "line-color", spanColor);
-        map.setPaintProperty("protected-span-layer", "line-width", spanWidth);
-      }
+      map.getSource("feeder-lines").setData({
+        type: "FeatureCollection",
+        features,
+      });
     }
   };
 
@@ -381,52 +388,90 @@ export function GisFeederMap({
     markersRef.current.push(subMarker);
 
     // 2. DTR Marker
-    const dtrEl = createMarkerElement("DTR-01", "250 kVA", "#10b981");
+    const dtrLabel = networkSnapshot ? `${networkSnapshot.dtr.kva.toFixed(1)} kVA` : "250 kVA";
+    const dtrEl = createMarkerElement("DTR-01", dtrLabel, "#10b981");
     const dtrMarker = new gl.Marker({ element: dtrEl })
       .setLngLat(ASSETS.dtr.coords)
       .addTo(map);
     dtrEl.onclick = () => setSelectedAsset(ASSETS.dtr);
     markersRef.current.push(dtrMarker);
 
-    // 3. Pole 1 (Incomer) Marker
-    const p1Current = telemetry ? `${telemetry.p1.i.toFixed(2)}A` : "2.45A";
-    const p1Color = isFault ? "#f43f5e" : "#10b981";
-    const p1El = createMarkerElement("POLE 1 (INCOMER)", `${p1Current} | 230V`, p1Color, isFault, isFault || isLastGasp);
-    const p1Marker = new gl.Marker({ element: p1El })
-      .setLngLat(ASSETS.pole1.coords)
-      .addTo(map);
-    p1El.onclick = () => {
-      if (telemetry) {
-        setSelectedAsset(telemetry.p1);
-        if (onSelectPole) onSelectPole(telemetry.p1);
-      }
-    };
-    markersRef.current.push(p1Marker);
+    if (networkSnapshot) {
+      // Render all 28 poles from Network Twin
+      networkSnapshot.nodes.forEach((node: any) => {
+        if (node.id === "DTR-01") return;
+        const topoNode = networkSnapshot.topology.nodes.find((n: any) => n.id === node.id);
+        if (!topoNode) return;
 
-    // 4. Pole 2 (Outgoing) Marker
-    const p2Current = telemetry ? `${telemetry.p2.i.toFixed(2)}A` : "2.43A";
-    const p2Color = isLastGasp || telemetry?.p2.isOnline === false ? "#f43f5e" : isFault ? "#f43f5e" : "#10b981";
-    const p2Sublabel = telemetry?.p2.isOnline === false ? "OUTAGE" : `${p2Current} | 230V`;
-    const p2El = createMarkerElement("POLE 2 (OUTGOING)", p2Sublabel, p2Color, isFault || isLastGasp, isFault || isLastGasp);
-    const p2Marker = new gl.Marker({ element: p2El })
-      .setLngLat(ASSETS.pole2.coords)
-      .addTo(map);
-    p2El.onclick = () => {
-      if (telemetry) {
-        setSelectedAsset(telemetry.p2);
-        if (onSelectPole) onSelectPole(telemetry.p2);
-      }
-    };
-    markersRef.current.push(p2Marker);
+        const isLive = node.isLive;
+        const isTripped = node.status === "ALARM";
+        const isWarn = node.status === "WARN";
+
+        let color = isTripped ? "#f43f5e" : isWarn ? "#f59e0b" : "#10b981";
+        if (!isLive && !isTripped && !isWarn) {
+          const fDef = networkSnapshot.topology.feeders.find((f: any) => f.id === node.feederId);
+          color = fDef?.color || "#71717a";
+        }
+
+        const label = isLive
+          ? node.id === "POLE-A"
+            ? "POLE 1 (INCOMER // LIVE)"
+            : "POLE 2 (OUTGOING // LIVE)"
+          : node.label;
+
+        const sublabel = `${node.phases.R.v.toFixed(0)}V • ${node.phases.R.i.toFixed(2)}A${isLive ? " [LIVE]" : ""}`;
+
+        const poleEl = createMarkerElement(label, sublabel, color, isTripped, isTripped || (isLive && !isTripped));
+        const poleMarker = new gl.Marker({ element: poleEl })
+          .setLngLat([topoNode.lng, topoNode.lat])
+          .addTo(map);
+
+        poleEl.onclick = () => {
+          setSelectedAsset(node);
+          if (onSelectPole) onSelectPole(node);
+        };
+        markersRef.current.push(poleMarker);
+      });
+    } else {
+      // Fallback 2-Pole Hardware Markers
+      const p1Current = telemetry ? `${telemetry.p1.i.toFixed(2)}A` : "2.45A";
+      const p1Color = isFault ? "#f43f5e" : "#10b981";
+      const p1El = createMarkerElement("POLE 1 (INCOMER)", `${p1Current} | 230V`, p1Color, isFault, isFault || isLastGasp);
+      const p1Marker = new gl.Marker({ element: p1El })
+        .setLngLat(ASSETS.pole1.coords)
+        .addTo(map);
+      p1El.onclick = () => {
+        if (telemetry) {
+          setSelectedAsset(telemetry.p1);
+          if (onSelectPole) onSelectPole(telemetry.p1);
+        }
+      };
+      markersRef.current.push(p1Marker);
+
+      const p2Current = telemetry ? `${telemetry.p2.i.toFixed(2)}A` : "2.43A";
+      const p2Color = isLastGasp || telemetry?.p2.isOnline === false ? "#f43f5e" : isFault ? "#f43f5e" : "#10b981";
+      const p2Sublabel = telemetry?.p2.isOnline === false ? "OUTAGE" : `${p2Current} | 230V`;
+      const p2El = createMarkerElement("POLE 2 (OUTGOING)", p2Sublabel, p2Color, isFault || isLastGasp, isFault || isLastGasp);
+      const p2Marker = new gl.Marker({ element: p2El })
+        .setLngLat(ASSETS.pole2.coords)
+        .addTo(map);
+      p2El.onclick = () => {
+        if (telemetry) {
+          setSelectedAsset(telemetry.p2);
+          if (onSelectPole) onSelectPole(telemetry.p2);
+        }
+      };
+      markersRef.current.push(p2Marker);
+    }
   };
 
-  // Re-render vectors and markers when telemetry updates
+  // Re-render vectors and markers when telemetry or networkSnapshot updates
   React.useEffect(() => {
     if (mapInstanceRef.current && mapLoaded) {
       renderFeederVectors(mapInstanceRef.current);
       renderAssetMarkers(mapInstanceRef.current);
     }
-  }, [telemetry, isFault, mapLoaded]);
+  }, [telemetry, networkSnapshot, isFault, mapLoaded]);
 
   // Handle container resize & ensure markers are drawn on tab switches
   React.useEffect(() => {
@@ -659,7 +704,55 @@ export function GisFeederMap({
               </button>
             </div>
 
-            {selectedAsset.v !== undefined ? (
+            {selectedAsset.phases ? (
+              <div className="space-y-1.5 text-[11px] text-zinc-300">
+                <div className="flex items-center justify-between pb-1 border-b border-zinc-800 text-[10px]">
+                  <span className="text-zinc-400">FEEDER: {selectedAsset.feederId}</span>
+                  <Badge variant={selectedAsset.isLive ? "healthy" : "outline"} className="text-[9px] py-0">
+                    {selectedAsset.isLive ? "LIVE HARDWARE" : "SIMULATED POLE"}
+                  </Badge>
+                </div>
+                {/* Phase R */}
+                <div className="flex items-center justify-between font-mono">
+                  <span className="text-rose-400 font-bold">[R]</span>
+                  <span>{selectedAsset.phases.R.v.toFixed(1)}V</span>
+                  <span>{selectedAsset.phases.R.i.toFixed(3)}A</span>
+                  <span>{selectedAsset.phases.R.p.toFixed(0)}W</span>
+                </div>
+                {/* Phase Y */}
+                <div className="flex items-center justify-between font-mono">
+                  <span className="text-amber-400 font-bold">[Y]</span>
+                  {selectedAsset.phases.Y.source === "NOT_INSTRUMENTED" ? (
+                    <span className="text-[9px] text-amber-500 italic">NOT INSTRUMENTED</span>
+                  ) : (
+                    <>
+                      <span>{selectedAsset.phases.Y.v.toFixed(1)}V</span>
+                      <span>{selectedAsset.phases.Y.i.toFixed(3)}A</span>
+                      <span>{selectedAsset.phases.Y.p.toFixed(0)}W</span>
+                    </>
+                  )}
+                </div>
+                {/* Phase B */}
+                <div className="flex items-center justify-between font-mono">
+                  <span className="text-cyan-400 font-bold">[B]</span>
+                  {selectedAsset.phases.B.source === "NOT_INSTRUMENTED" ? (
+                    <span className="text-[9px] text-cyan-500 italic">NOT INSTRUMENTED</span>
+                  ) : (
+                    <>
+                      <span>{selectedAsset.phases.B.v.toFixed(1)}V</span>
+                      <span>{selectedAsset.phases.B.i.toFixed(3)}A</span>
+                      <span>{selectedAsset.phases.B.p.toFixed(0)}W</span>
+                    </>
+                  )}
+                </div>
+                <div className="text-[10px] text-zinc-400 pt-1 border-t border-zinc-800 flex items-center justify-between">
+                  <span>PARENT: {selectedAsset.parentId || "ROOT"}</span>
+                  <span className={selectedAsset.status === "ALARM" ? "text-rose-400 font-bold" : "text-emerald-400"}>
+                    {selectedAsset.status}
+                  </span>
+                </div>
+              </div>
+            ) : selectedAsset.v !== undefined ? (
               <div className="grid grid-cols-2 gap-2 text-[11px] text-zinc-300">
                 <div>
                   <span className="text-zinc-500">VOLTAGE:</span>{" "}
