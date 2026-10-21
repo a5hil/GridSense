@@ -58,6 +58,7 @@ import { WorkforceOmsPanel } from "@/components/scada/WorkforceOmsPanel";
 import { SingleLinePowerFlow } from "@/components/scada/SingleLinePowerFlow";
 import { EngineeringDiagnostics } from "@/components/scada/EngineeringDiagnostics";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { ENTERPRISE_CONFIG } from "@/lib/constants";
 
 export default function SCADADashboard() {
   const { addToast, removeToast, clearAll } = useToast();
@@ -538,7 +539,7 @@ export default function SCADADashboard() {
               </Badge>
             </div>
             <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-              FISAT 33/11kV SUBSTATION • FEEDER 04 (CAMPUS 11kV)
+              {ENTERPRISE_CONFIG.SUBSTATION_NAME} • {ENTERPRISE_CONFIG.FEEDER_NAME}
             </p>
           </div>
         </div>
@@ -807,7 +808,7 @@ export default function SCADADashboard() {
                       </div>
                       <div className="text-[11px] text-zinc-400 font-mono">
                         {isGatewayOffline
-                          ? "Awaiting Gateway USB Feed (COM8)"
+                          ? "Gateway Connection Lost // Telemetry Feed Offline"
                           : isFault
                           ? telemetry?.fault_code || "FAULT"
                           : "No Leakage Detected"}
@@ -1303,11 +1304,11 @@ export default function SCADADashboard() {
       {/* 4. FOOTER STATUS BAR */}
       <footer className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] px-3.5 py-1.5 rounded-sm flex flex-wrap items-center justify-between text-[11px] font-mono text-slate-500 dark:text-zinc-400 shadow-xs dark:shadow-none transition-colors">
         <div className="flex items-center gap-3">
-          <span>STATION: DISTRIBUTION_OFFICE_01</span>
+          <span>STATION: {ENTERPRISE_CONFIG.CONTROL_CENTER}</span>
           <span>•</span>
-          <span>FEEDER: 11kV_CAMPUS_PRIMARY</span>
+          <span>FEEDER: 11kV_SECTOR4_PRIMARY</span>
           <span>•</span>
-          <span>TELEMETRY BUS: WAVESHARE LR1121 SUB-GHZ MESH</span>
+          <span>TELEMETRY BUS: {ENTERPRISE_CONFIG.TELEMETRY_BUS}</span>
         </div>
         <div className="flex items-center gap-4">
           <div className="hidden md:flex items-center gap-2 text-[10px] text-slate-400 dark:text-zinc-500 border-l border-slate-300 dark:border-zinc-800 pl-3">
@@ -1319,7 +1320,7 @@ export default function SCADADashboard() {
             <span>[Space]: Freeze Waveform</span>
           </div>
           <div>
-            <span>MCA PROJECT // FISAT © 2026 // ADMS ENTERPRISE SUITE</span>
+            <span>{ENTERPRISE_CONFIG.COPYRIGHT}</span>
           </div>
         </div>
       </footer>

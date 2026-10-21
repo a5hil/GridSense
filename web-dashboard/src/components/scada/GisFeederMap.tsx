@@ -28,10 +28,10 @@ interface GisFeederMapProps {
   onSelectPole?: (pole: PoleData) => void;
 }
 
-// GPS Coordinates for Real Distribution Feeder at FISAT Campus
+// GPS Coordinates for Real Distribution Feeder Network
 const ASSETS = {
   substation: {
-    name: "FISAT 33/11kV Substation",
+    name: "Angamaly 33/11kV Substation",
     coords: [76.4082, 10.2312] as [number, number],
     type: "SUBSTATION",
   },
@@ -527,13 +527,10 @@ export function GisFeederMap({
         <div className="flex items-center gap-2">
           <Layers className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           <span className="font-semibold uppercase tracking-wider text-slate-800 dark:text-zinc-200">
-            MAPBOX GL GIS // FEEDER TOPOLOGY
+            GIS GEOSPATIAL VECTOR MAP // FEEDER TOPOLOGY
           </span>
           <Badge variant="outline" className="text-[10px] hidden sm:inline-flex">
             WGS84: 10.2319° N, 76.4089° E
-          </Badge>
-          <Badge className="bg-sky-500/10 text-sky-400 border border-sky-500/30 text-[9px] font-mono">
-            MAPBOX GL v3.9
           </Badge>
         </div>
 
@@ -721,19 +718,7 @@ export function GisFeederMap({
         </div>
       </div>
 
-      {/* Footer Status Bar */}
-      <div className="border-t border-zinc-800 px-3 py-1.5 bg-zinc-950/70 flex items-center justify-between text-[10px] font-mono text-zinc-400">
-        <div className="flex items-center gap-3">
-          <span className="text-sky-400 font-semibold">ENGINE: MAPBOX GL (v3.9.4 WebGL)</span>
-          <span>•</span>
-          <span>PITCH: 45° 3D TILT</span>
-          <span>•</span>
-          <span>STYLE: {MAP_STYLES[currentStyleKey].name}</span>
-        </div>
-        <div className="text-emerald-400 flex items-center gap-2">
-          <span>HARDWARE ACCELERATED (60 FPS)</span>
-        </div>
-      </div>
+
 
       {/* Mapbox Token Modal */}
       {showTokenModal && (

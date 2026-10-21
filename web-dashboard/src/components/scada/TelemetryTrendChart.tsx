@@ -228,7 +228,7 @@ export function TelemetryTrendChart({
           </div>
 
           <div className="hidden md:flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400 border-l border-slate-200 dark:border-zinc-800 pl-3">
-            <span>FEEDER 04 (11kV CAMPUS PRIMARY)</span>
+            <span>FEEDER 04 (11kV DISTRIBUTION PRIMARY)</span>
             <span>•</span>
             <span>LORA SUB-GHZ MESH</span>
           </div>

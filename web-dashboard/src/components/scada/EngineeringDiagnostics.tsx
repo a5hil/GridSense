@@ -60,7 +60,7 @@ export function EngineeringDiagnostics({
               <Radio className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
               <CardTitle>LoRa Sub-GHz Link Metrics</CardTitle>
             </div>
-            <Badge variant="outline">WAVESHARE LR1121 SUB-GHZ MESH</Badge>
+            <Badge variant="outline">LR1121 SUB-GHZ RF MESH</Badge>
           </CardHeader>
 
           <CardContent className="space-y-3 text-xs">
@@ -181,7 +181,7 @@ export function EngineeringDiagnostics({
                 </span>
               </div>
               <div className="text-[11px] text-slate-600 dark:text-zinc-400 space-y-1">
-                <div>Source: <span className="text-slate-800 dark:text-zinc-200 font-semibold">{systemStatus?.gatewayConnected ? (systemStatus?.activePort || "COM8") : "Awaiting Port Connection"}</span></div>
+                <div>Source: <span className="text-slate-800 dark:text-zinc-200 font-semibold">{systemStatus?.gatewayConnected ? (systemStatus?.activePort || "Serial Gateway") : "Awaiting Gateway Link"}</span></div>
                 <div>Status: <span className={systemStatus?.gatewayConnected ? "text-emerald-500 font-semibold" : "text-amber-500 font-semibold"}>{systemStatus?.gatewayConnected ? "Active LoRa Ingestion" : "Serial Closed"}</span></div>
               </div>
 

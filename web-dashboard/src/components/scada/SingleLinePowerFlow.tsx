@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { GridTelemetry } from "@/lib/types";
+import { ENTERPRISE_CONFIG } from "@/lib/constants";
 
 interface SingleLinePowerFlowProps {
   telemetry: GridTelemetry | null;
@@ -112,7 +113,7 @@ export function SingleLinePowerFlow({
                 <span className="h-2 w-2 rounded-full bg-emerald-500 dark:bg-emerald-400" />
                 <span>SUBSTATION</span>
               </div>
-              <div className="text-xs font-bold text-slate-800 dark:text-zinc-200 mt-1">FISAT 33/11kV</div>
+              <div className="text-xs font-bold text-slate-800 dark:text-zinc-200 mt-1">{ENTERPRISE_CONFIG.SUBSTATION_SHORT}</div>
               <div className="text-[10px] text-slate-500 dark:text-zinc-400">BUS-1</div>
             </div>
             <div className="text-[9px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-xs py-0.5 mt-2">
@@ -201,7 +202,7 @@ export function SingleLinePowerFlow({
                 )}
               </div>
               <div className="text-[9px] text-slate-500 dark:text-zinc-500 mt-0.5">
-                {isGatewayOffline ? "AWAITING GATEWAY USB FEED" : "FEEDER 04 • 230V / 50Hz"}
+                {isGatewayOffline ? "TELEMETRY FEED OFFLINE" : "FEEDER 04 • 230V / 50Hz"}
               </div>
             </div>
 
@@ -470,14 +471,14 @@ export function SingleLinePowerFlow({
             <span className="text-[8px] text-slate-500 dark:text-zinc-500 mt-1 uppercase">SERVICE</span>
           </div>
 
-          {/* Node 6: Consumer / Campus Load */}
+          {/* Node 6: Consumer / Sector 4 Load */}
           <div className="w-[140px] shrink-0 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 p-2.5 rounded-sm flex flex-col justify-between text-center">
             <div>
               <div className="flex items-center justify-center gap-1 text-[10px] text-slate-500 dark:text-zinc-400 font-semibold uppercase">
                 <span className="h-2 w-2 rounded-full bg-emerald-500 dark:bg-emerald-400" />
                 <span>CONSUMER LOAD</span>
               </div>
-              <div className="text-xs font-bold text-slate-800 dark:text-zinc-200 mt-1">CAMPUS LT BUS</div>
+              <div className="text-xs font-bold text-slate-800 dark:text-zinc-200 mt-1">{ENTERPRISE_CONFIG.SECTOR_LT_BUS}</div>
               <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 tabular-nums mt-0.5">
                 {(p2 / 1000).toFixed(2)} kW
               </div>
@@ -514,7 +515,7 @@ export function SingleLinePowerFlow({
           <span>
             {isGatewayOffline ? (
               <span className="font-semibold text-amber-600 dark:text-amber-400">
-                GATEWAY OFFLINE: ESP32-S3 Hardware Gateway disconnected. Telemetry bus is idle. Connect Gateway USB (COM8) to resume real-time SCADA monitoring.
+                GATEWAY OFFLINE: Central Telemetry Gateway disconnected. Communications bus is idle. Awaiting gateway reconnection to resume real-time SCADA monitoring.
               </span>
             ) : isFault ? (
               <span className="font-semibold">

@@ -41,8 +41,8 @@ class TelemetryStore extends EventEmitter {
       lastSeen: new Date().toISOString(),
       lat: 10.2318,
       lng: 76.4088,
-      feederId: "FEEDER_04_CAMPUS",
-      dtrId: "DTR_CAMPUS_01",
+        feederId: "FEEDER_04_SECTOR4",
+        dtrId: "DTR_SECTOR4_01",
     };
 
     const initialP2: PoleData = {
@@ -64,8 +64,8 @@ class TelemetryStore extends EventEmitter {
       lastSeen: new Date().toISOString(),
       lat: 10.2325,
       lng: 76.4095,
-      feederId: "FEEDER_04_CAMPUS",
-      dtrId: "DTR_CAMPUS_01",
+        feederId: "FEEDER_04_SECTOR4",
+        dtrId: "DTR_SECTOR4_01",
     };
 
     // Live clean history (only populated from real packets)
@@ -343,8 +343,8 @@ class TelemetryStore extends EventEmitter {
         lastSeen: timestamp,
         lat: 10.2318,
         lng: 76.4088,
-        feederId: "FEEDER_04_CAMPUS",
-        dtrId: "DTR_CAMPUS_01",
+        feederId: "FEEDER_04_SECTOR4",
+        dtrId: "DTR_SECTOR4_01",
       };
 
       const p2: PoleData = {
@@ -366,8 +366,8 @@ class TelemetryStore extends EventEmitter {
         lastSeen: timestamp,
         lat: 10.2325,
         lng: 76.4095,
-        feederId: "FEEDER_04_CAMPUS",
-        dtrId: "DTR_CAMPUS_01",
+        feederId: "FEEDER_04_SECTOR4",
+        dtrId: "DTR_SECTOR4_01",
       };
 
       const idiff = Math.abs(p1.i - p2.i);
@@ -410,8 +410,8 @@ class TelemetryStore extends EventEmitter {
         lastSeen: timestamp,
         lat: 10.2318,
         lng: 76.4088,
-        feederId: "FEEDER_04_CAMPUS",
-        dtrId: "DTR_CAMPUS_01",
+        feederId: "FEEDER_04_SECTOR4",
+        dtrId: "DTR_SECTOR4_01",
       };
 
       const p2: PoleData = {
@@ -432,8 +432,8 @@ class TelemetryStore extends EventEmitter {
         lastSeen: timestamp,
         lat: 10.2325,
         lng: 76.4095,
-        feederId: "FEEDER_04_CAMPUS",
-        dtrId: "DTR_CAMPUS_01",
+        feederId: "FEEDER_04_SECTOR4",
+        dtrId: "DTR_SECTOR4_01",
       };
 
       // 1. Guard against uninitialized node startup race-conditions:

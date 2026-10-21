@@ -59,7 +59,7 @@ export function FeederAssetTree({
               <ChevronRight className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-400" />
             )}
             <Zap className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
-            <span>FISAT 33/11kV Substation</span>
+            <span>Angamaly 33/11kV Substation</span>
             <Badge variant="healthy" className="ml-auto text-[9px]">
               ONLINE (33kV)
             </Badge>
@@ -80,7 +80,7 @@ export function FeederAssetTree({
                     <ChevronRight className="h-3 w-3 text-slate-400 dark:text-zinc-400" />
                   )}
                   <Layers className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
-                  <span>Feeder 04 (Campus Primary)</span>
+                  <span>Feeder 04 (Sector 4 Primary)</span>
                   <Badge
                     variant={isFault ? "destructive" : "healthy"}
                     className="ml-auto text-[9px]"

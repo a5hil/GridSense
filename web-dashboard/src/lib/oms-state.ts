@@ -58,8 +58,8 @@ class OmsManager {
     const newTicket: TroubleTicket = {
       ticketId,
       createdAt: timestamp,
-      feederId: "FEEDER_04_CAMPUS",
-      feederName: "Feeder 04 (Campus Primary)",
+      feederId: "FEEDER_04_SECTOR4",
+      feederName: "Feeder 04 (Sector 4 Primary)",
       affectedPole: params.affectedPole,
       gps: params.gps,
       faultType: params.faultCode,

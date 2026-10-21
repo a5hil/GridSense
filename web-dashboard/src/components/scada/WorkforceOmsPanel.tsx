@@ -449,7 +449,7 @@ export function WorkforceOmsPanel({
                   </Badge>
                 </div>
                 <div className="text-slate-800 dark:text-zinc-200 font-bold text-xs">
-                  FISAT 33/11kV SUBSTATION • FEEDER 04
+                  ANGAMALY 33/11kV PRIMARY SUBSTATION • FEEDER 04
                 </div>
                 <div className="text-[10px] text-slate-500 dark:text-zinc-400">
                   Continuous LoRa Sub-GHz Mesh • Dual-Pole Differential Monitoring
