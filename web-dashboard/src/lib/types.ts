@@ -90,7 +90,7 @@ export interface GridTelemetry {
   timestamp: string; // ISO string
   gw_ms?: number;
   sec: "AES128" | "NONE";
-  status: "OK" | "WARN" | "ALERT" | "TRIP" | "WAITING_DATA";
+  status: "OK" | "WARN" | "ALERT" | "TRIP" | "WAITING_DATA" | "DISCONNECTED";
   fault: boolean; // boolean fault flag for prompt requirement
   fault_code: "NORMAL" | "DIFF_CURRENT_FAULT" | "OUTAGE_LAST_GASP" | "POLE_OFFLINE" | "THEFT_SUSPECTED" | string;
   idiff: number; // |I_A - I_B| (A)

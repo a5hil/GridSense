@@ -122,12 +122,21 @@ void evaluateCentralFDIR() {
     }
 
     // 3. Calculate Differential Current between Pole 1 and Pole 2
-    current_idiff = fabs(pole1.current - pole2.current);
+    // Only evaluate differential protection if BOTH nodes have active, initialized power flow readings
+    // (V > 50V and I > 0.05A on both poles), preventing startup race-condition false trips.
+    bool p1_active = (pole1.voltage > 50.0f && pole1.current > 0.05f);
+    bool p2_active = (pole2.voltage > 50.0f && pole2.current > 0.05f);
 
-    // 4. Differential Protection Check (Vegetation touch / tapping leakage)
-    if (current_idiff >= DIFF_CURRENT_THRESHOLD_A) {
-        current_fault = FAULT_DIFFERENTIAL;
-        return;
+    if (p1_active && p2_active) {
+        current_idiff = fabs(pole1.current - pole2.current);
+
+        // 4. Differential Protection Check (Vegetation touch / tapping leakage)
+        if (current_idiff >= DIFF_CURRENT_THRESHOLD_A) {
+            current_fault = FAULT_DIFFERENTIAL;
+            return;
+        }
+    } else {
+        current_idiff = 0.0f;
     }
 
     // 5. Overcurrent Protection Check

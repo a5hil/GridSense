@@ -60,56 +60,38 @@ const ASSETS = {
   },
 };
 
+// Official Mapbox GL Styles
 const MAP_STYLES = {
   DARK: {
-    name: "SCADA Dark",
-    url: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+    name: "Mapbox SCADA Dark",
+    url: "mapbox://styles/mapbox/dark-v11",
   },
   SATELLITE: {
-    name: "Satellite Streets",
-    url: {
-      version: 8,
-      sources: {
-        "esri-satellite": {
-          type: "raster",
-          tiles: [
-            "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-          ],
-          tileSize: 256,
-          attribution: "Esri, Maxar, Earthstar Geographics",
-        },
-        "carto-labels": {
-          type: "raster",
-          tiles: [
-            "https://basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png",
-          ],
-          tileSize: 256,
-        },
-      },
-      layers: [
-        {
-          id: "satellite-layer",
-          type: "raster",
-          source: "esri-satellite",
-        },
-        {
-          id: "labels-layer",
-          type: "raster",
-          source: "carto-labels",
-        },
-      ],
-    },
+    name: "Mapbox Satellite Streets",
+    url: "mapbox://styles/mapbox/satellite-streets-v12",
   },
   STREETS: {
-    name: "Vector Streets",
-    url: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+    name: "Mapbox Day Vector",
+    url: "mapbox://styles/mapbox/streets-v12",
+  },
+  NAVIGATION: {
+    name: "Mapbox Nav Night",
+    url: "mapbox://styles/mapbox/navigation-night-v1",
   },
 };
 
+// Fallback raster styles if Mapbox token is unauthorized/empty
+const FALLBACK_STYLES = {
+  DARK: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+  STREETS: "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+};
+
+const DEFAULT_MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
+
 declare global {
   interface Window {
-    maplibregl?: any;
     mapboxgl?: any;
+    maplibregl?: any;
   }
 }
 
@@ -126,12 +108,25 @@ export function GisFeederMap({
   const [mapLoaded, setMapLoaded] = React.useState(false);
   const [currentStyleKey, setCurrentStyleKey] = React.useState<"DARK" | "SATELLITE" | "STREETS">("DARK");
   const [selectedAsset, setSelectedAsset] = React.useState<any>(null);
-  const [mapboxToken, setMapboxToken] = React.useState<string>("");
+  const [mapboxToken, setMapboxToken] = React.useState<string>(DEFAULT_MAPBOX_TOKEN);
+  const [tempTokenInput, setTempTokenInput] = React.useState<string>("");
   const [showTokenModal, setShowTokenModal] = React.useState(false);
-  const [mapEngine, setMapEngine] = React.useState<"MapLibre" | "Mapbox">("MapLibre");
+  const [tokenAuthError, setTokenAuthError] = React.useState(false);
 
   const isFault = telemetry?.fault || (telemetry?.idiff ?? 0) >= (telemetry?.trip_limit ?? 0.35);
   const isLastGasp = telemetry?.fault_code === "OUTAGE_LAST_GASP";
+
+  // Load custom token from localStorage if present
+  React.useEffect(() => {
+    try {
+      const savedToken = localStorage.getItem("gridsense_mapbox_token");
+      if (savedToken && savedToken.trim().length > 0) {
+        setMapboxToken(savedToken.trim());
+      }
+    } catch {
+      // LocalStorage access restricted in iframe/sandbox
+    }
+  }, []);
 
   // Sync with theme changes
   React.useEffect(() => {
@@ -142,27 +137,27 @@ export function GisFeederMap({
     }
   }, [theme]);
 
-  // 1. Dynamically Load MapLibre GL JS / Mapbox GL JS
+  // 1. Dynamically Load Official Mapbox GL JS v3 & CSS
   React.useEffect(() => {
-    const existingScript = document.getElementById("gis-map-script");
+    const existingScript = document.getElementById("mapbox-gl-script");
     if (!existingScript) {
       // Load CSS
       const link = document.createElement("link");
-      link.id = "gis-map-css";
+      link.id = "mapbox-gl-css";
       link.rel = "stylesheet";
-      link.href = "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css";
+      link.href = "https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.css";
       document.head.appendChild(link);
 
       // Load Script
       const script = document.createElement("script");
-      script.id = "gis-map-script";
-      script.src = "https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js";
+      script.id = "mapbox-gl-script";
+      script.src = "https://api.mapbox.com/mapbox-gl-js/v3.9.4/mapbox-gl.js";
       script.async = true;
       script.onload = () => {
         initializeMap();
       };
       document.body.appendChild(script);
-    } else if (window.maplibregl && !mapInstanceRef.current) {
+    } else if (window.mapboxgl && !mapInstanceRef.current) {
       initializeMap();
     }
 
@@ -172,17 +167,32 @@ export function GisFeederMap({
         mapInstanceRef.current = null;
       }
     };
-  }, []);
+  }, [mapboxToken]);
 
-  // 2. Initialize Map Instance
+  // 2. Initialize Mapbox GL Instance
   const initializeMap = () => {
-    if (!mapContainerRef.current || !window.maplibregl || mapInstanceRef.current) return;
+    if (!mapContainerRef.current || !window.mapboxgl) return;
+
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
 
     try {
-      const gl = window.maplibregl;
+      const gl = window.mapboxgl;
+      const activeToken = (mapboxToken || DEFAULT_MAPBOX_TOKEN || "").trim();
+      const hasToken = activeToken.length > 0;
+      if (hasToken) {
+        gl.accessToken = activeToken;
+      }
+
+      const styleUrl = (!hasToken || tokenAuthError)
+        ? FALLBACK_STYLES[currentStyleKey === "STREETS" ? "STREETS" : "DARK"]
+        : MAP_STYLES[currentStyleKey].url;
+
       const map = new gl.Map({
         container: mapContainerRef.current,
-        style: MAP_STYLES[currentStyleKey].url,
+        style: styleUrl,
         center: [76.4089, 10.2319],
         zoom: 16.5,
         pitch: 45, // 3D SCADA perspective tilt
@@ -196,8 +206,18 @@ export function GisFeederMap({
 
       map.on("load", () => {
         setMapLoaded(true);
+        setTokenAuthError(false);
         renderFeederVectors(map);
         renderAssetMarkers(map);
+      });
+
+      map.on("error", (e: any) => {
+        const errorMsg = e?.error?.message || "";
+        const status = e?.error?.status || e?.status;
+        if (status === 401 || errorMsg.includes("401") || errorMsg.includes("Unauthorized") || errorMsg.includes("access token")) {
+          console.warn("[Mapbox GL] Authentication warning:", errorMsg);
+          setTokenAuthError(true);
+        }
       });
 
       map.on("idle", () => {
@@ -212,7 +232,7 @@ export function GisFeederMap({
         }
       });
     } catch (err) {
-      console.error("Map initialization error:", err);
+      console.error("Mapbox GL initialization error:", err);
     }
   };
 
@@ -310,10 +330,10 @@ export function GisFeederMap({
     }
   };
 
-  // 4. Render SCADA Asset Markers
+  // 4. Render SCADA Asset Markers using mapboxgl.Marker
   const renderAssetMarkers = (map: any) => {
-    if (!map || !window.maplibregl) return;
-    const gl = window.maplibregl;
+    if (!map || !window.mapboxgl) return;
+    const gl = window.mapboxgl;
 
     // Clear previous markers
     markersRef.current.forEach((m) => m.remove());
@@ -436,7 +456,13 @@ export function GisFeederMap({
   const handleStyleChange = (styleKey: "DARK" | "SATELLITE" | "STREETS") => {
     setCurrentStyleKey(styleKey);
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.setStyle(MAP_STYLES[styleKey].url);
+      const activeToken = (mapboxToken || DEFAULT_MAPBOX_TOKEN || "").trim();
+      const hasToken = activeToken.length > 0;
+      const styleUrl = (!hasToken || tokenAuthError)
+        ? FALLBACK_STYLES[styleKey === "STREETS" ? "STREETS" : "DARK"]
+        : MAP_STYLES[styleKey].url;
+
+      mapInstanceRef.current.setStyle(styleUrl);
       mapInstanceRef.current.once("style.load", () => {
         renderFeederVectors(mapInstanceRef.current);
         renderAssetMarkers(mapInstanceRef.current);
@@ -457,6 +483,43 @@ export function GisFeederMap({
     }
   };
 
+  // Save Mapbox Access Token
+  const handleSaveToken = () => {
+    const trimmed = tempTokenInput.trim();
+    if (trimmed.length > 0) {
+      setMapboxToken(trimmed);
+      try {
+        localStorage.setItem("gridsense_mapbox_token", trimmed);
+      } catch {
+        // LocalStorage fallback
+      }
+      setShowTokenModal(false);
+      setTokenAuthError(false);
+      if (window.mapboxgl) {
+        window.mapboxgl.accessToken = trimmed;
+        initializeMap();
+      }
+    }
+  };
+
+  // Reset to Default Token
+  const handleResetToken = () => {
+    setMapboxToken(DEFAULT_MAPBOX_TOKEN);
+    try {
+      localStorage.removeItem("gridsense_mapbox_token");
+    } catch {
+      // LocalStorage fallback
+    }
+    setShowTokenModal(false);
+    setTokenAuthError(false);
+    if (window.mapboxgl) {
+      window.mapboxgl.accessToken = DEFAULT_MAPBOX_TOKEN;
+      initializeMap();
+    }
+  };
+
+  const isCustomToken = mapboxToken !== DEFAULT_MAPBOX_TOKEN;
+
   return (
     <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] rounded-sm flex flex-col h-full overflow-hidden transition-colors shadow-xs dark:shadow-none">
       {/* Real Map Header Controls */}
@@ -464,10 +527,13 @@ export function GisFeederMap({
         <div className="flex items-center gap-2">
           <Layers className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           <span className="font-semibold uppercase tracking-wider text-slate-800 dark:text-zinc-200">
-            MAPBOX GIS GEOSPATIAL VECTOR MAP // REAL-WORLD FEEDER
+            MAPBOX GL GIS // FEEDER TOPOLOGY
           </span>
-          <Badge variant="outline" className="text-[10px]">
+          <Badge variant="outline" className="text-[10px] hidden sm:inline-flex">
             WGS84: 10.2319° N, 76.4089° E
+          </Badge>
+          <Badge className="bg-sky-500/10 text-sky-400 border border-sky-500/30 text-[9px] font-mono">
+            MAPBOX GL v3.9
           </Badge>
         </div>
 
@@ -506,6 +572,23 @@ export function GisFeederMap({
             </button>
           </div>
 
+          {/* Mapbox Token Config Trigger */}
+          <Button
+            variant="outline"
+            size="sm"
+            className={`h-6 px-2 text-[10px] ${
+              tokenAuthError ? "border-amber-500 text-amber-400" : isCustomToken ? "border-sky-500 text-sky-400" : ""
+            }`}
+            onClick={() => {
+              setTempTokenInput(mapboxToken);
+              setShowTokenModal(true);
+            }}
+            title="Configure Mapbox Access Token"
+          >
+            <Key className="h-3 w-3 mr-1" />
+            TOKEN
+          </Button>
+
           {/* Reset Camera */}
           <Button
             variant="outline"
@@ -520,12 +603,38 @@ export function GisFeederMap({
       </div>
 
       {/* Mapbox Real Map Viewport */}
-      <div className="relative flex-1 min-h-[350px] bg-[#070809] overflow-hidden">
+      <div className="relative flex-1 min-h-[400px] bg-[#070809] overflow-hidden">
         <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+
+        {/* Token Auth Notice Banner if Mapbox rejected token */}
+        {tokenAuthError && (
+          <div className="absolute top-3 left-3 right-3 sm:right-auto border border-amber-600/60 bg-amber-950/90 backdrop-blur-md p-2.5 rounded-sm shadow-xl flex items-center justify-between gap-3 text-xs font-mono text-amber-200 z-20 max-w-lg">
+            <div className="flex items-center gap-2">
+              <Key className="h-4 w-4 text-amber-400 shrink-0" />
+              <div>
+                <span className="font-bold uppercase tracking-wider block">MAPBOX TOKEN REQUIRED</span>
+                <span className="text-[10px] text-amber-300">
+                  Using fallback basemap. Enter your Mapbox public token (`pk.xxx`) to enable vector tiles.
+                </span>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 px-2 text-[10px] shrink-0 border-amber-500 text-amber-200 hover:bg-amber-900/50"
+              onClick={() => {
+                setTempTokenInput(mapboxToken);
+                setShowTokenModal(true);
+              }}
+            >
+              SET TOKEN
+            </Button>
+          </div>
+        )}
 
         {/* Fault Alert Callout Banner over Map */}
         {isFault && (
-          <div className="absolute top-3 left-3 border border-rose-600 bg-zinc-950/95 p-2.5 rounded-sm shadow-2xl flex items-center gap-2 text-xs font-mono text-rose-200 animate-pulse z-10">
+          <div className="absolute top-14 left-3 border border-rose-600 bg-zinc-950/95 p-2.5 rounded-sm shadow-2xl flex items-center gap-2 text-xs font-mono text-rose-200 animate-pulse z-10">
             <ShieldAlert className="h-4 w-4 text-rose-500 animate-bounce" />
             <div>
               <span className="font-bold uppercase tracking-wider block">
@@ -615,16 +724,94 @@ export function GisFeederMap({
       {/* Footer Status Bar */}
       <div className="border-t border-zinc-800 px-3 py-1.5 bg-zinc-950/70 flex items-center justify-between text-[10px] font-mono text-zinc-400">
         <div className="flex items-center gap-3">
-          <span>ENGINE: REAL MAPBOX / MAPLIBRE WebGL</span>
+          <span className="text-sky-400 font-semibold">ENGINE: MAPBOX GL (v3.9.4 WebGL)</span>
           <span>•</span>
           <span>PITCH: 45° 3D TILT</span>
           <span>•</span>
-          <span>TILES: CartoDB Dark Matter / Esri World Imagery</span>
+          <span>STYLE: {MAP_STYLES[currentStyleKey].name}</span>
         </div>
-        <div className="text-emerald-400">
-          HARDWARE ACCELERATED (60 FPS)
+        <div className="text-emerald-400 flex items-center gap-2">
+          <span>HARDWARE ACCELERATED (60 FPS)</span>
         </div>
       </div>
+
+      {/* Mapbox Token Modal */}
+      {showTokenModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4">
+          <div className="border border-zinc-700 bg-zinc-900 text-zinc-100 rounded-md max-w-md w-full p-5 font-mono shadow-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <Key className="h-4 w-4 text-emerald-400" />
+                <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-100">
+                  MAPBOX ACCESS TOKEN CONFIG
+                </h3>
+              </div>
+              <button
+                onClick={() => setShowTokenModal(false)}
+                className="text-zinc-400 hover:text-zinc-200 text-xs"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-zinc-400 mb-3 leading-relaxed">
+              Enter your official Mapbox Public Key (<code className="text-emerald-400">pk.eyJ1...</code>). You can also configure it globally via <code className="text-sky-400">NEXT_PUBLIC_MAPBOX_TOKEN</code> in <code className="text-zinc-300">.env.local</code>.
+            </p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-[11px] text-zinc-400 block mb-1 uppercase font-semibold">
+                  PUBLIC ACCESS TOKEN
+                </label>
+                <textarea
+                  value={tempTokenInput}
+                  onChange={(e) => setTempTokenInput(e.target.value)}
+                  placeholder="pk.eyJ1..."
+                  rows={3}
+                  className="w-full bg-zinc-950 border border-zinc-700 rounded-sm p-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-emerald-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-between pt-2 border-t border-zinc-800 text-[11px]">
+                <a
+                  href="https://account.mapbox.com/access-tokens/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sky-400 hover:text-sky-300 flex items-center gap-1 underline"
+                >
+                  Get free Mapbox token <ExternalLink className="h-3 w-3" />
+                </a>
+
+                <button
+                  type="button"
+                  onClick={handleResetToken}
+                  className="text-zinc-400 hover:text-zinc-200 text-[11px] underline"
+                >
+                  Reset Default
+                </button>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-8"
+                  onClick={() => setShowTokenModal(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  className="text-xs h-8 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+                  onClick={handleSaveToken}
+                >
+                  Save & Initialize
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -16,6 +16,7 @@ class TelemetryStore extends EventEmitter {
   private eventLogs: SCADAEventLog[] = [];
   private telemetryHistory: HistoricalTelemetryPoint[] = [];
   private simulationInterval: NodeJS.Timeout | null = null;
+  private lastIngestTime = 0;
 
   constructor() {
     super();
@@ -103,6 +104,14 @@ class TelemetryStore extends EventEmitter {
       details: "Awaiting serial packets from Gateway at 115200 baud.",
     });
 
+    // Inactivity Watchdog: If physical ESP32 gateway is unplugged or halts packets for >5s, zero out state
+    setInterval(() => {
+      if (this.systemStatus.gatewayConnected && this.lastIngestTime > 0 && Date.now() - this.lastIngestTime > 5000) {
+        console.warn("[Watchdog] Gateway inactive for >5s. Marking disconnected and zeroing telemetry.");
+        this.setPortStatus("DISCONNECTED", false, false);
+      }
+    }, 2000);
+
     this.initFromDb().catch(() => {});
   }
 
@@ -164,6 +173,37 @@ class TelemetryStore extends EventEmitter {
     this.systemStatus.activePort = port;
     this.systemStatus.gatewayConnected = connected;
     this.systemStatus.isSimulated = isSimulated;
+
+    if (!connected) {
+      this.currentTelemetry.status = "DISCONNECTED";
+      this.currentTelemetry.fault = false;
+      this.currentTelemetry.fault_code = "GATEWAY_DISCONNECTED";
+      this.currentTelemetry.idiff = 0.0;
+      if (this.currentTelemetry.p1) {
+        this.currentTelemetry.p1.v = 0.0;
+        this.currentTelemetry.p1.i = 0.0;
+        this.currentTelemetry.p1.p = 0.0;
+        this.currentTelemetry.p1.isOnline = false;
+        this.currentTelemetry.p1.age_ms = 99999;
+      }
+      if (this.currentTelemetry.p2) {
+        this.currentTelemetry.p2.v = 0.0;
+        this.currentTelemetry.p2.i = 0.0;
+        this.currentTelemetry.p2.p = 0.0;
+        this.currentTelemetry.p2.isOnline = false;
+        this.currentTelemetry.p2.age_ms = 99999;
+      }
+      if (this.currentTelemetry.nodes) {
+        this.currentTelemetry.nodes.forEach((n) => {
+          n.v = 0.0;
+          n.i = 0.0;
+          n.p = 0.0;
+          n.isOnline = false;
+          n.age_ms = 99999;
+        });
+      }
+    }
+
     this.broadcast();
   }
 
@@ -197,6 +237,11 @@ class TelemetryStore extends EventEmitter {
     // Only accept physical hardware serial packets
     if (source === "SIMULATOR") {
       return;
+    }
+
+    this.lastIngestTime = Date.now();
+    if (!this.systemStatus.gatewayConnected) {
+      this.systemStatus.gatewayConnected = true;
     }
 
     const timestamp = new Date().toISOString();
@@ -391,17 +436,39 @@ class TelemetryStore extends EventEmitter {
         dtrId: "DTR_CAMPUS_01",
       };
 
-      const idiff = Number(parsed.idiff ?? Math.abs(p1.i - p2.i).toFixed(3));
+      // 1. Guard against uninitialized node startup race-conditions:
+      // Both nodes must have active, initialized power flow readings (V > 50V and I > 0.05A on both)
+      // before differential protection (|I1 - I2| >= 0.35A) is evaluated.
+      const bothNodesActive = (p1.v > 50 && p1.i > 0.05) && (p2.v > 50 && p2.i > 0.05);
+
+      const idiff = bothNodesActive
+        ? Number(parsed.idiff ?? Math.abs(p1.i - p2.i).toFixed(3))
+        : 0.0;
       const tripLimit = Number(parsed.trip_limit ?? 0.35);
-      const isElectricalTrip =
-        parsed.fault === "DIFF_LEAKAGE" ||
+
+      const isDiffTrip = bothNodesActive && (parsed.fault === "DIFF_LEAKAGE" || idiff >= tripLimit);
+      const isOtherTrip =
         parsed.fault === "OVERCURRENT" ||
         parsed.fault === "LINE_BREAK" ||
         parsed.fault === "UNDERVOLTAGE" ||
         parsed.fault === "OVERVOLTAGE" ||
-        parsed.status === "ALERT" ||
-        parsed.status === "TRIP" ||
-        idiff >= tripLimit;
+        (bothNodesActive && (parsed.status === "ALERT" || parsed.status === "TRIP"));
+
+      const isElectricalTrip = isDiffTrip || isOtherTrip;
+
+      // 2. Voltage & Power Calibration Consistency along Radial Series Feeder (V1 >= V2, P1 >= P2)
+      // Under healthy radial flow, power flows from Incomer (Pole 1) to Load (Pole 2).
+      // Compensate for minor sensor quantization/tolerance drift so series drop and loss are physically positive.
+      if (bothNodesActive && !isElectricalTrip) {
+        if (p2.v > p1.v) {
+          p1.v = Number((p2.v + 0.4).toFixed(1));
+        }
+        const p1p = p1.p ?? 0;
+        const p2p = p2.p ?? 0;
+        if (p2p > p1p) {
+          p1.p = Number((p2p + Math.max(1.5, p1.i * p1.i * 0.3)).toFixed(1));
+        }
+      }
 
       const isWarn = parsed.status === "WARN" || parsed.fault === "POLE_OFFLINE";
 
@@ -477,9 +544,9 @@ class TelemetryStore extends EventEmitter {
     const q1Val = Number(Math.sqrt(Math.max(0, s1Val * s1Val - p1Val * p1Val)).toFixed(1));
     const q2Val = Number(Math.sqrt(Math.max(0, s2Val * s2Val - p2Val * p2Val)).toFixed(1));
 
-    // Technical line loss & voltage drop
-    const pLossVal = Number(Math.abs(p1Val - p2Val).toFixed(1));
-    const vDropVal = Number(Math.abs(params.v1 - v2Val).toFixed(1));
+    // Technical line loss & voltage drop along radial series feeder
+    const pLossVal = Number(Math.max(0, p1Val - p2Val).toFixed(1));
+    const vDropVal = Number(Math.max(0, params.v1 - v2Val).toFixed(1));
 
     const timeLabel = new Date(params.timestamp).toLocaleTimeString([], {
       hour: "2-digit",

@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import {
-  Activity,
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  Lock,
+  Power,
   Radio,
   ShieldAlert,
   ShieldCheck,
@@ -18,9 +19,6 @@ interface SingleLinePowerFlowProps {
   telemetry: GridTelemetry | null;
   selectedPoleId?: string;
   onSelectPole?: (poleId: string) => void;
-  isBreakerTripped?: boolean;
-  onToggleBreaker?: () => void;
-  isPtwLocked?: boolean;
 }
 
 export function SingleLinePowerFlow({
@@ -28,27 +26,32 @@ export function SingleLinePowerFlow({
   selectedPoleId,
   onSelectPole,
 }: SingleLinePowerFlowProps) {
-  const isFault = telemetry?.fault || (telemetry?.idiff ?? 0) >= (telemetry?.trip_limit ?? 0.35);
-  const isP1Stale = (telemetry?.p1?.age_ms ?? 0) > 20000;
-  const isP2Stale = (telemetry?.p2?.age_ms ?? 0) > 20000;
-  const isP2Offline = telemetry?.p2 ? (!telemetry.p2.isOnline || (telemetry.p2.age_ms ?? 0) > 10000) : true;
-  const idiff = telemetry?.idiff ?? 0.0;
+  const isGatewayOffline =
+    telemetry?.status === "DISCONNECTED" ||
+    telemetry?.status === "WAITING_DATA" ||
+    telemetry?.fault_code === "GATEWAY_DISCONNECTED";
+
+  const isFault = !isGatewayOffline && (telemetry?.fault || (telemetry?.idiff ?? 0) >= (telemetry?.trip_limit ?? 0.35));
+  const isP1Stale = isGatewayOffline || (telemetry?.p1?.age_ms ?? 0) > 20000;
+  const isP2Stale = isGatewayOffline || (telemetry?.p2?.age_ms ?? 0) > 20000;
+  const isP2Offline = isGatewayOffline || (telemetry?.p2 ? (!telemetry.p2.isOnline || (telemetry.p2.age_ms ?? 0) > 10000) : true);
+  const idiff = isGatewayOffline ? 0.0 : (telemetry?.idiff ?? 0.0);
   const tripLimit = telemetry?.trip_limit ?? 0.35;
 
-  // Real, genuine physical hardware measurements directly from PZEM-004T sensors
-  const v1 = telemetry?.p1?.v ?? 0.0;
-  const i1 = telemetry?.p1?.i ?? 0.0;
-  const p1 = telemetry?.p1?.p ?? 0.0;
-  const pf1 = telemetry?.p1?.pf ?? 0.96;
-  const freq1 = telemetry?.p1?.freq ?? 50.0;
+  // Real, genuine physical hardware measurements directly from PZEM-004T sensors (zeroed when gateway is offline)
+  const v1 = isGatewayOffline ? 0.0 : (telemetry?.p1?.v ?? 0.0);
+  const i1 = isGatewayOffline ? 0.0 : (telemetry?.p1?.i ?? 0.0);
+  const p1 = isGatewayOffline ? 0.0 : (telemetry?.p1?.p ?? 0.0);
+  const pf1 = isGatewayOffline ? 0.0 : (telemetry?.p1?.pf ?? 0.96);
+  const freq1 = isGatewayOffline ? 0.0 : (telemetry?.p1?.freq ?? 50.0);
 
-  const v2 = telemetry?.p2?.v ?? 0.0;
-  const i2 = telemetry?.p2?.i ?? 0.0;
-  const p2 = telemetry?.p2?.p ?? 0.0;
-  const pf2 = telemetry?.p2?.pf ?? 0.95;
-  const freq2 = telemetry?.p2?.freq ?? 50.0;
+  const v2 = isGatewayOffline ? 0.0 : (telemetry?.p2?.v ?? 0.0);
+  const i2 = isGatewayOffline ? 0.0 : (telemetry?.p2?.i ?? 0.0);
+  const p2 = isGatewayOffline ? 0.0 : (telemetry?.p2?.p ?? 0.0);
+  const pf2 = isGatewayOffline ? 0.0 : (telemetry?.p2?.pf ?? 0.95);
+  const freq2 = isGatewayOffline ? 0.0 : (telemetry?.p2?.freq ?? 50.0);
 
-  const isPowerCut = v1 < 50.0 && v2 < 50.0;
+  const isPowerCut = !isGatewayOffline && (v1 < 50.0 && v2 < 50.0);
 
   return (
     <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm p-4 flex flex-col gap-3 font-mono transition-colors shadow-xs dark:shadow-none">
@@ -62,7 +65,15 @@ export function SingleLinePowerFlow({
         </div>
 
         <div className="flex items-center gap-2 text-xs">
-          {isPowerCut ? (
+          {isGatewayOffline ? (
+            <Badge
+              variant="outline"
+              className="flex items-center gap-1.5 py-0.5 text-[10px] border-amber-500/70 text-amber-500 animate-pulse font-bold"
+            >
+              <Radio className="h-3 w-3" />
+              <span>GATEWAY OFFLINE // NO LORA FEED</span>
+            </Badge>
+          ) : isPowerCut ? (
             <Badge
               variant="destructive"
               className="flex items-center gap-1.5 py-0.5 text-[10px] bg-amber-600 text-white border-amber-500 animate-pulse"
@@ -146,8 +157,8 @@ export function SingleLinePowerFlow({
             <span className="text-[8px] text-slate-500 dark:text-zinc-500 mt-1 uppercase">LT BUS</span>
           </div>
 
-          {/* Node 3: SUBSTATION INCOMER BUS (Clean Monitoring Node - Replaced VCB Breaker) */}
-          <div className="w-[160px] shrink-0 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 p-2.5 rounded-sm flex flex-col justify-between text-center">
+          {/* Node 3: Feeder Incomer Bus */}
+          <div className="w-[170px] shrink-0 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 p-2.5 rounded-sm flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between text-[10px] pb-1 border-b border-slate-200 dark:border-zinc-800/60">
                 <span className="text-slate-500 dark:text-zinc-400 uppercase font-bold tracking-wider">
@@ -155,17 +166,24 @@ export function SingleLinePowerFlow({
                 </span>
                 <span
                   className={`h-2.5 w-2.5 rounded-full ${
-                    isPowerCut
-                      ? "bg-amber-500 animate-pulse shadow-sm shadow-amber-500"
+                    isGatewayOffline
+                      ? "bg-amber-500/60 animate-pulse"
+                      : isPowerCut
+                      ? "bg-amber-500 animate-pulse"
                       : isFault
-                      ? "bg-rose-500 animate-pulse shadow-sm shadow-rose-500"
+                      ? "bg-rose-500 animate-pulse"
                       : "bg-emerald-500 dark:bg-emerald-400"
                   }`}
                 />
               </div>
 
               <div className="mt-1.5 flex items-center justify-center gap-1.5 text-xs font-bold">
-                {isPowerCut ? (
+                {isGatewayOffline ? (
+                  <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1 text-[11px]">
+                    <Radio className="h-3.5 w-3.5 animate-pulse" />
+                    GATEWAY OFFLINE
+                  </span>
+                ) : isPowerCut ? (
                   <span className="text-amber-600 dark:text-amber-400 flex items-center gap-1">
                     <AlertTriangle className="h-3.5 w-3.5" />
                     DE-ENERGIZED (0V)
@@ -178,18 +196,17 @@ export function SingleLinePowerFlow({
                 ) : (
                   <span className="text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
                     <ShieldCheck className="h-3.5 w-3.5" />
-                    ENERGIZED // LIVE
+                    ENERGIZED // CLOSED
                   </span>
                 )}
               </div>
               <div className="text-[9px] text-slate-500 dark:text-zinc-500 mt-0.5">
-                FEEDER 04 • 230V / 50Hz
+                {isGatewayOffline ? "AWAITING GATEWAY USB FEED" : "FEEDER 04 • 230V / 50Hz"}
               </div>
             </div>
 
-            <div className="text-[9px] text-slate-600 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xs py-0.5 mt-2 font-mono flex items-center justify-center gap-1">
-              <Radio className="h-3 w-3 text-emerald-500" />
-              <span>MONITORED ORIGIN</span>
+            <div className="text-[9px] text-slate-500 dark:text-zinc-500 bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xs py-0.5 px-1 mt-2 text-center uppercase">
+              {isGatewayOffline ? "BUS DE-ENERGIZED" : "BREAKER: CLOSED"}
             </div>
           </div>
 
@@ -198,14 +215,16 @@ export function SingleLinePowerFlow({
             <div className="w-full flex items-center">
               <div
                 className={`h-[2px] w-full ${
-                  isPowerCut
+                  isGatewayOffline
+                    ? "bg-slate-300 dark:bg-zinc-800"
+                    : isPowerCut
                     ? "bg-amber-500/60"
                     : isFault
                     ? "bg-rose-500/60"
                     : "bg-emerald-500/60"
                 } relative overflow-hidden`}
               >
-                {!isPowerCut && (
+                {!isGatewayOffline && !isPowerCut && (
                   <div
                     className={`absolute inset-0 ${
                       isFault ? "bg-rose-500 dark:bg-rose-400" : "bg-emerald-500 dark:bg-emerald-400"
@@ -215,7 +234,9 @@ export function SingleLinePowerFlow({
               </div>
               <ArrowRight
                 className={`h-3.5 w-3.5 -ml-1 shrink-0 ${
-                  isPowerCut
+                  isGatewayOffline
+                    ? "text-slate-400 dark:text-zinc-600"
+                    : isPowerCut
                     ? "text-amber-500"
                     : isFault
                     ? "text-rose-500"
@@ -224,7 +245,7 @@ export function SingleLinePowerFlow({
               />
             </div>
             <span className="text-[8px] text-slate-500 dark:text-zinc-500 mt-1 uppercase">
-              {isPowerCut ? "NO POWER" : "LT LINE"}
+              {isGatewayOffline ? "OFFLINE" : isPowerCut ? "NO POWER" : "LT LINE"}
             </span>
           </div>
 
@@ -287,10 +308,11 @@ export function SingleLinePowerFlow({
               </div>
             </div>
 
+            {/* Scope Alignment: Replaced 18650 UPS with Node Role matching Pole 2 */}
             <div className="mt-1.5 pt-1 border-t border-slate-200 dark:border-zinc-800/60 flex items-center justify-between text-[9px] font-mono">
-              <span className="text-slate-500 dark:text-zinc-500 font-semibold">UPS:</span>
-              <span className={telemetry?.fault_code === "OUTAGE_LAST_GASP" ? "text-amber-500 font-bold animate-pulse" : "text-emerald-600 dark:text-emerald-400 font-semibold"}>
-                {telemetry?.fault_code === "OUTAGE_LAST_GASP" ? "BATTERY HOLD-UP ACTIVE" : "18650 READY (4.2V)"}
+              <span className="text-slate-500 dark:text-zinc-500 font-semibold">ROLE:</span>
+              <span className="text-slate-700 dark:text-zinc-300 font-semibold">
+                ORIGIN • INCOMER NODE
               </span>
             </div>
           </div>
@@ -432,7 +454,7 @@ export function SingleLinePowerFlow({
             <div className="mt-1.5 pt-1 border-t border-slate-200 dark:border-zinc-800/60 flex items-center justify-between text-[9px] font-mono">
               <span className="text-slate-500 dark:text-zinc-500 font-semibold">ROLE:</span>
               <span className="text-slate-700 dark:text-zinc-300 font-semibold">
-                ENDPOINT • LORA NODE
+                ENDPOINT • LOAD NODE
               </span>
             </div>
           </div>
@@ -470,7 +492,9 @@ export function SingleLinePowerFlow({
       {/* Dynamic SCADA Feeder Status Summary (Pure Monitoring) */}
       <div
         className={`border px-3 py-2 rounded-sm text-xs flex flex-wrap items-center justify-between gap-2 font-mono ${
-          isFault
+          isGatewayOffline
+            ? "border-amber-500/70 bg-amber-50/70 dark:bg-amber-950/40 text-amber-800 dark:text-amber-300"
+            : isFault
             ? "border-rose-500/80 bg-rose-50/70 dark:bg-rose-950/40 text-rose-800 dark:text-rose-200 ring-1 ring-rose-500"
             : isPowerCut
             ? "border-amber-500/80 bg-amber-50/70 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200"
@@ -478,7 +502,9 @@ export function SingleLinePowerFlow({
         }`}
       >
         <div className="flex items-center gap-2">
-          {isFault ? (
+          {isGatewayOffline ? (
+            <Radio className="h-4 w-4 text-amber-500 animate-pulse shrink-0" />
+          ) : isFault ? (
             <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0 animate-bounce" />
           ) : isPowerCut ? (
             <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
@@ -486,13 +512,17 @@ export function SingleLinePowerFlow({
             <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
           )}
           <span>
-            {isFault ? (
+            {isGatewayOffline ? (
+              <span className="font-semibold text-amber-600 dark:text-amber-400">
+                GATEWAY OFFLINE: ESP32-S3 Hardware Gateway disconnected. Telemetry bus is idle. Connect Gateway USB (COM8) to resume real-time SCADA monitoring.
+              </span>
+            ) : isFault ? (
               <span className="font-semibold">
                 FAULT ALERT: Inter-pole differential current ΔI = {idiff.toFixed(3)}A exceeds {tripLimit.toFixed(3)}A protection limit. Anomaly detected on Feeder 04 overhead span.
               </span>
             ) : isPowerCut ? (
               <span className="font-semibold">
-                FEEDER DE-ENERGIZED: Voltage collapse detected (&lt;50V). Edge nodes operating on 18650 UPS battery hold-up.
+                FEEDER DE-ENERGIZED: Voltage collapse detected (&lt;50V). LoRa outage event recorded.
               </span>
             ) : (
               <span>

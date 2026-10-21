@@ -288,7 +288,7 @@ export default function SCADADashboard() {
         : "CRITICAL ALARM: DIFFERENTIAL TRIP (|IA - IB| ≥ 0.35A)";
 
       const faultDesc = isLastGasp
-        ? "Pole 2 power lost! Mains collapse last-gasp beacon transmitted over LoRa via 18650 UPS hold-up battery."
+        ? "Pole 2 power lost! Mains collapse emergency last-gasp beacon transmitted over LoRa Sub-GHz mesh."
         : `Feeder Differential Current ΔI = ${telemetry.idiff.toFixed(3)} A (Exceeds trip limit 0.350 A). Potential broken conductor, ground fault, or illegal tap.`;
 
       const toastId = addToast({
@@ -356,16 +356,28 @@ export default function SCADADashboard() {
     tickets.some((t) => t.ptw?.reclosingInterlockActive === true) ||
     systemStatus?.ptwInterlockActive === true;
 
-  const isP1Stale = (telemetry?.p1?.age_ms ?? 0) > 20000;
-  const isP2Stale = (telemetry?.p2?.age_ms ?? 0) > 20000;
+  const isGatewayOffline =
+    isStreamDisconnected ||
+    systemStatus?.gatewayConnected === false ||
+    telemetry?.status === "DISCONNECTED" ||
+    telemetry?.status === "WAITING_DATA" ||
+    telemetry?.fault_code === "GATEWAY_DISCONNECTED";
 
-  const idiff = telemetry?.idiff ?? 0;
+  const isP1Stale = isGatewayOffline || (telemetry?.p1?.age_ms ?? 0) > 20000;
+  const isP2Stale = isGatewayOffline || (telemetry?.p2?.age_ms ?? 0) > 20000;
+
+  const idiff = isGatewayOffline ? 0 : (telemetry?.idiff ?? 0);
   const tripLimit = 0.35;
-  const v1 = telemetry?.p1?.v ?? 0;
-  const v2 = telemetry?.p2?.v ?? 0;
-  const i1 = telemetry?.p1?.i ?? 0;
-  const i2 = telemetry?.p2?.i ?? 0;
-  const faultCode = telemetry?.fault_code;
+  const v1 = isGatewayOffline ? 0 : (telemetry?.p1?.v ?? 0);
+  const v2 = isGatewayOffline ? 0 : (telemetry?.p2?.v ?? 0);
+  const i1 = isGatewayOffline ? 0 : (telemetry?.p1?.i ?? 0);
+  const i2 = isGatewayOffline ? 0 : (telemetry?.p2?.i ?? 0);
+  const faultCode = isGatewayOffline ? "GATEWAY_DISCONNECTED" : telemetry?.fault_code;
+
+  // Guard against uninitialized node startup race-conditions:
+  // Both nodes must have active, initialized power flow readings (V > 50V and I > 0.05A)
+  // before differential protection (|I1 - I2| >= 0.35A) is evaluated.
+  const bothNodesActive = !isGatewayOffline && (v1 > 50 && i1 > 0.05) && (v2 > 50 && i2 > 0.05);
 
   let activeFault: {
     ansiCode: string;
@@ -375,60 +387,63 @@ export default function SCADADashboard() {
     severity: string;
   } | null = null;
 
-  if (faultCode === "OUTAGE_LAST_GASP" || (v1 === 0 && v2 === 0 && (i1 > 0 || i2 > 0 || faultCode === "OUTAGE_LAST_GASP"))) {
-    activeFault = {
-      ansiCode: "ANSI 67/N",
-      title: "MAINS COLLAPSE // LAST-GASP BEACON DETECTED",
-      reading: `V1: ${v1.toFixed(1)}V | V2: ${v2.toFixed(1)}V (0V AC MAINS COLLAPSE)`,
-      description: "Line voltage collapsed to 0V. Node transmitting emergency last-gasp beacon via 18650 UPS hold-up battery.",
-      severity: "CRITICAL",
-    };
-  } else if (i1 > 16 || i2 > 16 || faultCode === "OVERCURRENT") {
-    activeFault = {
-      ansiCode: "ANSI 50",
-      title: "INSTANTANEOUS OVERCURRENT TRIP",
-      reading: `I_PEAK: ${Math.max(i1, i2).toFixed(3)} A (RATED: 16.0 A)`,
-      description: "Feeder current exceeded 16A instantaneous threshold. Breaker isolation triggered.",
-      severity: "CRITICAL",
-    };
-  } else if ((v1 > 20 && (v1 < 180 || v1 > 265)) || (v2 > 20 && (v2 < 180 || v2 > 265))) {
-    const isUnder = (v1 > 20 && v1 < 180) || (v2 > 20 && v2 < 180);
-    activeFault = {
-      ansiCode: isUnder ? "ANSI 27" : "ANSI 59",
-      title: isUnder ? "UNDERVOLTAGE TRIP (BROWNOUT)" : "OVERVOLTAGE TRIP (SURGE)",
-      reading: `V1: ${v1.toFixed(1)} V | V2: ${v2.toFixed(1)} V (NOMINAL: 230V ±10%)`,
-      description: isUnder
-        ? "Line voltage dropped below 180V brownout threshold."
-        : "Line voltage exceeded 265V insulation surge threshold.",
-      severity: "WARNING",
-    };
-  } else if (telemetry?.fault || idiff >= 0.35) {
-    activeFault = {
-      ansiCode: "ANSI 87L",
-      title: "CURRENT DIFFERENTIAL PROTECTION (FEEDER LEAKAGE / THEFT)",
-      reading: `ΔI = ${idiff.toFixed(3)} A (TRIP LIMIT: 0.350 A) | I1: ${i1.toFixed(3)} A | I2: ${i2.toFixed(3)} A`,
-      description: `Current imbalance between Pole 1 and Pole 2 (${idiff.toFixed(3)} A) exceeds safety limit (0.350 A). Broken conductor, ground fault, or illegal tap.`,
-      severity: "CRITICAL",
-    };
-  } else if (faultCode && faultCode !== "NORMAL") {
-    activeFault = {
-      ansiCode: "ANSI 87L",
-      title: `FEEDER PROTECTION ANOMALY: ${faultCode}`,
-      reading: `ΔI = ${idiff.toFixed(3)} A | V1: ${v1.toFixed(1)} V | I1: ${i1.toFixed(3)} A`,
-      description: "Grid protection relay flagged an abnormal operating state on Feeder 04.",
-      severity: "CRITICAL",
-    };
+  if (!isGatewayOffline) {
+    if (faultCode === "OUTAGE_LAST_GASP" || (v1 === 0 && v2 === 0 && (i1 > 0 || i2 > 0 || faultCode === "OUTAGE_LAST_GASP"))) {
+      activeFault = {
+        ansiCode: "ANSI 67/N",
+        title: "MAINS COLLAPSE // LAST-GASP BEACON DETECTED",
+        reading: `V1: ${v1.toFixed(1)}V | V2: ${v2.toFixed(1)}V (0V AC MAINS COLLAPSE)`,
+        description: "Line voltage collapsed to 0V. Node transmitting emergency last-gasp beacon over Sub-GHz LoRa mesh.",
+        severity: "CRITICAL",
+      };
+    } else if (i1 > 16 || i2 > 16 || faultCode === "OVERCURRENT") {
+      activeFault = {
+        ansiCode: "ANSI 50",
+        title: "INSTANTANEOUS OVERCURRENT TRIP",
+        reading: `I_PEAK: ${Math.max(i1, i2).toFixed(3)} A (RATED: 16.0 A)`,
+        description: "Feeder current exceeded 16A instantaneous threshold. Breaker isolation triggered.",
+        severity: "CRITICAL",
+      };
+    } else if ((v1 > 20 && (v1 < 180 || v1 > 265)) || (v2 > 20 && (v2 < 180 || v2 > 265))) {
+      const isUnder = (v1 > 20 && v1 < 180) || (v2 > 20 && v2 < 180);
+      activeFault = {
+        ansiCode: isUnder ? "ANSI 27" : "ANSI 59",
+        title: isUnder ? "UNDERVOLTAGE TRIP (BROWNOUT)" : "OVERVOLTAGE TRIP (SURGE)",
+        reading: `V1: ${v1.toFixed(1)} V | V2: ${v2.toFixed(1)} V (NOMINAL: 230V ±10%)`,
+        description: isUnder
+          ? "Line voltage dropped below 180V brownout threshold."
+          : "Line voltage exceeded 265V insulation surge threshold.",
+        severity: "WARNING",
+      };
+    } else if (bothNodesActive && (telemetry?.fault || idiff >= 0.35)) {
+      activeFault = {
+        ansiCode: "ANSI 87L",
+        title: "CURRENT DIFFERENTIAL PROTECTION (FEEDER LEAKAGE / THEFT)",
+        reading: `ΔI = ${idiff.toFixed(3)} A (TRIP LIMIT: 0.350 A) | I1: ${i1.toFixed(3)} A | I2: ${i2.toFixed(3)} A`,
+        description: `Current imbalance between Pole 1 and Pole 2 (${idiff.toFixed(3)} A) exceeds safety limit (0.350 A). Broken conductor, ground fault, or illegal tap.`,
+        severity: "CRITICAL",
+      };
+    } else if (bothNodesActive && faultCode && faultCode !== "NORMAL") {
+      activeFault = {
+        ansiCode: "ANSI 87L",
+        title: `FEEDER PROTECTION ANOMALY: ${faultCode}`,
+        reading: `ΔI = ${idiff.toFixed(3)} A | V1: ${v1.toFixed(1)} V | I1: ${i1.toFixed(3)} A`,
+        description: "Grid protection relay flagged an abnormal operating state on Feeder 04.",
+        severity: "CRITICAL",
+      };
+    }
   }
 
   const isFault = activeFault !== null;
   const isAlarmUnacked = isFault && systemStatus?.operatorAck === false;
   const openTicketsCount = tickets.filter((t) => t.status !== "CLOSED").length;
 
-  const p1PowerW = isBreakerTripped ? 0 : (telemetry?.p1?.p ?? 0);
-  const p2PowerW = isBreakerTripped ? 0 : (telemetry?.p2?.p ?? 0);
+  const p1PowerW = isBreakerTripped || isGatewayOffline ? 0 : (telemetry?.p1?.p ?? 0);
+  const p2PowerW = isBreakerTripped || isGatewayOffline ? 0 : (telemetry?.p2?.p ?? 0);
   const feederLoadW = Math.round(p1PowerW);
   const feederLoadKW = (p1PowerW / 1000).toFixed(2);
-  const lineLossW = Math.abs(p1PowerW - p2PowerW);
+  // Ensure line loss is physically positive along series radial line
+  const lineLossW = Math.max(0, p1PowerW - p2PowerW);
   const lineLossPct = p1PowerW > 0 ? ((lineLossW / p1PowerW) * 100).toFixed(2) : "0.00";
   const feederEnergyKWh = accumulatedEnergyKWh.toFixed(3);
 
@@ -741,7 +756,7 @@ export default function SCADADashboard() {
         {/* VIEW A: OPERATOR DESK (CLEAN, INTUITIVE, HUMAN-FIRST) */}
         {/* ============================================================== */}
         {activeView === "OPERATOR" && (
-          <div className="flex flex-col gap-3">
+          <div className="flex-1 flex flex-col gap-3">
             {/* ROW 1: FOUR CLEAN OPERATOR KPI METRIC CARDS */}
             <div className="grid grid-cols-12 gap-3">
               {/* CARD 1: Feeder Protection Status */}
@@ -754,14 +769,22 @@ export default function SCADADashboard() {
                     <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
                       FEEDER PROTECTION
                     </span>
-                    <Badge variant={isFault ? "destructive" : "healthy"} className="text-[10px]">
-                      {isFault ? "TRIP ALERT" : "SUPERVISED"}
-                    </Badge>
+                    {isGatewayOffline ? (
+                      <Badge variant="outline" className="text-[10px] border-amber-500/80 text-amber-500 font-bold">
+                        DISCONNECTED
+                      </Badge>
+                    ) : (
+                      <Badge variant={isFault ? "destructive" : "healthy"} className="text-[10px]">
+                        {isFault ? "TRIP ALERT" : "SUPERVISED"}
+                      </Badge>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="pt-1 pb-2">
                   <div className="flex items-center gap-2.5">
-                    {isFault ? (
+                    {isGatewayOffline ? (
+                      <Radio className="h-7 w-7 text-amber-500 animate-pulse shrink-0" />
+                    ) : isFault ? (
                       <AlertOctagon className="h-7 w-7 text-rose-500 shrink-0 animate-bounce" />
                     ) : (
                       <ShieldCheck className="h-7 w-7 text-emerald-400 shrink-0" />
@@ -769,13 +792,25 @@ export default function SCADADashboard() {
                     <div>
                       <div
                         className={`text-lg font-bold font-mono tracking-tight ${
-                          isFault ? "text-rose-400" : "text-emerald-400"
+                          isGatewayOffline
+                            ? "text-amber-500"
+                            : isFault
+                            ? "text-rose-400"
+                            : "text-emerald-400"
                         }`}
                       >
-                        {isFault ? "ANOMALY / TRIP" : "HEALTHY & BALANCED"}
+                        {isGatewayOffline
+                          ? "GATEWAY OFFLINE"
+                          : isFault
+                          ? "ANOMALY / TRIP"
+                          : "HEALTHY & BALANCED"}
                       </div>
                       <div className="text-[11px] text-zinc-400 font-mono">
-                        {isFault ? telemetry?.fault_code || "FAULT" : "No Leakage Detected"}
+                        {isGatewayOffline
+                          ? "Awaiting Gateway USB Feed (COM8)"
+                          : isFault
+                          ? telemetry?.fault_code || "FAULT"
+                          : "No Leakage Detected"}
                       </div>
                     </div>
                   </div>
@@ -796,11 +831,15 @@ export default function SCADADashboard() {
                       TOTAL FEEDER LOAD
                     </span>
                     <div className="flex items-center gap-1.5">
-                      {isP1Stale && (
+                      {isGatewayOffline ? (
+                        <Badge variant="outline" className="text-[9px] py-0 border-amber-500 text-amber-500 font-bold">
+                          OFFLINE
+                        </Badge>
+                      ) : isP1Stale ? (
                         <Badge variant="warning" className="text-[9px] py-0 border-amber-500 text-amber-400 animate-pulse font-bold">
                           STALE / WAITING
                         </Badge>
-                      )}
+                      ) : null}
                       <Badge variant="outline" className="text-[10px]">
                         POLE 1 INCOMER
                       </Badge>
@@ -837,7 +876,11 @@ export default function SCADADashboard() {
                       GRID VOLTAGE LEVEL
                     </span>
                     <div className="flex items-center gap-1.5">
-                      {isP1Stale ? (
+                      {isGatewayOffline ? (
+                        <Badge variant="outline" className="text-[9px] py-0 border-amber-500 text-amber-500 font-bold">
+                          OFFLINE
+                        </Badge>
+                      ) : isP1Stale ? (
                         <Badge variant="warning" className="text-[9px] py-0 border-amber-500 text-amber-400 animate-pulse font-bold">
                           STALE / WAITING
                         </Badge>
@@ -854,11 +897,11 @@ export default function SCADADashboard() {
                     <Activity className="h-7 w-7 text-cyan-400 shrink-0" />
                     <div>
                       <div className="text-2xl font-bold font-mono text-zinc-100 tabular-nums">
-                        {telemetry?.p1?.v !== undefined && telemetry.p1.v > 0 ? telemetry.p1.v.toFixed(1) : "0.0"}{" "}
+                        {v1 > 0 ? v1.toFixed(1) : "0.0"}{" "}
                         <span className="text-sm text-zinc-500 font-normal">V</span>
                       </div>
                       <div className="text-[11px] text-zinc-400 font-mono">
-                        Frequency: <span className="text-zinc-200">{telemetry?.p1?.freq !== undefined && telemetry.p1.freq > 0 ? `${telemetry.p1.freq.toFixed(2)} Hz` : "0.00 Hz"}</span>
+                        Frequency: <span className="text-zinc-200">{!isGatewayOffline && telemetry?.p1?.freq !== undefined && telemetry.p1.freq > 0 ? `${telemetry.p1.freq.toFixed(2)} Hz` : "0.00 Hz"}</span>
                       </div>
                     </div>
                   </div>
@@ -879,8 +922,8 @@ export default function SCADADashboard() {
                     <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
                       LINE CURRENT BALANCE
                     </span>
-                    <Badge variant={isFault ? "destructive" : "healthy"} className="text-[10px]">
-                      {isFault ? "EXCEEDED" : "BALANCED"}
+                    <Badge variant={isGatewayOffline ? "outline" : isFault ? "destructive" : "healthy"} className={`text-[10px] ${isGatewayOffline ? "border-slate-400 dark:border-zinc-700 text-slate-500 dark:text-zinc-400" : ""}`}>
+                      {isGatewayOffline ? "OFFLINE" : isFault ? "EXCEEDED" : "BALANCED"}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -890,14 +933,18 @@ export default function SCADADashboard() {
                     <div>
                       <div
                         className={`text-2xl font-bold font-mono tabular-nums ${
-                          isFault ? "text-rose-400" : "text-emerald-400"
+                          isGatewayOffline
+                            ? "text-slate-400 dark:text-zinc-500"
+                            : isFault
+                            ? "text-rose-400"
+                            : "text-emerald-400"
                         }`}
                       >
-                        {telemetry?.idiff !== undefined ? telemetry.idiff.toFixed(3) : "0.000"}{" "}
+                        {idiff.toFixed(3)}{" "}
                         <span className="text-sm text-zinc-500 font-normal">A</span>
                       </div>
                       <div className="text-[11px] text-zinc-400 font-mono">
-                        {isFault ? "Unbalanced Leakage" : "Conductor Monitored"}
+                        {isGatewayOffline ? "Telemetry Feed Disconnected" : isFault ? "Unbalanced Leakage" : "Conductor Monitored"}
                       </div>
                     </div>
                   </div>
@@ -919,9 +966,9 @@ export default function SCADADashboard() {
             />
 
             {/* ROW 3: REAL GEOSPATIAL MAP (COL 8) + OPERATIONS DISPATCH STATION (COL 4) */}
-            <div className="grid grid-cols-12 gap-3 min-h-[380px]">
+            <div className="grid grid-cols-12 gap-3 flex-1 min-h-[440px]">
               {/* Left (8 cols): Mapbox Vector GIS Map */}
-              <div className="col-span-12 lg:col-span-8 flex flex-col">
+              <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-[440px]">
                 <GisFeederMap
                   telemetry={telemetry}
                   selectedPoleId={selectedPoleId}
@@ -930,16 +977,16 @@ export default function SCADADashboard() {
               </div>
 
               {/* Right (4 cols): Operations & Incident Dispatch Hub */}
-              <div className="col-span-12 lg:col-span-4 flex flex-col gap-3 font-mono">
+              <div className="col-span-12 lg:col-span-4 flex flex-col gap-3 font-mono h-full">
                 {/* Feeder Status Overview */}
                 <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3 rounded-sm space-y-2.5 shadow-xs dark:shadow-none transition-colors">
                   <div className="flex items-center justify-between text-xs text-slate-800 dark:text-zinc-300 font-bold border-b border-slate-200 dark:border-zinc-800/80 pb-2">
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      <span>FEEDER ASSET HEALTH</span>
+                      <span>FEEDER ASSET HEALTH &amp; SPAN</span>
                     </div>
                     <Badge variant="outline" className="text-[10px]">
-                      2 POLES
+                      2 POLES • 1 SPAN
                     </Badge>
                   </div>
 
@@ -948,16 +995,16 @@ export default function SCADADashboard() {
                       isP1Stale ? "opacity-50 border-amber-500/50" : ""
                     }`}>
                       <div className="flex items-center gap-2">
-                        <span className={`h-2 w-2 rounded-full ${telemetry?.p1?.isOnline ? "bg-emerald-500 dark:bg-emerald-400" : "bg-slate-400 dark:bg-zinc-600"}`} />
+                        <span className={`h-2 w-2 rounded-full ${!isGatewayOffline && telemetry?.p1?.isOnline ? "bg-emerald-500 dark:bg-emerald-400" : "bg-slate-400 dark:bg-zinc-600"}`} />
                         <span className="text-slate-800 dark:text-zinc-200">Pole 1 (Incomer)</span>
                       </div>
                       <div className="text-slate-500 dark:text-zinc-400 tabular-nums flex items-center gap-1.5">
                         {isP1Stale && (
                           <Badge variant="warning" className="text-[9px] py-0 border-amber-500 text-amber-400 animate-pulse font-bold">
-                            STALE
+                            {isGatewayOffline ? "OFFLINE" : "STALE"}
                           </Badge>
                         )}
-                        <span>{telemetry?.p1?.isOnline ? `${telemetry.p1.v.toFixed(1)}V • ${telemetry.p1.i.toFixed(2)}A` : "OFFLINE / STANDBY"}</span>
+                        <span>{!isGatewayOffline && telemetry?.p1?.isOnline ? `${telemetry.p1.v.toFixed(1)}V • ${telemetry.p1.i.toFixed(2)}A` : "OFFLINE // NO FEED"}</span>
                       </div>
                     </div>
 
@@ -967,7 +1014,9 @@ export default function SCADADashboard() {
                       <div className="flex items-center gap-2">
                         <span
                           className={`h-2 w-2 rounded-full ${
-                            telemetry?.p2?.isOnline === false
+                            isGatewayOffline
+                              ? "bg-slate-400 dark:bg-zinc-600"
+                              : telemetry?.p2?.isOnline === false
                               ? "bg-rose-500 animate-pulse"
                               : "bg-emerald-500 dark:bg-emerald-400"
                           }`}
@@ -977,12 +1026,12 @@ export default function SCADADashboard() {
                       <div className="text-slate-500 dark:text-zinc-400 tabular-nums flex items-center gap-1.5">
                         {isP2Stale && (
                           <Badge variant="warning" className="text-[9px] py-0 border-amber-500 text-amber-400 animate-pulse font-bold">
-                            STALE
+                            {isGatewayOffline ? "OFFLINE" : "STALE"}
                           </Badge>
                         )}
                         <span>
-                          {telemetry?.p2?.isOnline === false ? (
-                            <span className="text-rose-600 dark:text-rose-400 font-bold">OFFLINE / UNREACHABLE</span>
+                          {isGatewayOffline || telemetry?.p2?.isOnline === false ? (
+                            <span className="text-slate-500 dark:text-zinc-400 font-bold">OFFLINE // NO FEED</span>
                           ) : (
                             `${telemetry?.p2?.v.toFixed(1)}V • ${telemetry?.p2?.i.toFixed(2)}A`
                           )}
@@ -990,21 +1039,31 @@ export default function SCADADashboard() {
                       </div>
                     </div>
 
-                    {/* UPS 18650 Battery Rail Health */}
+                    {/* RF Telemetry Bus */}
                     <div className="flex items-center justify-between p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm font-mono text-[11px]">
                       <div className="flex items-center gap-2">
-                        <BatteryCharging className="h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400" />
-                        <span className="text-slate-800 dark:text-zinc-200">EDGE NODE UPS:</span>
+                        <Radio className={`h-3.5 w-3.5 ${isGatewayOffline ? "text-amber-500 animate-pulse" : "text-emerald-500 dark:text-emerald-400"}`} />
+                        <span className="text-slate-800 dark:text-zinc-200">RF TELEMETRY BUS:</span>
                       </div>
                       <Badge
-                        variant={telemetry?.fault_code === "OUTAGE_LAST_GASP" ? "warning" : "healthy"}
-                        className={`text-[9px] py-0.5 ${
-                          telemetry?.fault_code === "OUTAGE_LAST_GASP" ? "animate-pulse font-bold" : ""
-                        }`}
+                        variant={isGatewayOffline ? "warning" : "healthy"}
+                        className={`text-[9px] py-0.5 ${isGatewayOffline ? "border-amber-500 text-amber-500 font-bold" : ""}`}
                       >
-                        {telemetry?.fault_code === "OUTAGE_LAST_GASP"
-                          ? "UPS: BATTERY HOLD-UP ACTIVE"
-                          : "UPS: 18650 READY (4.2V)"}
+                        {isGatewayOffline ? "GATEWAY DISCONNECTED" : "866.3 MHz IN865 (OK)"}
+                      </Badge>
+                    </div>
+
+                    {/* Protected Differential Zone Span Summary */}
+                    <div className="flex items-center justify-between p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm font-mono text-[11px]">
+                      <div className="flex items-center gap-2">
+                        <Activity className={`h-3.5 w-3.5 ${isFault ? "text-rose-500 animate-pulse" : "text-emerald-500 dark:text-emerald-400"}`} />
+                        <span className="text-slate-800 dark:text-zinc-200">DIFFERENTIAL SPAN:</span>
+                      </div>
+                      <Badge
+                        variant={isFault ? "destructive" : "outline"}
+                        className={`text-[9px] py-0.5 ${!isFault ? "text-emerald-600 dark:text-emerald-400 border-emerald-500/30" : ""}`}
+                      >
+                        {isFault ? `TRIP: ΔI = ${(telemetry?.idiff ?? 0).toFixed(3)}A` : `120m • INTACT (ΔI ${(telemetry?.idiff ?? 0).toFixed(3)}A)`}
                       </Badge>
                     </div>
                   </div>
@@ -1018,6 +1077,9 @@ export default function SCADADashboard() {
                         <Wrench className="h-4 w-4 text-amber-500 dark:text-amber-400" />
                         <span>QUICK OPERATOR ACTIONS</span>
                       </div>
+                      <Badge variant="outline" className="text-[10px]">
+                        NAVIGATION
+                      </Badge>
                     </div>
 
                     <div className="flex flex-col gap-2">
@@ -1061,12 +1123,30 @@ export default function SCADADashboard() {
                         </span>
                         <ArrowRight className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-500" />
                       </Button>
+
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-between text-xs font-mono"
+                        onClick={() => setActiveView("LOGS")}
+                      >
+                        <span className="flex items-center gap-2">
+                          <Terminal className="h-3.5 w-3.5 text-purple-600 dark:text-purple-400" />
+                          <span>SOE AUDIT LOG</span>
+                        </span>
+                        <span className="bg-slate-100 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 px-1.5 py-0.5 rounded-sm text-[10px]">
+                          {logs.length} RECORDS
+                        </span>
+                      </Button>
                     </div>
                   </div>
 
                   {/* Operational Notice */}
-                  <div className="border border-slate-200 dark:border-zinc-800/60 bg-slate-50 dark:bg-zinc-950/40 p-2 rounded-sm text-[10px] text-slate-600 dark:text-zinc-400 space-y-0.5">
-                    <div className="text-slate-800 dark:text-zinc-300 font-semibold">FEEDER SUPERVISION:</div>
+                  <div className="border border-slate-200 dark:border-zinc-800/60 bg-slate-50 dark:bg-zinc-950/40 p-2.5 rounded-sm text-[10px] text-slate-600 dark:text-zinc-400 space-y-1">
+                    <div className="flex items-center justify-between text-slate-800 dark:text-zinc-300 font-semibold">
+                      <span>FEEDER SUPERVISION:</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">ONLINE</span>
+                    </div>
                     <div>LoRa Mesh Supervised • Zero-latency trip isolation active</div>
                   </div>
                 </div>
@@ -1079,15 +1159,15 @@ export default function SCADADashboard() {
         {/* VIEW B: GIS FULL VIEW WITH ASSET TREE */}
         {/* ============================================================== */}
         {activeView === "GIS" && (
-          <div className="grid grid-cols-12 gap-3 min-h-[580px]">
-            <div className="col-span-12 lg:col-span-8 flex flex-col h-[600px] min-h-[550px]">
+          <div className="grid grid-cols-12 gap-3 flex-1 min-h-[580px]">
+            <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-[550px]">
               <GisFeederMap
                 telemetry={telemetry}
                 selectedPoleId={selectedPoleId}
                 onSelectPole={(p) => setSelectedPoleId(p.id)}
               />
             </div>
-            <div className="col-span-12 lg:col-span-4 flex flex-col h-[600px] min-h-[550px]">
+            <div className="col-span-12 lg:col-span-4 flex flex-col h-full min-h-[550px]">
               <FeederAssetTree
                 telemetry={telemetry}
                 selectedPoleId={selectedPoleId}
@@ -1115,7 +1195,7 @@ export default function SCADADashboard() {
         {/* VIEW D: WORKFORCE & OUTAGE MANAGEMENT (OMS) */}
         {/* ============================================================== */}
         {activeView === "OMS" && (
-          <div className="min-h-[500px]">
+          <div className="flex-1 min-h-[500px]">
             <WorkforceOmsPanel
               tickets={tickets}
               onRefresh={fetchTickets}
@@ -1142,8 +1222,8 @@ export default function SCADADashboard() {
         {/* ============================================================== */}
         {/* VIEW F: SEQUENTIAL EVENT RECORDER (SER AUDIT LOG) */}
         {/* ============================================================== */}
-        {(activeView === "LOGS" || activeView === "OPERATOR") && (
-          <Card className="col-span-12 flex flex-col font-mono">
+        {activeView === "LOGS" && (
+          <Card className="col-span-12 flex-1 flex flex-col font-mono min-h-[500px]">
             <CardHeader className="py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Terminal className="h-4 w-4 text-emerald-400" />
@@ -1163,7 +1243,7 @@ export default function SCADADashboard() {
               </div>
             </CardHeader>
 
-            <div className="max-h-48 overflow-y-auto">
+            <div className="flex-1 min-h-[380px] max-h-[calc(100vh-250px)] overflow-y-auto">
               <Table>
                 <TableHeader>
                   <TableRow>

@@ -51,14 +51,17 @@ export async function connectSerialPort(
       if (com8Port) {
         targetPort = com8Port.path;
       } else {
-        // Fallback: look for USB Serial ports (e.g., Silicon Labs, CH340, Espressif, USB-SERIAL)
+        // Fallback: look specifically for USB Serial ports (e.g., Espressif, Silicon Labs CP210x, WCH CH340)
         const likelyPort = availablePorts.find(
           (p) =>
             p.manufacturer?.toLowerCase().includes("espressif") ||
             p.manufacturer?.toLowerCase().includes("silicon") ||
             p.manufacturer?.toLowerCase().includes("wch") ||
-            p.friendlyName?.toLowerCase().includes("usb") ||
-            p.path.startsWith("COM")
+            p.manufacturer?.toLowerCase().includes("ch340") ||
+            p.friendlyName?.toLowerCase().includes("cp210") ||
+            p.friendlyName?.toLowerCase().includes("ch340") ||
+            p.friendlyName?.toLowerCase().includes("usb-serial") ||
+            (p.friendlyName?.toLowerCase().includes("usb") && !p.manufacturer?.toLowerCase().includes("microsoft"))
         );
         if (likelyPort) {
           targetPort = likelyPort.path;
