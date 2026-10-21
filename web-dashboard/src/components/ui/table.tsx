@@ -22,7 +22,7 @@ const TableHeader = React.forwardRef<
   <thead
     ref={ref}
     className={cn(
-      "border-b border-zinc-800 bg-zinc-900/60 uppercase text-[10px] tracking-wider text-zinc-400 font-sans",
+      "border-b border-slate-200 dark:border-zinc-800 bg-slate-100 dark:bg-zinc-900/60 uppercase text-[10px] tracking-wider text-slate-600 dark:text-zinc-400 font-sans",
       className
     )}
     {...props}
@@ -36,7 +36,7 @@ const TableBody = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <tbody
     ref={ref}
-    className={cn("[&_tr:last-child]:border-0 divide-y divide-zinc-800/60", className)}
+    className={cn("[&_tr:last-child]:border-0 divide-y divide-slate-200 dark:divide-zinc-800/60", className)}
     {...props}
   />
 ));
@@ -49,7 +49,7 @@ const TableFooter = React.forwardRef<
   <tfoot
     ref={ref}
     className={cn(
-      "border-t border-zinc-800 bg-zinc-900/50 font-medium text-zinc-400",
+      "border-t border-slate-200 dark:border-zinc-800 bg-slate-100 dark:bg-zinc-900/50 font-medium text-slate-600 dark:text-zinc-400",
       className
     )}
     {...props}
@@ -64,7 +64,7 @@ const TableRow = React.forwardRef<
   <tr
     ref={ref}
     className={cn(
-      "transition-colors hover:bg-zinc-800/40 data-[state=selected]:bg-zinc-800",
+      "transition-colors hover:bg-slate-100 dark:hover:bg-zinc-800/40 data-[state=selected]:bg-slate-200 dark:data-[state=selected]:bg-zinc-800",
       className
     )}
     {...props}
@@ -79,7 +79,7 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "h-8 px-3 text-left align-middle font-medium text-zinc-400 text-[11px]",
+      "h-8 px-3 text-left align-middle font-medium text-slate-600 dark:text-zinc-400 text-[11px]",
       className
     )}
     {...props}
@@ -93,7 +93,7 @@ const TableCell = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <td
     ref={ref}
-    className={cn("p-2.5 px-3 align-middle tabular-nums text-zinc-300", className)}
+    className={cn("p-2.5 px-3 align-middle tabular-nums text-slate-800 dark:text-zinc-300", className)}
     {...props}
   />
 ));

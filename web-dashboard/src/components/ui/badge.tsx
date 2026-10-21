@@ -8,21 +8,21 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default:
-          "border-zinc-700 bg-zinc-800 text-zinc-300",
+          "border-slate-300 bg-slate-100 text-slate-800 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300",
         secondary:
-          "border-zinc-800 bg-zinc-900 text-zinc-400",
+          "border-slate-200 bg-slate-100 text-slate-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400",
         outline:
-          "border-zinc-700 text-zinc-400 bg-transparent",
+          "border-slate-300 text-slate-700 dark:border-zinc-700 dark:text-zinc-400 bg-transparent",
         healthy:
-          "border-emerald-600/50 bg-emerald-950/40 text-emerald-400",
+          "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-600/50 dark:bg-emerald-950/40 dark:text-emerald-400",
         warning:
-          "border-amber-600/50 bg-amber-950/40 text-amber-400",
+          "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-600/50 dark:bg-amber-950/40 dark:text-amber-400",
         destructive:
-          "border-rose-600/60 bg-rose-950/50 text-rose-300 animate-pulse",
+          "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-600/60 dark:bg-rose-950/50 dark:text-rose-300 animate-pulse",
         trip:
-          "border-rose-500 bg-rose-900 text-rose-100 font-bold animate-pulse",
+          "border-rose-500 bg-rose-600 text-white dark:bg-rose-900 dark:text-rose-100 font-bold animate-pulse",
         crypto:
-          "border-cyan-600/50 bg-cyan-950/40 text-cyan-400",
+          "border-cyan-300 bg-cyan-50 text-cyan-800 dark:border-cyan-600/50 dark:bg-cyan-950/40 dark:text-cyan-400",
       },
     },
     defaultVariants: {

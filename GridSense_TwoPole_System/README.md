@@ -4,7 +4,7 @@
 ---
 
 ## 1. System Overview
-GridSense demonstrates an IoT-based Fault Detection, Isolation, and Restoration (FDIR) prototype using three **Waveshare ESP32-S3-LR1121-HF** LoRa modules operating at 868 MHz:
+GridSense demonstrates an IoT-based Fault Detection, Isolation, and Restoration (FDIR) prototype using three **Waveshare ESP32-S3-LR1121-HF** LoRa modules operating at 866.3 MHz (Indian IN865 license-exempt band):
 
 1. **Pole 1 Edge Node (Incomer):** Clamped to the incoming phase conductor on Electric Pole 1 with a PZEM-004T v4.0 split-core CT.
 2. **Pole 2 Edge Node (Outgoing / Load side):** Clamped to the outgoing phase conductor on Electric Pole 2 with a PZEM-004T v4.0 split-core CT.

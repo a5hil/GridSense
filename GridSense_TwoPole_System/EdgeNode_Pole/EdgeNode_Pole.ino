@@ -369,8 +369,12 @@ void setup() {
     Serial.println("[INIT] Initializing Waveshare LR1121 Sub-GHz LoRa Transceiver...");
     lora_node_radio_init();
 
-    Serial.printf("[INIT] Ready. Frequency: %u MHz | Output: %d dBm\n\n",
-                  (uint32_t)(RF_FREQ_IN_HZ / 1000000UL), TX_OUTPUT_POWER_DBM);
+    Serial.printf("[INIT] Ready. Frequency: %.1f MHz (IN865) | Output: %d dBm\n\n",
+                  (float)RF_FREQ_IN_HZ / 1000000.0f, TX_OUTPUT_POWER_DBM);
+
+    // Stagger initial transmission phase between Pole 1 and Pole 2 to eliminate RF collision
+    // Pole 1 transmits at t = 0s, 3s, 6s... Pole 2 transmits at t = 1.5s, 4.5s, 7.5s...
+    last_tx_ms = millis() - ((POLE_ID == 1) ? TELEMETRY_INTERVAL_MS : (TELEMETRY_INTERVAL_MS / 2));
 }
 
 void handleRepeaterRelay() {

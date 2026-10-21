@@ -9,7 +9,8 @@
 #include <Arduino.h>
 #include "wavesahre_lora_1121.h"
 
-#define RF_FREQ_IN_HZ           868000000UL  // Matches Pole nodes
+// 866.3 MHz Indian IN865 Sub-GHz LoRa (Matches Pole nodes)
+#define RF_FREQ_IN_HZ           866300000UL
 #define PACKET_TYPE             LR11XX_RADIO_PKT_TYPE_LORA
 #define TX_OUTPUT_POWER_DBM     22
 #define PA_RAMP_TIME            LR11XX_RADIO_RAMP_48_US

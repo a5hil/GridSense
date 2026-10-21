@@ -34,14 +34,22 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       const newToast: ToastItem = { ...toast, id, timestamp };
 
       setToasts((prev) => {
-        // Prevent duplicate alarms if title and description are identical and persistent
+        // Enforce max 1 destructive alarm toast: if a destructive toast already exists, ignore new destructive additions
+        if (toast.type === "destructive") {
+          const hasDestructive = prev.some((t) => t.type === "destructive");
+          if (hasDestructive) {
+            return prev;
+          }
+        }
+        // Prevent duplicate persistent toasts by title
         if (
           toast.persistent &&
-          prev.some((t) => t.title === toast.title && t.description === toast.description)
+          prev.some((t) => t.title === toast.title)
         ) {
           return prev;
         }
-        return [...prev, newToast];
+        // Limit max toasts to 2
+        return [...prev.slice(-1), newToast];
       });
 
       // Auto dismiss only if NOT persistent
@@ -78,13 +86,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             className={cn(
               "pointer-events-auto flex flex-col gap-2 rounded-sm border p-3 shadow-2xl transition-all",
               toast.type === "destructive" &&
-                "border-rose-600 bg-zinc-950/95 text-rose-100 ring-1 ring-rose-500 animate-pulse",
+                "border-rose-500 bg-zinc-950 text-rose-100 ring-1 ring-rose-500 shadow-2xl opacity-100",
               toast.type === "warning" &&
-                "border-amber-600 bg-zinc-950/95 text-amber-100",
+                "border-amber-600 bg-zinc-950 text-amber-100 shadow-xl opacity-100",
               toast.type === "success" &&
-                "border-emerald-600 bg-zinc-950/95 text-emerald-100",
+                "border-emerald-600 bg-zinc-950 text-emerald-100 shadow-xl opacity-100",
               toast.type === "info" &&
-                "border-zinc-700 bg-zinc-900/95 text-zinc-100"
+                "border-zinc-700 bg-zinc-900 text-zinc-100 shadow-xl opacity-100"
             )}
           >
             <div className="flex items-start justify-between gap-2">

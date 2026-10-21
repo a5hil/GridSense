@@ -23,7 +23,7 @@ bool hw_crypto_active = false;
 #define OVERCURRENT_THRESHOLD_A     16.00f  // Overcurrent threshold (16 Amperes)
 #define UNDERVOLTAGE_THRESHOLD_V    180.0f  // Undervoltage threshold (180 Volts)
 #define OVERVOLTAGE_THRESHOLD_V     265.0f  // Overvoltage threshold (265 Volts)
-#define POLE_TIMEOUT_MS             10000   // 10s timeout before declaring pole offline
+#define POLE_TIMEOUT_MS             20000   // 20s timeout before declaring pole offline (prevents LBT jitter false-alarms)
 
 struct PoleTelemetry {
     uint8_t  poleId;
@@ -323,7 +323,7 @@ void setup() {
 
     lora_receiver_init();
 
-    Serial.printf("[GW_INIT] Listening on %u MHz (LoRa Sub-GHz HF)...\n", (uint32_t)(RF_FREQ_IN_HZ / 1000000UL));
+    Serial.printf("[GW_INIT] Listening on %.1f MHz (IN865 LoRa Sub-GHz HF)...\n", (float)RF_FREQ_IN_HZ / 1000000.0f);
     Serial.println("[GW_INIT] Gateway ready. Awaiting telemetry from Pole 1 & Pole 2...\n");
 }
 
