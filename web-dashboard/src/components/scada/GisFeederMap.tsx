@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { GridTelemetry, PoleData } from "@/lib/types";
 import { NetworkSnapshot, NodeState } from "@/lib/network/types";
 import { useTheme } from "@/lib/theme-context";
-import { EnergyFlowDiagram } from "./EnergyFlowDiagram";
 
 interface GisFeederMapProps {
   telemetry: GridTelemetry | null;
@@ -109,7 +108,6 @@ export function GisFeederMap({
   const markersRef = React.useRef<any[]>([]);
 
   const { theme } = useTheme();
-  const [displayMode, setDisplayMode] = React.useState<"ENERGY_FLOW" | "MAP">("ENERGY_FLOW");
   const [mapLoaded, setMapLoaded] = React.useState(false);
   const [currentStyleKey, setCurrentStyleKey] = React.useState<"DARK" | "SATELLITE" | "STREETS">("DARK");
   const [selectedAsset, setSelectedAsset] = React.useState<any>(null);
@@ -322,6 +320,20 @@ export function GisFeederMap({
         },
       });
 
+      // Layer 1: Ambient Neon Feeder Glow
+      map.addLayer({
+        id: "feeder-lines-glow",
+        type: "line",
+        source: "feeder-lines",
+        paint: {
+          "line-color": ["get", "color"],
+          "line-width": 6,
+          "line-opacity": 0.35,
+          "line-blur": 3,
+        },
+      });
+
+      // Layer 2: Main Solid Conductor
       map.addLayer({
         id: "feeder-lines-layer",
         type: "line",
@@ -329,6 +341,20 @@ export function GisFeederMap({
         paint: {
           "line-color": ["get", "color"],
           "line-width": 3,
+          "line-opacity": 0.95,
+        },
+      });
+
+      // Layer 3: Dynamic Energy Flow Particle Stream (Moving Dashes)
+      map.addLayer({
+        id: "feeder-lines-flow",
+        type: "line",
+        source: "feeder-lines",
+        paint: {
+          "line-color": "#ffffff",
+          "line-width": 2,
+          "line-opacity": 0.85,
+          "line-dasharray": [0.4, 2.5],
         },
       });
     } else {
@@ -339,7 +365,38 @@ export function GisFeederMap({
     }
   };
 
-  // 4. Render SCADA Asset Markers using mapboxgl.Marker
+  // Real-time animation loop for flowing energy particles along conductors
+  React.useEffect(() => {
+    let animId: number;
+    let step = 0;
+    let lastTime = 0;
+
+    const animateFlow = (time: number) => {
+      // Step every ~45ms for smooth ~22fps particle drift
+      if (time - lastTime > 45) {
+        lastTime = time;
+        step = (step + 0.15) % 4;
+        if (mapInstanceRef.current && mapInstanceRef.current.getLayer("feeder-lines-flow")) {
+          try {
+            mapInstanceRef.current.setPaintProperty("feeder-lines-flow", "line-dasharray", [
+              0,
+              step,
+              0.5,
+              Math.max(0.1, 4 - step),
+            ]);
+          } catch {
+            // Layer might be re-creating during style changes
+          }
+        }
+      }
+      animId = requestAnimationFrame(animateFlow);
+    };
+
+    animId = requestAnimationFrame(animateFlow);
+    return () => cancelAnimationFrame(animId);
+  }, [mapLoaded]);
+
+  // 4. Render SCADA Asset Markers using Circular Energy Flow Nodes
   const renderAssetMarkers = (map: any) => {
     if (!map || !window.mapboxgl) return;
     const gl = window.mapboxgl;
@@ -348,50 +405,189 @@ export function GisFeederMap({
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
 
-    // Helper to create HTML element for marker
-    const createMarkerElement = (
-      label: string,
-      sublabel: string,
-      color: string,
-      isPulsing = false,
-      showRadarPing = false
-    ) => {
+    // Helper to create Circular Energy Flow Node
+    const createCircularNodeMarker = (spec: {
+      id: string;
+      label: string;
+      badgeText: string;
+      color: string;
+      iconType: "SUBSTATION" | "DTR" | "POLE" | "LIVE_POLE";
+      loadingPct?: number;
+      isLive?: boolean;
+      isTripped?: boolean;
+      isWarn?: boolean;
+      feederName?: string;
+      phases?: {
+        R: { v: number; i: number; p: number };
+        Y: { v: number; i: number; p: number; source?: string };
+        B: { v: number; i: number; p: number; source?: string };
+      };
+      statusText?: string;
+    }) => {
       const el = document.createElement("div");
-      el.className = "relative flex flex-col items-center cursor-pointer group z-30 select-none";
-      el.style.zIndex = "40";
+      el.className = "relative flex flex-col items-center cursor-pointer group select-none";
+      el.style.zIndex = spec.isLive ? "45" : spec.iconType === "SUBSTATION" || spec.iconType === "DTR" ? "42" : "35";
       el.style.pointerEvents = "auto";
 
-      const radarPingHtml = showRadarPing
-        ? `<div class="absolute -top-3 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-rose-500/40 animate-ping pointer-events-none -z-10"></div>
-           <div class="absolute -top-1.5 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-rose-500/30 animate-pulse pointer-events-none -z-10"></div>`
+      const isSub = spec.iconType === "SUBSTATION";
+      const isDtr = spec.iconType === "DTR";
+      const isLive = spec.isLive || spec.iconType === "LIVE_POLE";
+      const size = isSub ? 46 : isDtr ? 44 : isLive ? 38 : 32;
+
+      // Radar pulse for alarm or live pole
+      let haloHtml = "";
+      if (spec.isTripped) {
+        haloHtml = `
+          <div class="absolute -top-3 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-rose-500/40 animate-ping pointer-events-none -z-10"></div>
+          <div class="absolute -top-1.5 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-rose-500/30 animate-pulse pointer-events-none -z-10"></div>
+        `;
+      } else if (isLive) {
+        haloHtml = `
+          <div class="absolute -top-2.5 left-1/2 -translate-x-1/2 w-13 h-13 rounded-full bg-emerald-500/25 animate-ping pointer-events-none -z-10"></div>
+          <div class="absolute -top-1 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-emerald-500/20 animate-pulse pointer-events-none -z-10"></div>
+        `;
+      }
+
+      // SVG Icon based on type
+      let iconSvg = "";
+      if (isSub) {
+        // Transmission Grid Tower
+        iconSvg = `
+          <svg viewBox="0 0 24 24" class="w-5 h-5 text-sky-400 stroke-current fill-none stroke-[2.2]">
+            <path d="M4 22h16M12 2v20M8 8h8M6 14h12M9 4l6 18M15 4L9 22"/>
+          </svg>
+        `;
+      } else if (isDtr) {
+        // Transformer Dual Coils with Donut Arc
+        const pct = Math.min(100, Math.max(0, spec.loadingPct ?? 26));
+        const circ = 119.4; // 2 * PI * 19
+        const strokeColor = pct > 85 ? "#f43f5e" : pct > 65 ? "#f59e0b" : "#10b981";
+        const offset = circ * (1 - pct / 100);
+        iconSvg = `
+          <svg class="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 44 44">
+            <circle cx="22" cy="22" r="19" stroke="rgba(255,255,255,0.12)" stroke-width="2.5" fill="none"/>
+            <circle cx="22" cy="22" r="19" stroke="${strokeColor}" stroke-width="2.5" stroke-linecap="round" fill="none"
+              stroke-dasharray="${circ}" stroke-dashoffset="${offset}"/>
+          </svg>
+          <svg viewBox="0 0 24 24" class="w-5 h-5 text-emerald-400 stroke-current fill-none stroke-[2] relative z-10">
+            <circle cx="9" cy="12" r="4.5" />
+            <circle cx="15" cy="12" r="4.5" />
+          </svg>
+        `;
+      } else if (isLive) {
+        // Live Hardware Node with Bolt + P1/P2
+        const shortNum = spec.id === "POLE-A" || spec.id === "Pole-A" ? "P1" : "P2";
+        iconSvg = `
+          <div class="flex flex-col items-center justify-center leading-none">
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 text-emerald-400 fill-current"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <span class="text-[9px] font-black text-white font-mono mt-0.5">${shortNum}</span>
+          </div>
+        `;
+      } else {
+        // Distribution Pole (e.g. F1-P03 -> "P03")
+        const cleanNum = spec.id.split("-").pop() || spec.id;
+        iconSvg = `
+          <span class="text-[10px] font-black font-mono tracking-tight" style="color: ${spec.color}">
+            ${cleanNum.replace(/^P0?/, "P")}
+          </span>
+        `;
+      }
+
+      // Live tag badge above live nodes
+      const liveBadgeHtml = isLive
+        ? `<div class="absolute -top-3.5 bg-emerald-500 text-black text-[8px] font-black font-mono px-1.5 py-0.2 rounded-full uppercase tracking-tighter flex items-center gap-1 shadow-md shadow-emerald-500/30">
+            <span class="h-1.5 w-1.5 rounded-full bg-black animate-pulse"></span>LIVE
+           </div>`
+        : "";
+
+      // Quick hover preview tooltip
+      const hoverTooltipHtml = spec.phases
+        ? `
+        <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none absolute bottom-full mb-2 w-52 bg-[#090a0f]/95 border border-zinc-700/80 rounded-sm p-2.5 shadow-2xl text-[10px] font-mono z-50 backdrop-blur-md left-1/2 -translate-x-1/2">
+          <div class="flex items-center justify-between border-b border-zinc-800 pb-1 mb-1.5 text-zinc-100 font-bold">
+            <span>${spec.label}</span>
+            <span class="text-[9px]" style="color: ${spec.color}">${spec.feederName || spec.id}</span>
+          </div>
+          <div class="space-y-1 text-zinc-300">
+            <div class="flex justify-between items-center"><span class="text-rose-400 font-bold">[R]</span><span class="text-zinc-200 tabular-nums">${spec.phases.R.v.toFixed(1)}V • ${spec.phases.R.i.toFixed(2)}A</span><span class="text-zinc-400">${spec.phases.R.p.toFixed(0)}W</span></div>
+            <div class="flex justify-between items-center"><span class="text-amber-400 font-bold">[Y]</span>${spec.phases.Y.source === "NOT_INSTRUMENTED" ? '<span class="text-[9px] text-amber-500 italic">NOT INSTR</span>' : `<span class="text-zinc-200 tabular-nums">${spec.phases.Y.v.toFixed(1)}V • ${spec.phases.Y.i.toFixed(2)}A</span><span class="text-zinc-400">${spec.phases.Y.p.toFixed(0)}W</span>`}</div>
+            <div class="flex justify-between items-center"><span class="text-cyan-400 font-bold">[B]</span>${spec.phases.B.source === "NOT_INSTRUMENTED" ? '<span class="text-[9px] text-cyan-500 italic">NOT INSTR</span>' : `<span class="text-zinc-200 tabular-nums">${spec.phases.B.v.toFixed(1)}V • ${spec.phases.B.i.toFixed(2)}A</span><span class="text-zinc-400">${spec.phases.B.p.toFixed(0)}W</span>`}</div>
+          </div>
+          <div class="mt-1.5 pt-1 border-t border-zinc-800 text-[9px] flex justify-between text-zinc-400">
+            <span>STATUS:</span>
+            <span class="${spec.isTripped ? "text-rose-400 font-bold animate-pulse" : "text-emerald-400 font-bold"}">${spec.statusText || "NORMAL"}</span>
+          </div>
+        </div>
+      `
         : "";
 
       el.innerHTML = `
-        ${radarPingHtml}
-        <div style="background: #09090b; border: 2px solid ${color}; color: #fafafa; padding: 2px 6px; border-radius: 2px; font-family: monospace; font-size: 10px; font-weight: bold; box-shadow: 0 4px 12px rgba(0,0,0,0.8); display: flex; align-items: center; gap: 4px;" class="${
-        isPulsing ? "animate-pulse" : ""
-      }">
-          <span style="height: 6px; width: 6px; border-radius: 50%; background: ${color};"></span>
-          <span>${label}</span>
+        ${haloHtml}
+        ${liveBadgeHtml}
+        ${hoverTooltipHtml}
+        <div style="
+          width: ${size}px;
+          height: ${size}px;
+          border-radius: 50%;
+          background: #090a0f;
+          border: ${isLive ? "3px" : "2.5px"} solid ${spec.color};
+          box-shadow: 0 0 ${isLive ? "16px" : "8px"} ${spec.color}55, 0 4px 10px rgba(0,0,0,0.85);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+          transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.15s ease;
+        " class="group-hover:scale-125">
+          ${iconSvg}
         </div>
-        <div style="background: rgba(9, 9, 11, 0.9); border: 1px solid #27272a; color: ${color}; font-size: 9px; font-family: monospace; padding: 1px 4px; border-radius: 2px; margin-top: 2px;">
-          ${sublabel}
+        <div style="
+          margin-top: 3px;
+          background: rgba(9, 10, 15, 0.92);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          color: #fafafa;
+          font-family: monospace;
+          font-size: 9px;
+          font-weight: 700;
+          padding: 0.5px 5px;
+          border-radius: 9999px;
+          white-space: nowrap;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.7);
+          letter-spacing: -0.02em;
+        ">
+          ${spec.badgeText}
         </div>
       `;
+
       return el;
     };
 
-    // 1. Substation Marker
-    const subEl = createMarkerElement("SUBSTATION 33kV", "PRIMARY", "#0ea5e9");
+    // 1. Substation Circular Hub
+    const subEl = createCircularNodeMarker({
+      id: "SUBSTATION",
+      label: "Angamaly Substation",
+      badgeText: "33kV SUB",
+      color: "#0ea5e9",
+      iconType: "SUBSTATION",
+      statusText: "HEALTHY (11kV OK)",
+    });
     const subMarker = new gl.Marker({ element: subEl })
       .setLngLat(ASSETS.substation.coords)
       .addTo(map);
     subEl.onclick = () => setSelectedAsset(ASSETS.substation);
     markersRef.current.push(subMarker);
 
-    // 2. DTR Marker
-    const dtrLabel = networkSnapshot ? `${networkSnapshot.dtr.kva.toFixed(1)} kVA` : "250 kVA";
-    const dtrEl = createMarkerElement("DTR-01", dtrLabel, "#10b981");
+    // 2. DTR-01 Circular Hub with % Load Arc
+    const dtrKva = networkSnapshot ? networkSnapshot.dtr.kva : 65.7;
+    const dtrPct = networkSnapshot ? networkSnapshot.dtr.loadingPct : 26.3;
+    const dtrEl = createCircularNodeMarker({
+      id: "DTR-01",
+      label: "DTR-01 (250 kVA)",
+      badgeText: `DTR • ${dtrKva.toFixed(0)}kVA`,
+      color: "#10b981",
+      iconType: "DTR",
+      loadingPct: dtrPct,
+      statusText: `ONLINE (${dtrPct}% LOAD)`,
+    });
     const dtrMarker = new gl.Marker({ element: dtrEl })
       .setLngLat(ASSETS.dtr.coords)
       .addTo(map);
@@ -399,7 +595,7 @@ export function GisFeederMap({
     markersRef.current.push(dtrMarker);
 
     if (networkSnapshot) {
-      // Render all 28 poles from Network Twin
+      // Render all 28 poles from Network Twin as Circular Flow Nodes
       networkSnapshot.nodes.forEach((node: any) => {
         if (node.id === "DTR-01") return;
         const topoNode = networkSnapshot.topology.nodes.find((n: any) => n.id === node.id);
@@ -410,20 +606,36 @@ export function GisFeederMap({
         const isWarn = node.status === "WARN";
 
         let color = isTripped ? "#f43f5e" : isWarn ? "#f59e0b" : "#10b981";
+        const fDef = networkSnapshot.topology.feeders.find((f: any) => f.id === node.feederId);
         if (!isLive && !isTripped && !isWarn) {
-          const fDef = networkSnapshot.topology.feeders.find((f: any) => f.id === node.feederId);
           color = fDef?.color || "#71717a";
         }
 
         const label = isLive
           ? node.id === "POLE-A"
-            ? "POLE 1 (INCOMER // LIVE)"
-            : "POLE 2 (OUTGOING // LIVE)"
+            ? "Pole 1 (Incomer // LIVE)"
+            : "Pole 2 (Outgoing // LIVE)"
           : node.label;
 
-        const sublabel = `${node.phases.R.v.toFixed(0)}V • ${node.phases.R.i.toFixed(2)}A${isLive ? " [LIVE]" : ""}`;
+        const shortId = node.id.split("-").pop() || node.id;
+        const badgeText = isLive
+          ? `${node.phases.R.v.toFixed(0)}V • ${node.phases.R.i.toFixed(2)}A`
+          : `${shortId.replace(/^P0?/, "P")} • ${node.phases.R.i.toFixed(1)}A`;
 
-        const poleEl = createMarkerElement(label, sublabel, color, isTripped, isTripped || (isLive && !isTripped));
+        const poleEl = createCircularNodeMarker({
+          id: node.id,
+          label,
+          badgeText,
+          color,
+          iconType: isLive ? "LIVE_POLE" : "POLE",
+          isLive,
+          isTripped,
+          isWarn,
+          feederName: fDef?.name || node.feederId,
+          phases: node.phases,
+          statusText: node.status,
+        });
+
         const poleMarker = new gl.Marker({ element: poleEl })
           .setLngLat([topoNode.lng, topoNode.lat])
           .addTo(map);
@@ -436,9 +648,18 @@ export function GisFeederMap({
       });
     } else {
       // Fallback 2-Pole Hardware Markers
-      const p1Current = telemetry ? `${telemetry.p1.i.toFixed(2)}A` : "2.45A";
+      const p1Current = telemetry ? telemetry.p1.i : 2.45;
       const p1Color = isFault ? "#f43f5e" : "#10b981";
-      const p1El = createMarkerElement("POLE 1 (INCOMER)", `${p1Current} | 230V`, p1Color, isFault, isFault || isLastGasp);
+      const p1El = createCircularNodeMarker({
+        id: "POLE-A",
+        label: "Pole 1 (Incomer // LIVE)",
+        badgeText: `${(telemetry?.p1.v ?? 230).toFixed(0)}V • ${p1Current.toFixed(2)}A`,
+        color: p1Color,
+        iconType: "LIVE_POLE",
+        isLive: true,
+        isTripped: isFault,
+        statusText: isFault ? "DIFFERENTIAL FAULT" : "HEALTHY",
+      });
       const p1Marker = new gl.Marker({ element: p1El })
         .setLngLat(ASSETS.pole1.coords)
         .addTo(map);
@@ -450,10 +671,18 @@ export function GisFeederMap({
       };
       markersRef.current.push(p1Marker);
 
-      const p2Current = telemetry ? `${telemetry.p2.i.toFixed(2)}A` : "2.43A";
+      const p2Current = telemetry ? telemetry.p2.i : 2.43;
       const p2Color = isLastGasp || telemetry?.p2.isOnline === false ? "#f43f5e" : isFault ? "#f43f5e" : "#10b981";
-      const p2Sublabel = telemetry?.p2.isOnline === false ? "OUTAGE" : `${p2Current} | 230V`;
-      const p2El = createMarkerElement("POLE 2 (OUTGOING)", p2Sublabel, p2Color, isFault || isLastGasp, isFault || isLastGasp);
+      const p2El = createCircularNodeMarker({
+        id: "POLE-B",
+        label: "Pole 2 (Outgoing // LIVE)",
+        badgeText: telemetry?.p2.isOnline === false ? "OUTAGE" : `${(telemetry?.p2.v ?? 230).toFixed(0)}V • ${p2Current.toFixed(2)}A`,
+        color: p2Color,
+        iconType: "LIVE_POLE",
+        isLive: true,
+        isTripped: isFault || isLastGasp,
+        statusText: telemetry?.p2.isOnline === false ? "OUTAGE" : isFault ? "TRIPPED" : "HEALTHY",
+      });
       const p2Marker = new gl.Marker({ element: p2El })
         .setLngLat(ASSETS.pole2.coords)
         .addTo(map);
@@ -569,134 +798,86 @@ export function GisFeederMap({
 
   return (
     <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] rounded-sm flex flex-col h-full overflow-hidden transition-colors shadow-xs dark:shadow-none">
-      {/* Header Controls: Toggle between Energy Flow Diagram & Satellite GIS Map */}
-      <div className="flex flex-wrap items-center justify-between border-b border-slate-200 dark:border-zinc-800 px-3 py-2 bg-slate-50 dark:bg-zinc-950/80 text-xs font-mono gap-2">
+      {/* Real Map Header Controls */}
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 px-3 py-2 bg-slate-50 dark:bg-zinc-950/80 text-xs font-mono">
         <div className="flex items-center gap-2">
-          {/* Primary View Switcher */}
-          <div className="flex items-center bg-slate-200 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 rounded-sm p-0.5">
-            <button
-              onClick={() => setDisplayMode("ENERGY_FLOW")}
-              className={`px-3 py-1 text-[11px] rounded-sm transition-colors font-bold flex items-center gap-1.5 ${
-                displayMode === "ENERGY_FLOW"
-                  ? "bg-white dark:bg-zinc-800 text-sky-600 dark:text-sky-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
-                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-              }`}
-            >
-              <Zap className="h-3.5 w-3.5 text-sky-500" />
-              <span>ENERGY DISTRIBUTION FLOW</span>
-            </button>
-            <button
-              onClick={() => {
-                setDisplayMode("MAP");
-                setTimeout(() => {
-                  if (mapInstanceRef.current) {
-                    mapInstanceRef.current.resize();
-                    renderAssetMarkers(mapInstanceRef.current);
-                  }
-                }, 100);
-              }}
-              className={`px-3 py-1 text-[11px] rounded-sm transition-colors font-bold flex items-center gap-1.5 ${
-                displayMode === "MAP"
-                  ? "bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
-                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-              }`}
-            >
-              <Layers className="h-3.5 w-3.5 text-emerald-500" />
-              <span>GEOSPATIAL SATELLITE MAP</span>
-            </button>
-          </div>
-
-          <Badge variant="outline" className="text-[10px] hidden md:inline-flex">
-            {displayMode === "ENERGY_FLOW" ? "DYNAMIC PARTICLE FLOW" : "WGS84: 10.2319° N, 76.4089° E"}
+          <Layers className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="font-semibold uppercase tracking-wider text-slate-800 dark:text-zinc-200">
+            GIS GEOSPATIAL VECTOR MAP // FEEDER TOPOLOGY
+          </span>
+          <Badge variant="outline" className="text-[10px] hidden sm:inline-flex">
+            WGS84: 10.2319° N, 76.4089° E
           </Badge>
         </div>
 
-        {displayMode === "MAP" ? (
-          <div className="flex items-center gap-2">
-            {/* Base Layer Switcher */}
-            <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5">
-              <button
-                onClick={() => handleStyleChange("DARK")}
-                className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
-                  currentStyleKey === "DARK"
-                    ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
-                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-                }`}
-              >
-                SCADA DARK
-              </button>
-              <button
-                onClick={() => handleStyleChange("STREETS")}
-                className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
-                  currentStyleKey === "STREETS"
-                    ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
-                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-                }`}
-              >
-                DAY VECTOR
-              </button>
-              <button
-                onClick={() => handleStyleChange("SATELLITE")}
-                className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
-                  currentStyleKey === "SATELLITE"
-                    ? "bg-white dark:bg-zinc-800 text-cyan-700 dark:text-cyan-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
-                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-                }`}
-              >
-                SATELLITE
-              </button>
-            </div>
-
-            {/* Mapbox Token Config Trigger */}
-            <Button
-              variant="outline"
-              size="sm"
-              className={`h-6 px-2 text-[10px] ${
-                tokenAuthError ? "border-amber-500 text-amber-400" : isCustomToken ? "border-sky-500 text-sky-400" : ""
+        <div className="flex items-center gap-2">
+          {/* Base Layer Switcher */}
+          <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5">
+            <button
+              onClick={() => handleStyleChange("DARK")}
+              className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
+                currentStyleKey === "DARK"
+                  ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
               }`}
-              onClick={() => {
-                setTempTokenInput(mapboxToken);
-                setShowTokenModal(true);
-              }}
-              title="Configure Mapbox Access Token"
             >
-              <Key className="h-3 w-3 mr-1" />
-              TOKEN
-            </Button>
+              SCADA DARK
+            </button>
+            <button
+              onClick={() => handleStyleChange("STREETS")}
+              className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
+                currentStyleKey === "STREETS"
+                  ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+              }`}
+            >
+              DAY VECTOR
+            </button>
+            <button
+              onClick={() => handleStyleChange("SATELLITE")}
+              className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
+                currentStyleKey === "SATELLITE"
+                  ? "bg-white dark:bg-zinc-800 text-cyan-700 dark:text-cyan-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+              }`}
+            >
+              SATELLITE
+            </button>
+          </div>
 
-            {/* Reset Camera */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 px-2 text-[10px]"
-              onClick={handleResetCamera}
-            >
-              <RotateCcw className="h-3 w-3 mr-1" />
-              CENTER
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <Badge variant="healthy" className="text-[10px] py-0.5 hidden sm:inline-flex">
-              KCL BALANCED (P1 = P2 + ΔP)
-            </Badge>
-          </div>
-        )}
+          {/* Mapbox Token Config Trigger */}
+          <Button
+            variant="outline"
+            size="sm"
+            className={`h-6 px-2 text-[10px] ${
+              tokenAuthError ? "border-amber-500 text-amber-400" : isCustomToken ? "border-sky-500 text-sky-400" : ""
+            }`}
+            onClick={() => {
+              setTempTokenInput(mapboxToken);
+              setShowTokenModal(true);
+            }}
+            title="Configure Mapbox Access Token"
+          >
+            <Key className="h-3 w-3 mr-1" />
+            TOKEN
+          </Button>
+
+          {/* Reset Camera */}
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-6 px-2 text-[10px]"
+            onClick={handleResetCamera}
+          >
+            <RotateCcw className="h-3 w-3 mr-1" />
+            CENTER
+          </Button>
+        </div>
       </div>
 
-      {/* Main Viewport: Conditionally Render EnergyFlowDiagram or Mapbox View */}
-      {displayMode === "ENERGY_FLOW" ? (
-        <div className="flex-1 w-full h-full min-h-[440px] overflow-hidden">
-          <EnergyFlowDiagram
-            telemetry={telemetry}
-            networkSnapshot={networkSnapshot}
-            selectedPoleId={selectedPoleId}
-            onSelectPole={onSelectPole}
-          />
-        </div>
-      ) : (
-        <div className="relative flex-1 min-h-[400px] bg-[#070809] overflow-hidden">
-          <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+      {/* Mapbox Real Map Viewport */}
+      <div className="relative flex-1 min-h-[400px] bg-[#070809] overflow-hidden">
+        <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
 
         {/* Token Auth Notice Banner if Mapbox rejected token */}
         {tokenAuthError && (
@@ -845,22 +1026,37 @@ export function GisFeederMap({
         )}
 
         {/* Legend */}
-        <div className="absolute bottom-3 right-3 border border-zinc-800 bg-zinc-950/90 px-2.5 py-1.5 rounded-sm font-mono text-[10px] space-y-1 z-10">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-sky-400" />
-            <span className="text-zinc-300">11kV Primary Feeder Cable</span>
+        <div className="absolute bottom-3 right-3 border border-zinc-800 bg-zinc-950/90 px-3 py-2 rounded-sm font-mono text-[10px] space-y-1.5 z-10 shadow-xl backdrop-blur-xs">
+          <div className="text-[9px] uppercase tracking-wider text-zinc-400 font-bold border-b border-zinc-800 pb-1 flex items-center justify-between">
+            <span>ENERGY FLOW TOPOLOGY</span>
+            <span className="text-[8px] text-emerald-400 font-normal">CIRCULAR HUD</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-emerald-400" />
-            <span className="text-zinc-300">415V LT Feeder Conductor</span>
+          <div className="flex items-center gap-2">
+            <span className="h-3.5 w-3.5 rounded-full border-2 border-sky-400 bg-[#090a0f] flex items-center justify-center text-[7px] text-sky-400">⚡</span>
+            <span className="text-zinc-300">33/11kV Primary Substation</span>
           </div>
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-rose-500 animate-pulse" />
-            <span className="text-rose-300">FDIR Protected Zone (Fault)</span>
+          <div className="flex items-center gap-2">
+            <span className="h-3.5 w-3.5 rounded-full border-2 border-emerald-400 bg-[#090a0f] flex items-center justify-center text-[7px] text-emerald-400">◎</span>
+            <span className="text-zinc-300">250 kVA DTR-01 (Load Donut Arc)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-3.5 w-3.5 rounded-full border-2 border-emerald-400 bg-[#090a0f] ring-2 ring-emerald-500/50 animate-pulse flex items-center justify-center text-[7px] text-white font-bold">P1</span>
+            <span className="text-emerald-400 font-bold">Physical Pole (Live Hardware PZEM)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded-full border-2 border-purple-400 bg-[#090a0f]" />
+            <span className="text-zinc-300">Simulated Distribution Pole (P01..P08)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="h-3 w-3 rounded-full border-2 border-rose-500 bg-[#090a0f] animate-ping" />
+            <span className="text-rose-400 font-bold">FDIR Trip / Ground Fault</span>
+          </div>
+          <div className="flex items-center gap-2 pt-0.5 border-t border-zinc-800/80 text-[9px] text-zinc-400">
+            <span className="h-0.5 w-4 bg-white/70" />
+            <span>Animated Particles: Active Power Flow</span>
           </div>
         </div>
       </div>
-      )}
 
 
 
