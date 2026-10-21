@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { GridTelemetry, PoleData } from "@/lib/types";
 import { NetworkSnapshot, NodeState } from "@/lib/network/types";
 import { useTheme } from "@/lib/theme-context";
+import { EnergyFlowDiagram } from "./EnergyFlowDiagram";
 
 interface GisFeederMapProps {
   telemetry: GridTelemetry | null;
@@ -108,6 +109,7 @@ export function GisFeederMap({
   const markersRef = React.useRef<any[]>([]);
 
   const { theme } = useTheme();
+  const [displayMode, setDisplayMode] = React.useState<"ENERGY_FLOW" | "MAP">("ENERGY_FLOW");
   const [mapLoaded, setMapLoaded] = React.useState(false);
   const [currentStyleKey, setCurrentStyleKey] = React.useState<"DARK" | "SATELLITE" | "STREETS">("DARK");
   const [selectedAsset, setSelectedAsset] = React.useState<any>(null);
@@ -567,86 +569,134 @@ export function GisFeederMap({
 
   return (
     <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] rounded-sm flex flex-col h-full overflow-hidden transition-colors shadow-xs dark:shadow-none">
-      {/* Real Map Header Controls */}
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 px-3 py-2 bg-slate-50 dark:bg-zinc-950/80 text-xs font-mono">
+      {/* Header Controls: Toggle between Energy Flow Diagram & Satellite GIS Map */}
+      <div className="flex flex-wrap items-center justify-between border-b border-slate-200 dark:border-zinc-800 px-3 py-2 bg-slate-50 dark:bg-zinc-950/80 text-xs font-mono gap-2">
         <div className="flex items-center gap-2">
-          <Layers className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-          <span className="font-semibold uppercase tracking-wider text-slate-800 dark:text-zinc-200">
-            GIS GEOSPATIAL VECTOR MAP // FEEDER TOPOLOGY
-          </span>
-          <Badge variant="outline" className="text-[10px] hidden sm:inline-flex">
-            WGS84: 10.2319° N, 76.4089° E
-          </Badge>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Base Layer Switcher */}
-          <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5">
+          {/* Primary View Switcher */}
+          <div className="flex items-center bg-slate-200 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 rounded-sm p-0.5">
             <button
-              onClick={() => handleStyleChange("DARK")}
-              className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
-                currentStyleKey === "DARK"
-                  ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
+              onClick={() => setDisplayMode("ENERGY_FLOW")}
+              className={`px-3 py-1 text-[11px] rounded-sm transition-colors font-bold flex items-center gap-1.5 ${
+                displayMode === "ENERGY_FLOW"
+                  ? "bg-white dark:bg-zinc-800 text-sky-600 dark:text-sky-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
                   : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
               }`}
             >
-              SCADA DARK
+              <Zap className="h-3.5 w-3.5 text-sky-500" />
+              <span>ENERGY DISTRIBUTION FLOW</span>
             </button>
             <button
-              onClick={() => handleStyleChange("STREETS")}
-              className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
-                currentStyleKey === "STREETS"
-                  ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
+              onClick={() => {
+                setDisplayMode("MAP");
+                setTimeout(() => {
+                  if (mapInstanceRef.current) {
+                    mapInstanceRef.current.resize();
+                    renderAssetMarkers(mapInstanceRef.current);
+                  }
+                }, 100);
+              }}
+              className={`px-3 py-1 text-[11px] rounded-sm transition-colors font-bold flex items-center gap-1.5 ${
+                displayMode === "MAP"
+                  ? "bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
                   : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
               }`}
             >
-              DAY VECTOR
-            </button>
-            <button
-              onClick={() => handleStyleChange("SATELLITE")}
-              className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
-                currentStyleKey === "SATELLITE"
-                  ? "bg-white dark:bg-zinc-800 text-cyan-700 dark:text-cyan-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
-                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-              }`}
-            >
-              SATELLITE
+              <Layers className="h-3.5 w-3.5 text-emerald-500" />
+              <span>GEOSPATIAL SATELLITE MAP</span>
             </button>
           </div>
 
-          {/* Mapbox Token Config Trigger */}
-          <Button
-            variant="outline"
-            size="sm"
-            className={`h-6 px-2 text-[10px] ${
-              tokenAuthError ? "border-amber-500 text-amber-400" : isCustomToken ? "border-sky-500 text-sky-400" : ""
-            }`}
-            onClick={() => {
-              setTempTokenInput(mapboxToken);
-              setShowTokenModal(true);
-            }}
-            title="Configure Mapbox Access Token"
-          >
-            <Key className="h-3 w-3 mr-1" />
-            TOKEN
-          </Button>
-
-          {/* Reset Camera */}
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-6 px-2 text-[10px]"
-            onClick={handleResetCamera}
-          >
-            <RotateCcw className="h-3 w-3 mr-1" />
-            CENTER
-          </Button>
+          <Badge variant="outline" className="text-[10px] hidden md:inline-flex">
+            {displayMode === "ENERGY_FLOW" ? "DYNAMIC PARTICLE FLOW" : "WGS84: 10.2319° N, 76.4089° E"}
+          </Badge>
         </div>
+
+        {displayMode === "MAP" ? (
+          <div className="flex items-center gap-2">
+            {/* Base Layer Switcher */}
+            <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5">
+              <button
+                onClick={() => handleStyleChange("DARK")}
+                className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
+                  currentStyleKey === "DARK"
+                    ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
+                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+                }`}
+              >
+                SCADA DARK
+              </button>
+              <button
+                onClick={() => handleStyleChange("STREETS")}
+                className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
+                  currentStyleKey === "STREETS"
+                    ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
+                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+                }`}
+              >
+                DAY VECTOR
+              </button>
+              <button
+                onClick={() => handleStyleChange("SATELLITE")}
+                className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
+                  currentStyleKey === "SATELLITE"
+                    ? "bg-white dark:bg-zinc-800 text-cyan-700 dark:text-cyan-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
+                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+                }`}
+              >
+                SATELLITE
+              </button>
+            </div>
+
+            {/* Mapbox Token Config Trigger */}
+            <Button
+              variant="outline"
+              size="sm"
+              className={`h-6 px-2 text-[10px] ${
+                tokenAuthError ? "border-amber-500 text-amber-400" : isCustomToken ? "border-sky-500 text-sky-400" : ""
+              }`}
+              onClick={() => {
+                setTempTokenInput(mapboxToken);
+                setShowTokenModal(true);
+              }}
+              title="Configure Mapbox Access Token"
+            >
+              <Key className="h-3 w-3 mr-1" />
+              TOKEN
+            </Button>
+
+            {/* Reset Camera */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 px-2 text-[10px]"
+              onClick={handleResetCamera}
+            >
+              <RotateCcw className="h-3 w-3 mr-1" />
+              CENTER
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Badge variant="healthy" className="text-[10px] py-0.5 hidden sm:inline-flex">
+              KCL BALANCED (P1 = P2 + ΔP)
+            </Badge>
+          </div>
+        )}
       </div>
 
-      {/* Mapbox Real Map Viewport */}
-      <div className="relative flex-1 min-h-[400px] bg-[#070809] overflow-hidden">
-        <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
+      {/* Main Viewport: Conditionally Render EnergyFlowDiagram or Mapbox View */}
+      {displayMode === "ENERGY_FLOW" ? (
+        <div className="flex-1 w-full h-full min-h-[440px] overflow-hidden">
+          <EnergyFlowDiagram
+            telemetry={telemetry}
+            networkSnapshot={networkSnapshot}
+            selectedPoleId={selectedPoleId}
+            onSelectPole={onSelectPole}
+          />
+        </div>
+      ) : (
+        <div className="relative flex-1 min-h-[400px] bg-[#070809] overflow-hidden">
+          <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
 
         {/* Token Auth Notice Banner if Mapbox rejected token */}
         {tokenAuthError && (
@@ -810,6 +860,7 @@ export function GisFeederMap({
           </div>
         </div>
       </div>
+      )}
 
 
 
