@@ -105,10 +105,10 @@ class TelemetryStore extends EventEmitter {
       details: "Awaiting serial packets from Gateway at 115200 baud.",
     });
 
-    // Inactivity Watchdog: If physical ESP32 gateway is unplugged or halts packets for >5s, zero out state
+    // Inactivity Watchdog: If physical ESP32 gateway is unplugged or halts packets for >7s, zero out state
     setInterval(() => {
-      if (this.systemStatus.gatewayConnected && this.lastIngestTime > 0 && Date.now() - this.lastIngestTime > 5000) {
-        console.warn("[Watchdog] Gateway inactive for >5s. Marking disconnected and zeroing telemetry.");
+      if (this.systemStatus.gatewayConnected && this.lastIngestTime > 0 && Date.now() - this.lastIngestTime > 7000) {
+        console.warn("[Watchdog] Gateway inactive for >7s. Marking disconnected and zeroing telemetry.");
         this.setPortStatus("DISCONNECTED", false, false);
       }
     }, 2000);
@@ -305,8 +305,11 @@ class TelemetryStore extends EventEmitter {
     }
 
     this.lastIngestTime = Date.now();
-    if (!this.systemStatus.gatewayConnected) {
+    if (!this.systemStatus.gatewayConnected || this.systemStatus.activePort === "DISCONNECTED") {
       this.systemStatus.gatewayConnected = true;
+      if (this.systemStatus.activePort === "DISCONNECTED") {
+        this.systemStatus.activePort = "COM8";
+      }
     }
 
     const timestamp = new Date().toISOString();

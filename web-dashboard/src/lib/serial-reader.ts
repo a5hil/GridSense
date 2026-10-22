@@ -139,12 +139,22 @@ export async function connectSerialPort(
         });
 
         activeSerialPort!.on("error", (portErr) => {
-          console.error(`[SerialPort] Error: ${portErr.message}`);
+          console.error(`[SerialPort] Error on ${targetPort}: ${portErr.message}`);
           telemetryStore.addEventLog({
             level: "ERROR",
             source: "SERIAL",
             message: `Serial error on ${targetPort}: ${portErr.message}`,
           });
+          // On USB reset or communication fault, cleanly recycle handle and auto-reconnect
+          try {
+            if (activeSerialPort && activeSerialPort.isOpen) {
+              activeSerialPort.close();
+            }
+          } catch {}
+          activeSerialPort = null;
+          parser = null;
+          telemetryStore.setPortStatus("DISCONNECTED", false, false);
+          handleReconnect();
         });
 
         resolve({
@@ -155,20 +165,30 @@ export async function connectSerialPort(
       });
     });
   } catch (err: any) {
+    handleReconnect();
     return { success: false, message: err.message };
   }
 }
 
 export async function disconnectSerialPort() {
   configuredPortName = "";
-  if (activeSerialPort && activeSerialPort.isOpen) {
+  if (activeSerialPort) {
     return new Promise<void>((resolve) => {
-      activeSerialPort!.close(() => {
-        activeSerialPort = null;
-        parser = null;
-        telemetryStore.setPortStatus("DISCONNECTED", false, false);
-        resolve();
-      });
+      try {
+        if (activeSerialPort!.isOpen) {
+          activeSerialPort!.close(() => {
+            activeSerialPort = null;
+            parser = null;
+            telemetryStore.setPortStatus("DISCONNECTED", false, false);
+            resolve();
+          });
+          return;
+        }
+      } catch {}
+      activeSerialPort = null;
+      parser = null;
+      telemetryStore.setPortStatus("DISCONNECTED", false, false);
+      resolve();
     });
   }
 }
@@ -204,11 +224,12 @@ function handleIncomingLine(raw: string) {
     return;
   }
 
-  // Find any embedded JSON object in the line (e.g. from streamFDIRJsonToHost)
-  const jsonMatch = line.match(/\{.*?\}(?=\s*$)/) || line.match(/\{.*\}/);
-  if (jsonMatch) {
+  // Find boundaries of JSON object (handles any prefixes or trailing newlines safely)
+  const start = line.indexOf("{");
+  const end = line.lastIndexOf("}");
+  if (start !== -1 && end > start) {
     try {
-      const parsed = JSON.parse(jsonMatch[0]);
+      const parsed = JSON.parse(line.substring(start, end + 1));
       if (parsed && typeof parsed === "object" && ("gw_ms" in parsed || "p1" in parsed || "type" in parsed)) {
         telemetryStore.ingestRawJson(parsed, "SERIAL");
       }
