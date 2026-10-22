@@ -490,6 +490,14 @@ class TelemetryStore extends EventEmitter {
         lng: 76.4088,
         feederId: "FEEDER_04_SECTOR4",
         dtrId: "DTR_SECTOR4_01",
+        phases: parsed.p1.phases || {
+          r: { v: Number(parsed.p1.v) || 0, i: Number(parsed.p1.i) || 0, p: Number(parsed.p1.p) || 0, pf: Number(parsed.p1.pf) || 0.96, src: "LIVE" },
+          y: { v: 0, i: 0, p: 0, pf: 0, src: "NOT_INSTRUMENTED" },
+          b: { v: 0, i: 0, p: 0, pf: 0, src: "NOT_INSTRUMENTED" },
+        },
+        neutralCurrent: Number(parsed.p1.in) || Number(parsed.p1.i) || 0,
+        voltageUnbalancePct: Number(parsed.p1.unb) || 0,
+        phaseMask: Number(parsed.p1.mask) || 1,
       };
 
       const p2: PoleData = {
@@ -512,6 +520,14 @@ class TelemetryStore extends EventEmitter {
         lng: 76.4095,
         feederId: "FEEDER_04_SECTOR4",
         dtrId: "DTR_SECTOR4_01",
+        phases: parsed.p2.phases || {
+          r: { v: Number(parsed.p2.v) || 0, i: Number(parsed.p2.i) || 0, p: Number(parsed.p2.p) || 0, pf: Number(parsed.p2.pf) || 0.96, src: "LIVE" },
+          y: { v: 0, i: 0, p: 0, pf: 0, src: "NOT_INSTRUMENTED" },
+          b: { v: 0, i: 0, p: 0, pf: 0, src: "NOT_INSTRUMENTED" },
+        },
+        neutralCurrent: Number(parsed.p2.in) || Number(parsed.p2.i) || 0,
+        voltageUnbalancePct: Number(parsed.p2.unb) || 0,
+        phaseMask: Number(parsed.p2.mask) || 1,
       };
 
       // 1. Guard against uninitialized node startup race-conditions:

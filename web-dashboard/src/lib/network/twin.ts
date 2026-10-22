@@ -43,6 +43,7 @@ interface LiveSide {
   i: number;
   p: number;
   pf: number;
+  phases?: Record<Phase, { v: number; i: number; p: number; pf: number; src: string }>;
 }
 
 class NetworkTwin extends EventEmitter {
@@ -198,13 +199,22 @@ class NetworkTwin extends EventEmitter {
     const t = telemetryStore.getTelemetry();
     const st = telemetryStore.getStatus();
     const linkUp = !!st.gatewayConnected && t.status !== "DISCONNECTED" && t.status !== "WAITING_DATA";
-    const side = (pd: typeof t.p1): LiveSide => ({
-      online: linkUp && !!pd?.isOnline && (pd?.age_ms ?? 99999) < 20000,
-      v: pd?.v ?? 0,
-      i: pd?.i ?? 0,
-      p: pd?.p ?? 0,
-      pf: pd?.pf && pd.pf > 0 ? pd.pf : 0.96,
-    });
+    const side = (pd: typeof t.p1): LiveSide => {
+      const ph = pd?.phases;
+      const phasesMap: Record<Phase, { v: number; i: number; p: number; pf: number; src: string }> = {
+        R: { v: ph?.r?.v ?? pd?.v ?? 0, i: ph?.r?.i ?? pd?.i ?? 0, p: ph?.r?.p ?? pd?.p ?? 0, pf: ph?.r?.pf ?? pd?.pf ?? 0.96, src: ph?.r?.src ?? "LIVE" },
+        Y: { v: ph?.y?.v ?? 0, i: ph?.y?.i ?? 0, p: ph?.y?.p ?? 0, pf: ph?.y?.pf ?? 0.96, src: ph?.y?.src ?? "NOT_INSTRUMENTED" },
+        B: { v: ph?.b?.v ?? 0, i: ph?.b?.i ?? 0, p: ph?.b?.p ?? 0, pf: ph?.b?.pf ?? 0.96, src: ph?.b?.src ?? "NOT_INSTRUMENTED" },
+      };
+      return {
+        online: linkUp && !!pd?.isOnline && (pd?.age_ms ?? 99999) < 20000,
+        v: pd?.v ?? 0,
+        i: pd?.i ?? 0,
+        p: pd?.p ?? 0,
+        pf: pd?.pf && pd.pf > 0 ? pd.pf : 0.96,
+        phases: phasesMap,
+      };
+    };
     return { linkUp, a: side(t.p1), b: side(t.p2) };
   }
 
@@ -239,8 +249,9 @@ class NetworkTwin extends EventEmitter {
     const srcOf = (id: string, p: Phase): PhaseReading["source"] => {
       const n = NODE_BY_ID[id];
       if (!n.liveBinding) return "SIM";
-      if (p !== "R") return this.mode === "SIM" ? "SIM" : "NOT_INSTRUMENTED";
       const side = n.liveBinding === "Pole-A" ? live.a : live.b;
+      if (side.phases?.[p]?.src === "LIVE") return side.online ? "LIVE" : "OFFLINE";
+      if (p !== "R") return this.mode === "SIM" ? "SIM" : "NOT_INSTRUMENTED";
       return side.online ? "LIVE" : "OFFLINE";
     };
     const liveSide = (id: string) => (NODE_BY_ID[id].liveBinding === "Pole-A" ? live.a : live.b);
@@ -255,7 +266,9 @@ class NetworkTwin extends EventEmitter {
         if (dead[p].has(id) || src === "NOT_INSTRUMENTED" || src === "OFFLINE") continue;
         if (src === "LIVE") {
           // Terminal live pole: everything it measures is its own downstream load.
-          l[p] = n.isTerminal ? liveSide(id).i : 0;
+          const side = liveSide(id);
+          const iVal = side.phases?.[p]?.i ?? (p === "R" ? side.i : 0);
+          l[p] = n.isTerminal ? iVal : 0;
         } else {
           l[p] = this.cur[id][p] * this.loadFactor(n.feederId, p);
         }
@@ -275,7 +288,8 @@ class NetworkTwin extends EventEmitter {
         if (dead[p].has(id) || src === "NOT_INSTRUMENTED" || src === "OFFLINE") {
           a[p] = 0;
         } else if (src === "LIVE") {
-          a[p] = liveSide(id).i;
+          const side = liveSide(id);
+          a[p] = side.phases?.[p]?.i ?? (p === "R" ? side.i : 0);
         } else {
           a[p] = localLoad[id][p] + (CHILDREN[id] || []).reduce((acc, c) => acc + iSpan[c][p], 0);
         }
@@ -305,8 +319,10 @@ class NetworkTwin extends EventEmitter {
       for (const p of PHASES) {
         const src = srcOf(id, p);
         if (dead[p].has(id) || src === "NOT_INSTRUMENTED" || src === "OFFLINE") v[p] = 0;
-        else if (src === "LIVE") v[p] = liveSide(id).v;
-        else v[p] = Math.max(0, volt[parent][p] - iSpan[id][p] * ohm(id));
+        else if (src === "LIVE") {
+          const side = liveSide(id);
+          v[p] = side.phases?.[p]?.v ?? (p === "R" ? side.v : 0);
+        } else v[p] = Math.max(0, volt[parent][p] - iSpan[id][p] * ohm(id));
       }
       volt[id] = v;
     }

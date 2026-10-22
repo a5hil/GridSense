@@ -1,14 +1,17 @@
 /*!
  * @file      PZEM004T_Modbus.cpp
  * @brief     Lightweight, direct Modbus-RTU implementation for PZEM-004T v4.0 (Split CT)
+ *            Supports single-module and multi-drop addressing (0x01–0xF7) on a shared UART.
  * @project   GridSense - MCA Project, FISAT
  */
 
 #include "PZEM004T_Modbus.h"
 
 #define CMD_READ_INPUT_REGISTERS 0x04
+#define CMD_WRITE_SINGLE_REG     0x06
 #define START_REGISTER           0x0000
 #define NUM_REGISTERS            0x000A // 10 registers = 20 data bytes
+#define ADDR_REGISTER            0x0002 // Register for Modbus slave address
 #define RESPONSE_FRAME_SIZE      25     // 1(addr) + 1(cmd) + 1(len) + 20(data) + 2(crc)
 
 PZEM004T_Modbus::PZEM004T_Modbus(HardwareSerial& serialPort, int8_t rxPin, int8_t txPin, uint8_t addr)
@@ -37,13 +40,13 @@ uint16_t PZEM004T_Modbus::calculateCRC(const uint8_t* buffer, uint16_t len) {
     return crc;
 }
 
-void PZEM004T_Modbus::sendReadCommand() {
+void PZEM004T_Modbus::sendReadCommand(uint8_t slaveAddr) {
     while (_serial.available()) {
         _serial.read();
     }
 
     uint8_t cmd[8];
-    cmd[0] = _addr;
+    cmd[0] = slaveAddr;
     cmd[1] = CMD_READ_INPUT_REGISTERS;
     cmd[2] = (START_REGISTER >> 8) & 0xFF;
     cmd[3] = (START_REGISTER) & 0xFF;
@@ -74,7 +77,11 @@ bool PZEM004T_Modbus::receiveResponse(uint8_t* buffer, uint16_t expectedLen, uin
 }
 
 bool PZEM004T_Modbus::read(PZEMData& data) {
-    sendReadCommand();
+    return readFrom(_addr, data);
+}
+
+bool PZEM004T_Modbus::readFrom(uint8_t slaveAddr, PZEMData& data) {
+    sendReadCommand(slaveAddr);
 
     uint8_t response[RESPONSE_FRAME_SIZE];
     memset(response, 0, sizeof(response));
@@ -84,7 +91,8 @@ bool PZEM004T_Modbus::read(PZEMData& data) {
         return false;
     }
 
-    if (response[1] != CMD_READ_INPUT_REGISTERS || response[2] != 0x14) {
+    // Verify Slave Addr, Command, and Byte Count
+    if (response[0] != slaveAddr || response[1] != CMD_READ_INPUT_REGISTERS || response[2] != 0x14) {
         data.isValid = false;
         return false;
     }
@@ -135,4 +143,50 @@ bool PZEM004T_Modbus::read(PZEMData& data) {
     data.isValid = true;
     data.lastReadMs = millis();
     return true;
+}
+
+bool PZEM004T_Modbus::setSlaveAddress(uint8_t targetAddr, uint8_t newAddr) {
+    if (newAddr < 0x01 || newAddr > 0xF7) {
+        return false;
+    }
+
+    while (_serial.available()) {
+        _serial.read();
+    }
+
+    uint8_t cmd[8];
+    cmd[0] = targetAddr;
+    cmd[1] = CMD_WRITE_SINGLE_REG;
+    cmd[2] = (ADDR_REGISTER >> 8) & 0xFF;
+    cmd[3] = (ADDR_REGISTER) & 0xFF;
+    cmd[4] = 0x00;
+    cmd[5] = newAddr;
+
+    uint16_t crc = calculateCRC(cmd, 6);
+    cmd[6] = crc & 0xFF;
+    cmd[7] = (crc >> 8) & 0xFF;
+
+    _serial.write(cmd, sizeof(cmd));
+    _serial.flush();
+
+    // The PZEM module echoes back the 8-byte write command upon success
+    uint8_t response[8];
+    if (!receiveResponse(response, 8, 300)) {
+        return false;
+    }
+
+    uint16_t respCRC = calculateCRC(response, 6);
+    uint16_t expectedCRC = response[6] | (response[7] << 8);
+
+    if (respCRC != expectedCRC) {
+        return false;
+    }
+
+    // Verify write echo
+    if (response[0] == targetAddr && response[1] == CMD_WRITE_SINGLE_REG && response[5] == newAddr) {
+        _addr = newAddr;
+        return true;
+    }
+
+    return false;
 }

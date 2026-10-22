@@ -19,6 +19,14 @@ export interface PoleData {
   lng?: number; // GPS Longitude
   feederId?: string;
   dtrId?: string;
+  phases?: {
+    r: { v: number; i: number; p: number; pf: number; src?: string };
+    y: { v: number; i: number; p: number; pf: number; src?: string };
+    b: { v: number; i: number; p: number; pf: number; src?: string };
+  };
+  neutralCurrent?: number;
+  voltageUnbalancePct?: number;
+  phaseMask?: number;
 }
 
 export interface HistoricalTelemetryPoint {
