@@ -53,10 +53,25 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
 
   const selectedNode = React.useMemo(() => {
     if (!networkSnapshot || !selectedPoleId) return null;
+    const target = selectedPoleId.trim().toLowerCase();
+    const normalizeId = (id: string) => id.toLowerCase().replace(/([a-z0-9]+)-p0?(\d+)/i, "$1-p$2");
+    const targetNorm = normalizeId(target);
+
     return (
-      networkSnapshot.nodes.find(
-        (n) => n.id.toLowerCase() === selectedPoleId.toLowerCase()
-      ) || null
+      networkSnapshot.nodes.find((n) => {
+        const nId = n.id.toLowerCase();
+        if (nId === target) return true;
+        if (normalizeId(nId) === targetNorm) return true;
+        if (
+          (target === "pole-a" || target === "pole 1" || target === "p1") &&
+          (nId === "pole-a" || (n.isLive && nId.includes("a")))
+        ) return true;
+        if (
+          (target === "pole-b" || target === "pole 2" || target === "p2") &&
+          (nId === "pole-b" || (n.isLive && nId.includes("b")))
+        ) return true;
+        return false;
+      }) || null
     );
   }, [networkSnapshot, selectedPoleId]);
 

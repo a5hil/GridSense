@@ -59,14 +59,32 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
   selectedPoleId,
   onSelectPole,
 }: TelemetryTrendChartProps) {
+  // Helper to determine if a pole ID refers to a digital twin pole
+  const isTwinPole = (id?: string) => {
+    if (!id) return false;
+    const upper = id.toUpperCase();
+    return (
+      upper.startsWith("F1") ||
+      upper.startsWith("F2") ||
+      upper.startsWith("F3") ||
+      upper.startsWith("LT") ||
+      upper.includes("-P")
+    );
+  };
+
   // Waveform Scope: Physical P1/P2 Differential Anchor vs 3-Phase Polyphase Digital Twin Pole
-  const [channelScope, setChannelScope] = React.useState<"ANCHOR" | "POLYPHASE">("ANCHOR");
-  const [activePoleId, setActivePoleId] = React.useState<string>(selectedPoleId || "F1-P1");
+  const [channelScope, setChannelScope] = React.useState<"ANCHOR" | "POLYPHASE">(() => {
+    return isTwinPole(selectedPoleId) ? "POLYPHASE" : "ANCHOR";
+  });
+  const [activePoleId, setActivePoleId] = React.useState<string>(selectedPoleId || "F1-P01");
+  const prevPoleRef = React.useRef<string>(selectedPoleId || "F1-P01");
   const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
 
   React.useEffect(() => {
-    if (selectedPoleId) {
-      setActivePoleId(selectedPoleId);
+    if (!selectedPoleId) return;
+    setActivePoleId(selectedPoleId);
+    if (isTwinPole(selectedPoleId)) {
+      setChannelScope("POLYPHASE");
     }
   }, [selectedPoleId]);
 
@@ -323,11 +341,26 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
   // DIGITAL TWIN 3-PHASE POLYPHASE CALCULATIONS
   // ==========================================
   const activeNode = React.useMemo(() => {
-    if (!networkSnapshot) return null;
+    if (!networkSnapshot || networkSnapshot.nodes.length === 0) return null;
+    const target = (activePoleId || "").trim().toLowerCase();
+    const normalizeId = (id: string) => id.toLowerCase().replace(/([a-z0-9]+)-p0?(\d+)/i, "$1-p$2");
+    const targetNorm = normalizeId(target);
+
     return (
-      networkSnapshot.nodes.find(
-        (n) => n.id.toLowerCase() === activePoleId.toLowerCase()
-      ) || networkSnapshot.nodes[0]
+      networkSnapshot.nodes.find((n) => {
+        const nId = n.id.toLowerCase();
+        if (nId === target) return true;
+        if (normalizeId(nId) === targetNorm) return true;
+        if (
+          (target === "pole-a" || target === "pole 1" || target === "p1") &&
+          (nId === "pole-a" || (n.isLive && nId.includes("a")))
+        ) return true;
+        if (
+          (target === "pole-b" || target === "pole 2" || target === "p2") &&
+          (nId === "pole-b" || (n.isLive && nId.includes("b")))
+        ) return true;
+        return false;
+      }) || networkSnapshot.nodes[0]
     );
   }, [networkSnapshot, activePoleId]);
 
@@ -345,6 +378,11 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
   // Track polyphase telemetry buffer
   React.useEffect(() => {
     if (!activeNode) return;
+    const isNewPole = prevPoleRef.current.toLowerCase() !== activeNode.id.toLowerCase();
+    if (isNewPole) {
+      prevPoleRef.current = activeNode.id;
+    }
+
     const vR = activeNode.phases.R.v;
     const vY = activeNode.phases.Y.v;
     const vB = activeNode.phases.B.v;
@@ -393,18 +431,22 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
 
     setPolyHistory((prev) => {
       if (isFrozen) return prev;
-      if (prev.length === 0) {
+      if (isNewPole || prev.length === 0) {
         const seeded: PolyphaseHistoricalPoint[] = [];
         for (let i = 20; i >= 1; i--) {
-          const jitter = Math.sin(i) * 0.015;
+          const jitter = Math.sin(i * 0.7) * 0.012;
           seeded.push({
             ...newPt,
             vR: Number((newPt.vR * (1 + jitter)).toFixed(1)),
             vY: Number((newPt.vY * (1 - jitter)).toFixed(1)),
             vB: Number((newPt.vB * (1 + jitter * 0.5)).toFixed(1)),
-            iR: Number((newPt.iR * (1 + jitter * 1.5)).toFixed(3)),
-            iY: Number((newPt.iY * (1 - jitter * 1.5)).toFixed(3)),
-            iB: Number((newPt.iB * (1 + jitter)).toFixed(3)),
+            iR: Number(Math.max(0, newPt.iR * (1 + jitter * 1.5)).toFixed(3)),
+            iY: Number(Math.max(0, newPt.iY * (1 - jitter * 1.5)).toFixed(3)),
+            iB: Number(Math.max(0, newPt.iB * (1 + jitter)).toFixed(3)),
+            pR: Math.max(0, Math.round(newPt.pR * (1 + jitter))),
+            pY: Math.max(0, Math.round(newPt.pY * (1 - jitter))),
+            pB: Math.max(0, Math.round(newPt.pB * (1 + jitter * 0.8))),
+            pTotal: Math.max(0, Math.round(newPt.pTotal * (1 + jitter * 0.6))),
             timeLabel: `T-${(i * 0.5).toFixed(1)}s`,
           });
         }
@@ -554,15 +596,16 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
             </button>
           </div>
 
-          {/* Pole Selector (Visible in Polyphase Mode) */}
-          {channelScope === "POLYPHASE" && (
+          {/* Pole Selector (Available whenever network snapshot is loaded) */}
+          {networkSnapshot && (
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold uppercase">POLE:</span>
               <select
-                value={activePoleId}
+                value={activeNode ? activeNode.id : activePoleId}
                 onChange={(e) => {
                   const newId = e.target.value;
                   setActivePoleId(newId);
+                  setChannelScope("POLYPHASE");
                   onSelectPole?.(newId);
                 }}
                 className="bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xs px-2 py-1 text-[11px] font-bold text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 cursor-pointer"
@@ -589,8 +632,8 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                   ))}
                 </optgroup>
                 <optgroup label="PHYSICAL ANCHORS">
-                  <option value="Pole-A">Pole-A (Pole 1 Incomer) [LIVE]</option>
-                  <option value="Pole-B">Pole-B (Pole 2 Outgoing) [LIVE]</option>
+                  <option value="POLE-A">POLE-A (Pole 1 Incomer) [LIVE]</option>
+                  <option value="POLE-B">POLE-B (Pole 2 Outgoing) [LIVE]</option>
                 </optgroup>
               </select>
 

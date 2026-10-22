@@ -78,6 +78,11 @@ export default function SCADADashboard() {
   const [selectedPort, setSelectedPort] = React.useState<string>("");
   const [isAcking, setIsAcking] = React.useState(false);
   const [selectedPoleId, setSelectedPoleId] = React.useState<string>("Pole-A");
+  const handlePoleSelect = React.useCallback((target: any) => {
+    if (!target) return;
+    const id = typeof target === "string" ? target : target.id;
+    if (id) setSelectedPoleId(id);
+  }, []);
   const [isBreakerTripped, setIsBreakerTripped] = React.useState(false);
   const [activeView, setActiveView] = React.useState<
     "OPERATOR" | "GIS" | "NETWORK" | "WAVEFORMS" | "OMS" | "DIAGNOSTICS" | "LOGS"
@@ -1355,7 +1360,7 @@ export default function SCADADashboard() {
               telemetry={telemetry}
               networkSnapshot={networkSnapshot}
               selectedPoleId={selectedPoleId}
-              onSelectPole={setSelectedPoleId}
+              onSelectPole={handlePoleSelect}
             />
 
             {/* ROW 3: REAL GEOSPATIAL MAP (COL 8) + OPERATIONS DISPATCH STATION (COL 4) */}
@@ -1366,7 +1371,7 @@ export default function SCADADashboard() {
                   telemetry={telemetry}
                   networkSnapshot={networkSnapshot}
                   selectedPoleId={selectedPoleId}
-                  onSelectPole={(p) => setSelectedPoleId(p.id)}
+                  onSelectPole={handlePoleSelect}
                 />
               </div>
 
@@ -1574,7 +1579,7 @@ export default function SCADADashboard() {
                 telemetry={telemetry}
                 networkSnapshot={networkSnapshot}
                 selectedPoleId={selectedPoleId}
-                onSelectPole={(p) => setSelectedPoleId(p.id)}
+                onSelectPole={handlePoleSelect}
               />
             </div>
             <div className="col-span-12 lg:col-span-4 flex flex-col h-full min-h-[550px]">
@@ -1582,7 +1587,7 @@ export default function SCADADashboard() {
                 telemetry={telemetry}
                 networkSnapshot={networkSnapshot}
                 selectedPoleId={selectedPoleId}
-                onSelectPole={(id) => setSelectedPoleId(id)}
+                onSelectPole={handlePoleSelect}
               />
             </div>
           </div>
@@ -1597,7 +1602,7 @@ export default function SCADADashboard() {
               snapshot={networkSnapshot}
               onRefresh={fetchNetworkSnapshot}
               selectedPoleId={selectedPoleId}
-              onSelectPole={(id) => setSelectedPoleId(id)}
+              onSelectPole={handlePoleSelect}
             />
           </div>
         )}
@@ -1614,7 +1619,7 @@ export default function SCADADashboard() {
               onToggleFreeze={() => setIsWaveformFrozen(!isWaveformFrozen)}
               networkSnapshot={networkSnapshot}
               selectedPoleId={selectedPoleId}
-              onSelectPole={setSelectedPoleId}
+              onSelectPole={handlePoleSelect}
             />
           </div>
         )}
