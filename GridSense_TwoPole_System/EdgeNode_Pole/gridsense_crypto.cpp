@@ -41,9 +41,9 @@ bool gridsense_encrypt_payload(const char* plaintext, uint8_t srcId, uint16_t se
     if (!plaintext || !outCiphertext || maxLen < 16) return false;
 
     size_t plainLen = strlen(plaintext);
-    if (plainLen == 0 || plainLen > 140) return false;
+    if (plainLen == 0 || plainLen > 200) return false;
 
-    uint8_t cipherBuf[160];
+    uint8_t cipherBuf[220];
     uint8_t nonce[16];
     uint8_t streamBlock[16] = {0};
     size_t nc_off = 0;
@@ -97,7 +97,7 @@ bool gridsense_decrypt_payload(const char* inPayload, uint8_t srcId, uint16_t se
         return false;
     }
 
-    uint8_t cipherBuf[160];
+    uint8_t cipherBuf[220];
     size_t cipherLen = 0;
 
     int b64Ret = mbedtls_base64_decode(cipherBuf, sizeof(cipherBuf), &cipherLen,

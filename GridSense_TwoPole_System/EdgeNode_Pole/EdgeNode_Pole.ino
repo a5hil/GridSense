@@ -40,7 +40,7 @@ enum NodeRole {
     ROLE_REPEATER = 1   // Relay pole: monitors own line + relays downstream packets
 };
 
-#define POLE_ID                     2       // Set to 1 for Pole 1, set to 2 for Pole 2
+#define POLE_ID                     1       // Set to 1 for Pole 1, set to 2 for Pole 2
 #define NODE_ROLE                   (POLE_ID == 1 ? ROLE_REPEATER : ROLE_ENDPOINT)
 
 // Metering Sensor Driver Selection
@@ -410,28 +410,20 @@ void loop() {
         char innerJson[240];
 
         if (activeMeter->getInstrumentedPhaseCount() == 3) {
-            // Polyphase 3-Phase telemetry payload
+            // Compact Polyphase 3-Phase telemetry payload (~120 bytes)
             snprintf(innerJson, sizeof(innerJson),
-                "{\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"freq\":%.1f,\"pf\":%.2f,\"e\":%.1f,"
-                "\"phases\":{\"r\":{\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"pf\":%.2f,\"src\":\"%s\"},"
-                "\"y\":{\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"pf\":%.2f,\"src\":\"%s\"},"
-                "\"b\":{\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"pf\":%.2f,\"src\":\"%s\"}},"
-                "\"in\":%.3f,\"unb\":%.1f}",
-                r.voltage, r.current, r.power, r.frequency, r.pf, r.energy,
-                r.voltage, r.current, r.power, r.pf, r.isInstrumented ? "LIVE" : "SIM",
-                y.voltage, y.current, y.power, y.pf, y.isInstrumented ? "LIVE" : "SIM",
-                b.voltage, b.current, b.power, b.pf, b.isInstrumented ? "LIVE" : "SIM",
-                latestReadings.neutralCurrent, latestReadings.voltageUnbalancePct
+                "{\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"vy\":%.1f,\"iy\":%.3f,\"py\":%.1f,\"vb\":%.1f,\"ib\":%.3f,\"pb\":%.1f,\"in\":%.2f,\"unb\":%.1f,\"freq\":%.1f,\"pf\":%.2f,\"e\":%.1f}",
+                r.voltage, r.current, r.power,
+                y.voltage, y.current, y.power,
+                b.voltage, b.current, b.power,
+                latestReadings.neutralCurrent, latestReadings.voltageUnbalancePct,
+                r.frequency, r.pf, r.energy
             );
         } else {
-            // Single-Phase Phase R hardware live payload (backwards-compatible with v1 schema)
+            // Standard Single-Phase Phase R hardware payload (~65 bytes)
             snprintf(innerJson, sizeof(innerJson),
-                "{\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"freq\":%.1f,\"pf\":%.2f,\"e\":%.1f,"
-                "\"ph\":\"R\",\"phases\":{\"r\":{\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"pf\":%.2f,\"src\":\"LIVE\"},"
-                "\"y\":{\"v\":0.0,\"i\":0.0,\"p\":0.0,\"pf\":0.0,\"src\":\"NOT_INSTRUMENTED\"},"
-                "\"b\":{\"v\":0.0,\"i\":0.0,\"p\":0.0,\"pf\":0.0,\"src\":\"NOT_INSTRUMENTED\"}}}",
-                r.voltage, r.current, r.power, r.frequency, r.pf, r.energy,
-                r.voltage, r.current, r.power, r.pf
+                "{\"v\":%.1f,\"i\":%.3f,\"p\":%.1f,\"freq\":%.1f,\"pf\":%.2f,\"e\":%.1f}",
+                r.voltage, r.current, r.power, r.frequency, r.pf, r.energy
             );
         }
 

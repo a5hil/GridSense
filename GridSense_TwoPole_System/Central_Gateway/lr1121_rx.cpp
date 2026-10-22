@@ -97,11 +97,13 @@ void lora_rx_irq_process(void)
     }
     else if(radio_irq & LR11XX_SYSTEM_IRQ_CRC_ERROR)
     {
+        Serial.println("[GW RF] CRC Error detected on incoming packet");
         lr11xx_system_clear_irq_status(&lr1121, radio_irq);
         lora_start_rx();
     }
     else if(radio_irq & LR11XX_SYSTEM_IRQ_HEADER_ERROR)
     {
+        Serial.println("[GW RF] Header Error detected on incoming packet");
         lr11xx_system_clear_irq_status(&lr1121, radio_irq);
         lora_start_rx();
     }

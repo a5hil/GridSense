@@ -431,31 +431,37 @@ void processIncomingPacket(const char* rawPacket, int16_t rssi, int8_t snr) {
     target->pr  = target->power;
     target->pfr = target->pf;
 
-    // Check if packet contains 3-phase readings
-    if (strstr(json, "\"phases\"")) {
-        float vy = parseNestedJsonFloat(json, "phases", "y", "v");
-        float iy = parseNestedJsonFloat(json, "phases", "y", "i");
-        float py = parseNestedJsonFloat(json, "phases", "y", "p");
-        float pfy = parseNestedJsonFloat(json, "phases", "y", "pf");
+    // Check if packet contains 3-phase readings (compact "vy": or nested "phases")
+    float vy = parseJsonFloat(json, "vy");
+    float iy = parseJsonFloat(json, "iy");
+    float py = parseJsonFloat(json, "py");
+    float vb = parseJsonFloat(json, "vb");
+    float ib = parseJsonFloat(json, "ib");
+    float pb = parseJsonFloat(json, "pb");
 
-        float vb = parseNestedJsonFloat(json, "phases", "b", "v");
-        float ib = parseNestedJsonFloat(json, "phases", "b", "i");
-        float pb = parseNestedJsonFloat(json, "phases", "b", "p");
-        float pfb = parseNestedJsonFloat(json, "phases", "b", "pf");
+    if (vy == 0.0f && strstr(json, "\"phases\"")) {
+        vy = parseNestedJsonFloat(json, "phases", "y", "v");
+        iy = parseNestedJsonFloat(json, "phases", "y", "i");
+        py = parseNestedJsonFloat(json, "phases", "y", "p");
+        vb = parseNestedJsonFloat(json, "phases", "b", "v");
+        ib = parseNestedJsonFloat(json, "phases", "b", "i");
+        pb = parseNestedJsonFloat(json, "phases", "b", "p");
+    }
 
-        target->vy = vy;
-        target->iy = iy;
-        target->py = py;
-        target->pfy = (pfy > 0.0f) ? pfy : 0.96f;
+    if (vy > 10.0f || vb > 10.0f || (phaseMask & PHASE_MASK_3PHASE) == PHASE_MASK_3PHASE) {
+        target->vy  = vy;
+        target->iy  = iy;
+        target->py  = py;
+        target->pfy = target->pf;
 
-        target->vb = vb;
-        target->ib = ib;
-        target->pb = pb;
-        target->pfb = (pfb > 0.0f) ? pfb : 0.96f;
+        target->vb  = vb;
+        target->ib  = ib;
+        target->pb  = pb;
+        target->pfb = target->pf;
 
         target->neutralCurrent      = parseJsonFloat(json, "in");
         target->voltageUnbalancePct = parseJsonFloat(json, "unb");
-        target->isThreePhase        = (phaseMask & PHASE_MASK_3PHASE) == PHASE_MASK_3PHASE;
+        target->isThreePhase        = true;
     } else {
         target->vy = 0.0f;
         target->iy = 0.0f;
@@ -517,7 +523,22 @@ void loop() {
             last_packet.payload[sizeof(last_packet.payload) - 1] = '\0';
         }
 
+        Serial.printf("\n[GW RX RAW] Captured %u bytes (RSSI: %d dBm | SNR: %d dB): %s\n",
+                      last_packet.length, last_packet.packet_rssi, last_packet.snr, (const char*)last_packet.payload);
+
         processIncomingPacket((const char*)last_packet.payload, last_packet.packet_rssi, last_packet.snr);
+    }
+
+    // Periodic heartbeat every 5 seconds if waiting for packets
+    static uint32_t last_heartbeat_ms = 0;
+    if (millis() - last_heartbeat_ms >= 5000) {
+        last_heartbeat_ms = millis();
+        if (total_packets == 0) {
+            Serial.printf("[GW HEARTBEAT] Radio Active @ 866.3 MHz | Listening... (Packets: %lu | Pole 1: %s | Pole 2: %s)\n",
+                          total_packets,
+                          pole1.hasData ? "ONLINE" : "OFFLINE",
+                          pole2.hasData ? "ONLINE" : "OFFLINE");
+        }
     }
 
     delay(5);

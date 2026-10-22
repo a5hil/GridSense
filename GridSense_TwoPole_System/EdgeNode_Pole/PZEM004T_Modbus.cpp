@@ -91,8 +91,8 @@ bool PZEM004T_Modbus::readFrom(uint8_t slaveAddr, PZEMData& data) {
         return false;
     }
 
-    // Verify Slave Addr, Command, and Byte Count
-    if (response[0] != slaveAddr || response[1] != CMD_READ_INPUT_REGISTERS || response[2] != 0x14) {
+    // Verify Slave Addr, Command, and Byte Count (allow 0xF8 wildcard inquiry to match any slave ID response)
+    if ((slaveAddr != 0xF8 && response[0] != slaveAddr) || response[1] != CMD_READ_INPUT_REGISTERS || response[2] != 0x14) {
         data.isValid = false;
         return false;
     }
