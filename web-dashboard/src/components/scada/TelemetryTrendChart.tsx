@@ -3,23 +3,51 @@
 import * as React from "react";
 import {
   Activity,
+  AlertTriangle,
   Clock,
-  Zap,
-  Pause,
-  Play,
-  TrendingUp,
-  ShieldAlert,
   Flame,
   Gauge,
+  GitBranch,
+  Layers,
+  Pause,
+  Play,
   Radio,
+  ShieldAlert,
+  ShieldCheck,
+  TrendingUp,
+  Zap,
 } from "lucide-react";
 import { HistoricalTelemetryPoint } from "@/lib/types";
+import { NetworkSnapshot } from "@/lib/network/types";
+
+export interface PolyphaseHistoricalPoint {
+  timeLabel: string;
+  vR: number;
+  vY: number;
+  vB: number;
+  iR: number;
+  iY: number;
+  iB: number;
+  iNeutral: number;
+  pR: number;
+  pY: number;
+  pB: number;
+  pTotal: number;
+  pfR: number;
+  pfY: number;
+  pfB: number;
+  vUnb: number;
+  iUnb: number;
+}
 
 interface TelemetryTrendChartProps {
   history: HistoricalTelemetryPoint[];
   tripLimit?: number;
   isFrozen?: boolean;
   onToggleFreeze?: () => void;
+  networkSnapshot?: NetworkSnapshot | null;
+  selectedPoleId?: string;
+  onSelectPole?: (poleId: string) => void;
 }
 
 export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
@@ -27,8 +55,20 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
   tripLimit = 0.35,
   isFrozen: controlledFrozen,
   onToggleFreeze,
+  networkSnapshot,
+  selectedPoleId,
+  onSelectPole,
 }: TelemetryTrendChartProps) {
+  // Waveform Scope: Physical P1/P2 Differential Anchor vs 3-Phase Polyphase Digital Twin Pole
+  const [channelScope, setChannelScope] = React.useState<"ANCHOR" | "POLYPHASE">("ANCHOR");
+  const [activePoleId, setActivePoleId] = React.useState<string>(selectedPoleId || "F1-P1");
   const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    if (selectedPoleId) {
+      setActivePoleId(selectedPoleId);
+    }
+  }, [selectedPoleId]);
 
   // Freeze / Buffer Capture State
   const [localFrozen, setLocalFrozen] = React.useState(false);
@@ -279,11 +319,204 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
   const statsLossW = calcStats(data.map((d) => d.pLoss ?? 0));
   const statsVDrop = calcStats(data.map((d) => d.vDrop ?? 0));
 
+  // ==========================================
+  // DIGITAL TWIN 3-PHASE POLYPHASE CALCULATIONS
+  // ==========================================
+  const activeNode = React.useMemo(() => {
+    if (!networkSnapshot) return null;
+    return (
+      networkSnapshot.nodes.find(
+        (n) => n.id.toLowerCase() === activePoleId.toLowerCase()
+      ) || networkSnapshot.nodes[0]
+    );
+  }, [networkSnapshot, activePoleId]);
+
+  const nodesByFeeder = React.useMemo(() => {
+    if (!networkSnapshot) return { "LT-1": [], "LT-2": [], "LT-3": [] };
+    return {
+      "LT-1": networkSnapshot.nodes.filter((n) => n.feederId === "LT-1"),
+      "LT-2": networkSnapshot.nodes.filter((n) => n.feederId === "LT-2"),
+      "LT-3": networkSnapshot.nodes.filter((n) => n.feederId === "LT-3"),
+    };
+  }, [networkSnapshot]);
+
+  const [polyHistory, setPolyHistory] = React.useState<PolyphaseHistoricalPoint[]>([]);
+
+  // Track polyphase telemetry buffer
+  React.useEffect(() => {
+    if (!activeNode) return;
+    const vR = activeNode.phases.R.v;
+    const vY = activeNode.phases.Y.v;
+    const vB = activeNode.phases.B.v;
+    const iR = activeNode.phases.R.i;
+    const iY = activeNode.phases.Y.i;
+    const iB = activeNode.phases.B.i;
+    const pR = activeNode.phases.R.p;
+    const pY = activeNode.phases.Y.p;
+    const pB = activeNode.phases.B.p;
+    const pfR = activeNode.phases.R.pf;
+    const pfY = activeNode.phases.Y.pf;
+    const pfB = activeNode.phases.B.pf;
+
+    const vAvg = (vR + vY + vB) / 3 || 1;
+    const vMaxDev = Math.max(Math.abs(vR - vAvg), Math.abs(vY - vAvg), Math.abs(vB - vAvg));
+    const vUnb = (vMaxDev / vAvg) * 100;
+
+    const iAvg = (iR + iY + iB) / 3 || 1;
+    const iMaxDev = Math.max(Math.abs(iR - iAvg), Math.abs(iY - iAvg), Math.abs(iB - iAvg));
+    const iUnb = (iMaxDev / iAvg) * 100;
+
+    // Neutral return current magnitude
+    const iNeutral = Math.sqrt(
+      Math.max(0, iR * iR + iY * iY + iB * iB - iR * iY - iY * iB - iB * iR)
+    );
+
+    const newPt: PolyphaseHistoricalPoint = {
+      timeLabel: new Date().toLocaleTimeString(),
+      vR: Number(vR.toFixed(1)),
+      vY: Number(vY.toFixed(1)),
+      vB: Number(vB.toFixed(1)),
+      iR: Number(iR.toFixed(3)),
+      iY: Number(iY.toFixed(3)),
+      iB: Number(iB.toFixed(3)),
+      iNeutral: Number(iNeutral.toFixed(3)),
+      pR: Math.round(pR),
+      pY: Math.round(pY),
+      pB: Math.round(pB),
+      pTotal: Math.round(pR + pY + pB),
+      pfR: Number(pfR.toFixed(2)),
+      pfY: Number(pfY.toFixed(2)),
+      pfB: Number(pfB.toFixed(2)),
+      vUnb: Number(vUnb.toFixed(2)),
+      iUnb: Number(iUnb.toFixed(2)),
+    };
+
+    setPolyHistory((prev) => {
+      if (isFrozen) return prev;
+      if (prev.length === 0) {
+        const seeded: PolyphaseHistoricalPoint[] = [];
+        for (let i = 20; i >= 1; i--) {
+          const jitter = Math.sin(i) * 0.015;
+          seeded.push({
+            ...newPt,
+            vR: Number((newPt.vR * (1 + jitter)).toFixed(1)),
+            vY: Number((newPt.vY * (1 - jitter)).toFixed(1)),
+            vB: Number((newPt.vB * (1 + jitter * 0.5)).toFixed(1)),
+            iR: Number((newPt.iR * (1 + jitter * 1.5)).toFixed(3)),
+            iY: Number((newPt.iY * (1 - jitter * 1.5)).toFixed(3)),
+            iB: Number((newPt.iB * (1 + jitter)).toFixed(3)),
+            timeLabel: `T-${(i * 0.5).toFixed(1)}s`,
+          });
+        }
+        return [...seeded, newPt];
+      }
+      return [...prev.slice(-39), newPt];
+    });
+  }, [networkSnapshot, activeNode, isFrozen]);
+
+  const getPolyX = (index: number, total: number) => {
+    if (total <= 1) return padding.left;
+    return padding.left + (index / (total - 1)) * graphWidth;
+  };
+
+  const generatePolyPath = (
+    valExtractor: (p: PolyphaseHistoricalPoint) => number,
+    minY: number,
+    maxY: number
+  ) => {
+    if (polyHistory.length === 0) return "";
+    return polyHistory
+      .map((p, i) => {
+        const val = valExtractor(p);
+        const y = getYCoord(val, minY, maxY);
+        const x = getPolyX(i, polyHistory.length);
+        return `${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
+      })
+      .join(" ");
+  };
+
+  const generatePolyAreaPath = (
+    valExtractor: (p: PolyphaseHistoricalPoint) => number,
+    minY: number,
+    maxY: number
+  ) => {
+    if (polyHistory.length === 0) return "";
+    const linePath = polyHistory
+      .map((p, i) => {
+        const val = valExtractor(p);
+        const y = getYCoord(val, minY, maxY);
+        const x = getPolyX(i, polyHistory.length);
+        return `${i === 0 ? "M" : "L"} ${x.toFixed(1)} ${y.toFixed(1)}`;
+      })
+      .join(" ");
+    const firstX = getPolyX(0, polyHistory.length).toFixed(1);
+    const lastX = getPolyX(polyHistory.length - 1, polyHistory.length).toFixed(1);
+    const bottomY = (svgHeight - padding.bottom).toFixed(1);
+    return `${linePath} L ${lastX} ${bottomY} L ${firstX} ${bottomY} Z`;
+  };
+
+  // Polyphase scales
+  const allPolyI = polyHistory.flatMap((p) => [p.iR, p.iY, p.iB, p.iNeutral]);
+  const minPolyI = 0;
+  const maxPolyI = Math.max(2.0, Math.ceil((Math.max(...(allPolyI.length ? allPolyI : [2.5])) + 0.3) * 10) / 10);
+  const pathPolyIR = generatePolyPath((p) => p.iR, minPolyI, maxPolyI);
+  const pathPolyIY = generatePolyPath((p) => p.iY, minPolyI, maxPolyI);
+  const pathPolyIB = generatePolyPath((p) => p.iB, minPolyI, maxPolyI);
+  const pathPolyIN = generatePolyPath((p) => p.iNeutral, minPolyI, maxPolyI);
+  const statsPolyIR = calcStats(polyHistory.map((p) => p.iR));
+  const statsPolyIY = calcStats(polyHistory.map((p) => p.iY));
+  const statsPolyIB = calcStats(polyHistory.map((p) => p.iB));
+  const statsPolyIN = calcStats(polyHistory.map((p) => p.iNeutral));
+  const latestIUnb = polyHistory.length > 0 ? polyHistory[polyHistory.length - 1].iUnb : 0;
+
+  const allPolyV = polyHistory.flatMap((p) => [p.vR, p.vY, p.vB, 216, 244]);
+  const minPolyV = Math.max(180, Math.floor(Math.min(...(allPolyV.length ? allPolyV : [200])) - 5));
+  const maxPolyV = Math.min(270, Math.ceil(Math.max(...(allPolyV.length ? allPolyV : [250])) + 5));
+  const pathPolyVR = generatePolyPath((p) => p.vR, minPolyV, maxPolyV);
+  const pathPolyVY = generatePolyPath((p) => p.vY, minPolyV, maxPolyV);
+  const pathPolyVB = generatePolyPath((p) => p.vB, minPolyV, maxPolyV);
+  const yUpperV = getYCoord(243.8, minPolyV, maxPolyV);
+  const yLowerV = getYCoord(216.2, minPolyV, maxPolyV);
+  const statsPolyVR = calcStats(polyHistory.map((p) => p.vR));
+  const statsPolyVY = calcStats(polyHistory.map((p) => p.vY));
+  const statsPolyVB = calcStats(polyHistory.map((p) => p.vB));
+  const latestVUnb = polyHistory.length > 0 ? polyHistory[polyHistory.length - 1].vUnb : 0;
+
+  const allPolyP = polyHistory.flatMap((p) => [p.pR, p.pY, p.pB, p.pTotal]);
+  const minPolyP = 0;
+  const maxPolyP = Math.max(100, Math.ceil(Math.max(...(allPolyP.length ? allPolyP : [500])) * 1.25));
+  const pathPolyPR = generatePolyPath((p) => p.pR, minPolyP, maxPolyP);
+  const pathPolyPY = generatePolyPath((p) => p.pY, minPolyP, maxPolyP);
+  const pathPolyPB = generatePolyPath((p) => p.pB, minPolyP, maxPolyP);
+  const pathPolyPTotal = generatePolyPath((p) => p.pTotal, minPolyP, maxPolyP);
+  const areaPolyPTotal = generatePolyAreaPath((p) => p.pTotal, minPolyP, maxPolyP);
+  const statsPolyPR = calcStats(polyHistory.map((p) => p.pR));
+  const statsPolyPY = calcStats(polyHistory.map((p) => p.pY));
+  const statsPolyPB = calcStats(polyHistory.map((p) => p.pB));
+  const statsPolyPTotal = calcStats(polyHistory.map((p) => p.pTotal));
+
+  const minPolyPf = 0.8;
+  const maxPolyPf = 1.0;
+  const pathPolyPfR = generatePolyPath((p) => p.pfR, minPolyPf, maxPolyPf);
+  const pathPolyPfY = generatePolyPath((p) => p.pfY, minPolyPf, maxPolyPf);
+  const pathPolyPfB = generatePolyPath((p) => p.pfB, minPolyPf, maxPolyPf);
+  const statsPolyPfR = calcStats(polyHistory.map((p) => p.pfR));
+  const statsPolyPfY = calcStats(polyHistory.map((p) => p.pfY));
+  const statsPolyPfB = calcStats(polyHistory.map((p) => p.pfB));
+  const yPfNominal = getYCoord(0.9, minPolyPf, maxPolyPf);
+
+  const hoveredPolyPoint =
+    hoverIndex !== null && polyHistory[hoverIndex]
+      ? polyHistory[hoverIndex]
+      : polyHistory.length > 0
+      ? polyHistory[polyHistory.length - 1]
+      : null;
+
   return (
     <div className="flex-1 flex flex-col gap-3 font-mono">
-      {/* 1. Global SCADA Header Bar */}
+      {/* 1. Global SCADA Header Bar with Channel Scope & Pole Selection */}
       <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-2.5 rounded-sm flex flex-wrap items-center justify-between gap-3 shadow-xs">
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isFrozen ? "bg-amber-400" : "bg-emerald-400"}`} />
@@ -291,15 +524,87 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
             </span>
             <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <span className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-zinc-200">
-              SCADA TELEMETRY WAVEFORM MONITOR // MULTI-PARAMETER POWER QUALITY ANALYZER
+              SCADA TELEMETRY WAVEFORM MONITOR // MULTI-CHANNEL ANALYZER
             </span>
           </div>
 
-          <div className="hidden md:flex items-center gap-2 text-xs text-slate-500 dark:text-zinc-400 border-l border-slate-200 dark:border-zinc-800 pl-3">
-            <span>FEEDER 04 (11kV DISTRIBUTION PRIMARY)</span>
-            <span>•</span>
-            <span>LORA SUB-GHZ MESH</span>
+          {/* Channel Scope Selector: Live Anchor Differential vs 3-Phase Polyphase Pole */}
+          <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5 text-xs">
+            <button
+              onClick={() => setChannelScope("ANCHOR")}
+              className={`px-2 py-1 text-[10px] font-bold uppercase rounded-xs transition-colors flex items-center gap-1.5 ${
+                channelScope === "ANCHOR"
+                  ? "bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
+                  : "text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+              }`}
+            >
+              <Radio className="h-3 w-3" />
+              <span>ANCHOR (P1 ↔ P2 LIVE)</span>
+            </button>
+            <button
+              onClick={() => setChannelScope("POLYPHASE")}
+              className={`px-2 py-1 text-[10px] font-bold uppercase rounded-xs transition-colors flex items-center gap-1.5 ${
+                channelScope === "POLYPHASE"
+                  ? "bg-white dark:bg-zinc-800 text-cyan-600 dark:text-cyan-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
+                  : "text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+              }`}
+            >
+              <Layers className="h-3 w-3" />
+              <span>TWIN POLE 3Φ (R/Y/B)</span>
+            </button>
           </div>
+
+          {/* Pole Selector (Visible in Polyphase Mode) */}
+          {channelScope === "POLYPHASE" && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold uppercase">POLE:</span>
+              <select
+                value={activePoleId}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  setActivePoleId(newId);
+                  onSelectPole?.(newId);
+                }}
+                className="bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xs px-2 py-1 text-[11px] font-bold text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 cursor-pointer"
+              >
+                <optgroup label="FEEDER LT-1 (RESIDENTIAL - 8 POLES)">
+                  {nodesByFeeder["LT-1"].map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {n.id} - {n.label} {n.isLive ? "[LIVE ANCHOR]" : ""}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="FEEDER LT-2 (COMMERCIAL - 10 POLES)">
+                  {nodesByFeeder["LT-2"].map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {n.id} - {n.label} {n.isLive ? "[LIVE ANCHOR]" : ""}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="FEEDER LT-3 (AGRI/MIXED - 10 POLES)">
+                  {nodesByFeeder["LT-3"].map((n) => (
+                    <option key={n.id} value={n.id}>
+                      {n.id} - {n.label} {n.isLive ? "[LIVE ANCHOR]" : ""}
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="PHYSICAL ANCHORS">
+                  <option value="Pole-A">Pole-A (Pole 1 Incomer) [LIVE]</option>
+                  <option value="Pole-B">Pole-B (Pole 2 Outgoing) [LIVE]</option>
+                </optgroup>
+              </select>
+
+              {activeNode && (
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-xs font-bold border ${
+                  activeNode.isLive
+                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                    : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30"
+                }`}>
+                  {activeNode.isLive ? "LIVE ANCHOR" : "DIGITAL TWIN"}
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-3">
@@ -325,16 +630,17 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           </button>
 
           <div className="text-xs text-slate-500 dark:text-zinc-400 border-l border-slate-200 dark:border-zinc-800 pl-3">
-            BUFFER: <span className="text-slate-800 dark:text-zinc-200 font-bold">{data.length}</span> / 40 SAMPLES (10s)
+            BUFFER: <span className="text-slate-800 dark:text-zinc-200 font-bold">{channelScope === "ANCHOR" ? data.length : polyHistory.length}</span> / 40 SAMPLES
           </div>
         </div>
       </div>
 
       {/* 2. 2x2 High-Readability Full Screen Grid */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-3.5 min-h-0">
-        {/* ============================================================== */}
-        {/* CHART 1: CURRENT & DIFFERENTIAL PROTECTION (ANSI 87L) */}
-        {/* ============================================================== */}
+      {channelScope === "ANCHOR" ? (
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-3.5 min-h-0">
+          {/* ============================================================== */}
+          {/* CHART 1: CURRENT & DIFFERENTIAL PROTECTION (ANSI 87L) */}
+          {/* ============================================================== */}
         <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none min-h-[300px]">
           {/* Card Header with Live Values */}
           <div className="flex flex-wrap items-center justify-between px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/80 border-b border-slate-200 dark:border-zinc-800/80 text-xs">
@@ -1059,6 +1365,439 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           </div>
         </div>
       </div>
+      ) : (
+        /* ========================================================================= */
+        /* DIGITAL TWIN 3-PHASE POLYPHASE POLE MONITOR (4 HIGH-PRECISION SCADA CHARTS) */
+        /* ========================================================================= */
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 gap-3.5 min-h-0">
+          {/* ------------------------------------------------------------------------- */}
+          {/* POLY CHART 1: 3-PHASE CURRENT & NEUTRAL DISPLACEMENT */}
+          {/* ------------------------------------------------------------------------- */}
+          <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none min-h-[300px]">
+            <div className="flex flex-wrap items-center justify-between px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/80 border-b border-slate-200 dark:border-zinc-800/80 text-xs">
+              <div className="flex items-center gap-2">
+                <GitBranch className="h-4 w-4 text-emerald-500" />
+                <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs tracking-wide">
+                  1. 3-PHASE CURRENT &amp; NEUTRAL DISPLACEMENT ({activeNode?.id || activePoleId})
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
+                <span className="flex items-center gap-1 text-rose-500">
+                  <span className="h-2 w-2 rounded-full bg-[#f43f5e] shadow-xs" />
+                  IR: <span className="font-bold">{statsPolyIR.cur.toFixed(3)}A</span>
+                </span>
+                <span className="flex items-center gap-1 text-amber-500">
+                  <span className="h-2 w-2 rounded-full bg-[#f59e0b] shadow-xs" />
+                  IY: <span className="font-bold">{statsPolyIY.cur.toFixed(3)}A</span>
+                </span>
+                <span className="flex items-center gap-1 text-cyan-500">
+                  <span className="h-2 w-2 rounded-full bg-[#06b6d4] shadow-xs" />
+                  IB: <span className="font-bold">{statsPolyIB.cur.toFixed(3)}A</span>
+                </span>
+                <span className="flex items-center gap-1 text-purple-400">
+                  <span className="h-2 w-2 rounded-full bg-[#a855f7] shadow-xs" />
+                  IN: <span className="font-bold">{statsPolyIN.cur.toFixed(3)}A</span>
+                </span>
+              </div>
+            </div>
+
+            <div
+              className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none min-h-[220px] h-[260px] xl:h-[285px]"
+              onMouseLeave={() => setHoverIndex(null)}
+            >
+              <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
+                {yTicks.map((p, idx) => {
+                  const val = minPolyI + p * (maxPolyI - minPolyI);
+                  const y = getYCoord(val, minPolyI, maxPolyI);
+                  return (
+                    <g key={idx}>
+                      <line x1={padding.left} y1={y} x2={svgWidth - padding.right} y2={y} stroke="currentColor" className="text-slate-200 dark:text-zinc-800" strokeWidth="1" strokeDasharray="3 3" />
+                      <text x={padding.left - 8} y={y + 3.5} className="fill-slate-500 dark:fill-zinc-400" fontSize="10" fontWeight="500" textAnchor="end">
+                        {val.toFixed(2)}A
+                      </text>
+                    </g>
+                  );
+                })}
+
+                {xTimeMarkers.map((marker, idx) => {
+                  const x = padding.left + marker.p * graphWidth;
+                  return (
+                    <g key={idx}>
+                      <line x1={x} y1={padding.top} x2={x} y2={svgHeight - padding.bottom} stroke="currentColor" className="text-slate-200 dark:text-zinc-800/60" strokeWidth="1" strokeDasharray="2 3" />
+                      <text x={x} y={svgHeight - padding.bottom + 18} className="fill-slate-400 dark:fill-zinc-500" fontSize="9.5" textAnchor="middle">
+                        {marker.label}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                <path d={pathPolyIR} fill="none" stroke="#f43f5e" strokeWidth="1.6" strokeLinecap="round" />
+                <path d={pathPolyIY} fill="none" stroke="#f59e0b" strokeWidth="1.6" strokeLinecap="round" />
+                <path d={pathPolyIB} fill="none" stroke="#06b6d4" strokeWidth="1.6" strokeLinecap="round" />
+                <path d={pathPolyIN} fill="none" stroke="#a855f7" strokeWidth="1.2" strokeLinecap="round" strokeDasharray="3 3" />
+
+                {hoverIndex !== null && polyHistory[hoverIndex] && (
+                  <g>
+                    <line x1={getPolyX(hoverIndex, polyHistory.length)} y1={padding.top} x2={getPolyX(hoverIndex, polyHistory.length)} y2={svgHeight - padding.bottom} stroke="#ffffff" strokeWidth="1.0" strokeDasharray="3 3" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].iR, minPolyI, maxPolyI)} r="3" fill="#f43f5e" stroke="#fff" strokeWidth="1" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].iY, minPolyI, maxPolyI)} r="3" fill="#f59e0b" stroke="#fff" strokeWidth="1" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].iB, minPolyI, maxPolyI)} r="3" fill="#06b6d4" stroke="#fff" strokeWidth="1" />
+                  </g>
+                )}
+
+                {polyHistory.map((_, idx) => (
+                  <rect key={idx} x={getPolyX(idx, polyHistory.length) - graphWidth / (polyHistory.length * 2)} y={padding.top} width={graphWidth / polyHistory.length} height={graphHeight} fill="transparent" className="cursor-crosshair" onMouseEnter={() => setHoverIndex(idx)} />
+                ))}
+              </svg>
+
+              {hoveredPolyPoint && (
+                <div className="absolute top-2 left-20 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs shadow-md backdrop-blur-xs">
+                  <span className="text-slate-400 dark:text-zinc-400 font-mono">{hoveredPolyPoint.timeLabel}</span>
+                  <span className="text-rose-500 font-bold">R: {hoveredPolyPoint.iR.toFixed(3)}A</span>
+                  <span className="text-amber-500 font-bold">Y: {hoveredPolyPoint.iY.toFixed(3)}A</span>
+                  <span className="text-cyan-500 font-bold">B: {hoveredPolyPoint.iB.toFixed(3)}A</span>
+                  <span className="text-purple-400 font-bold">N: {hoveredPolyPoint.iNeutral.toFixed(3)}A</span>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums">
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#f43f5e] shrink-0" />
+                <span>PEAK CURRENT: <span className="font-bold text-slate-800 dark:text-zinc-200">{Math.max(statsPolyIR.max, statsPolyIY.max, statsPolyIB.max).toFixed(3)} A</span></span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#a855f7] shrink-0" />
+                <span>NEUTRAL RETURN: <span className="font-bold text-purple-600 dark:text-purple-400">{statsPolyIN.cur.toFixed(3)} A</span> (Vector Sum)</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0" />
+                <span>CURRENT UNBALANCE: <span className="font-bold text-emerald-600 dark:text-emerald-400">{latestIUnb.toFixed(2)}%</span></span>
+              </div>
+            </div>
+          </div>
+
+          {/* ------------------------------------------------------------------------- */}
+          {/* POLY CHART 2: 3-PHASE VOLTAGES & TOLERANCE BAND */}
+          {/* ------------------------------------------------------------------------- */}
+          <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none min-h-[300px]">
+            <div className="flex flex-wrap items-center justify-between px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/80 border-b border-slate-200 dark:border-zinc-800/80 text-xs">
+              <div className="flex items-center gap-2">
+                <Activity className="h-4 w-4 text-cyan-400" />
+                <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs tracking-wide">
+                  2. 3-PHASE VOLTAGES &amp; TOLERANCE BAND (230V NOMINAL ±6%)
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
+                <span className="flex items-center gap-1 text-rose-500">
+                  <span className="h-2 w-2 rounded-full bg-[#f43f5e] shadow-xs" />
+                  VR: <span className="font-bold">{statsPolyVR.cur.toFixed(1)}V</span>
+                </span>
+                <span className="flex items-center gap-1 text-amber-500">
+                  <span className="h-2 w-2 rounded-full bg-[#f59e0b] shadow-xs" />
+                  VY: <span className="font-bold">{statsPolyVY.cur.toFixed(1)}V</span>
+                </span>
+                <span className="flex items-center gap-1 text-cyan-500">
+                  <span className="h-2 w-2 rounded-full bg-[#06b6d4] shadow-xs" />
+                  VB: <span className="font-bold">{statsPolyVB.cur.toFixed(1)}V</span>
+                </span>
+                <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-xs ${latestVUnb > 2.0 ? "bg-amber-500/20 text-amber-500" : "text-emerald-500 font-bold"}`}>
+                  V-UNB: {latestVUnb.toFixed(2)}%
+                </span>
+              </div>
+            </div>
+
+            <div
+              className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none min-h-[220px] h-[260px] xl:h-[285px]"
+              onMouseLeave={() => setHoverIndex(null)}
+            >
+              <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
+                {yTicks.map((p, idx) => {
+                  const val = minPolyV + p * (maxPolyV - minPolyV);
+                  const y = getYCoord(val, minPolyV, maxPolyV);
+                  return (
+                    <g key={idx}>
+                      <line x1={padding.left} y1={y} x2={svgWidth - padding.right} y2={y} stroke="currentColor" className="text-slate-200 dark:text-zinc-800" strokeWidth="1" strokeDasharray="3 3" />
+                      <text x={padding.left - 8} y={y + 3.5} className="fill-slate-500 dark:fill-zinc-400" fontSize="10" fontWeight="500" textAnchor="end">
+                        {val.toFixed(0)}V
+                      </text>
+                    </g>
+                  );
+                })}
+
+                <line x1={padding.left} y1={yUpperV} x2={svgWidth - padding.right} y2={yUpperV} stroke="#f59e0b" strokeWidth="1.2" strokeDasharray="4 3" opacity="0.7" />
+                <line x1={padding.left} y1={yLowerV} x2={svgWidth - padding.right} y2={yLowerV} stroke="#f59e0b" strokeWidth="1.2" strokeDasharray="4 3" opacity="0.7" />
+
+                {xTimeMarkers.map((marker, idx) => {
+                  const x = padding.left + marker.p * graphWidth;
+                  return (
+                    <g key={idx}>
+                      <line x1={x} y1={padding.top} x2={x} y2={svgHeight - padding.bottom} stroke="currentColor" className="text-slate-200 dark:text-zinc-800/60" strokeWidth="1" strokeDasharray="2 3" />
+                      <text x={x} y={svgHeight - padding.bottom + 18} className="fill-slate-400 dark:fill-zinc-500" fontSize="9.5" textAnchor="middle">
+                        {marker.label}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                <path d={pathPolyVR} fill="none" stroke="#f43f5e" strokeWidth="1.6" strokeLinecap="round" />
+                <path d={pathPolyVY} fill="none" stroke="#f59e0b" strokeWidth="1.6" strokeLinecap="round" />
+                <path d={pathPolyVB} fill="none" stroke="#06b6d4" strokeWidth="1.6" strokeLinecap="round" />
+
+                {hoverIndex !== null && polyHistory[hoverIndex] && (
+                  <g>
+                    <line x1={getPolyX(hoverIndex, polyHistory.length)} y1={padding.top} x2={getPolyX(hoverIndex, polyHistory.length)} y2={svgHeight - padding.bottom} stroke="#ffffff" strokeWidth="1.0" strokeDasharray="3 3" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].vR, minPolyV, maxPolyV)} r="3" fill="#f43f5e" stroke="#fff" strokeWidth="1" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].vY, minPolyV, maxPolyV)} r="3" fill="#f59e0b" stroke="#fff" strokeWidth="1" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].vB, minPolyV, maxPolyV)} r="3" fill="#06b6d4" stroke="#fff" strokeWidth="1" />
+                  </g>
+                )}
+
+                {polyHistory.map((_, idx) => (
+                  <rect key={idx} x={getPolyX(idx, polyHistory.length) - graphWidth / (polyHistory.length * 2)} y={padding.top} width={graphWidth / polyHistory.length} height={graphHeight} fill="transparent" className="cursor-crosshair" onMouseEnter={() => setHoverIndex(idx)} />
+                ))}
+              </svg>
+
+              {hoveredPolyPoint && (
+                <div className="absolute top-2 left-20 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs shadow-md backdrop-blur-xs">
+                  <span className="text-slate-400 dark:text-zinc-400 font-mono">{hoveredPolyPoint.timeLabel}</span>
+                  <span className="text-rose-500 font-bold">VR: {hoveredPolyPoint.vR.toFixed(1)}V</span>
+                  <span className="text-amber-500 font-bold">VY: {hoveredPolyPoint.vY.toFixed(1)}V</span>
+                  <span className="text-cyan-500 font-bold">VB: {hoveredPolyPoint.vB.toFixed(1)}V</span>
+                  <span className="text-emerald-500 font-bold">Unb: {hoveredPolyPoint.vUnb.toFixed(2)}%</span>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums">
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#f43f5e] shrink-0" />
+                <span>VR (PHASE R): <span className="font-bold text-slate-800 dark:text-zinc-200">{statsPolyVR.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsPolyVR.avg.toFixed(1)}V)</span></span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0" />
+                <span>VY (PHASE Y): <span className="font-bold text-slate-800 dark:text-zinc-200">{statsPolyVY.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsPolyVY.avg.toFixed(1)}V)</span></span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0" />
+                <span>VB (PHASE B): <span className="font-bold text-slate-800 dark:text-zinc-200">{statsPolyVB.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsPolyVB.avg.toFixed(1)}V)</span></span>
+              </div>
+            </div>
+          </div>
+
+          {/* ------------------------------------------------------------------------- */}
+          {/* POLY CHART 3: 3-PHASE ACTIVE LOAD & TOTAL DEMAND */}
+          {/* ------------------------------------------------------------------------- */}
+          <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none min-h-[300px]">
+            <div className="flex flex-wrap items-center justify-between px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/80 border-b border-slate-200 dark:border-zinc-800/80 text-xs">
+              <div className="flex items-center gap-2">
+                <Zap className="h-4 w-4 text-amber-400" />
+                <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs tracking-wide">
+                  3. 3-PHASE ACTIVE LOAD &amp; POLE CONSUMPTION (WATTS)
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
+                <span className="flex items-center gap-1 text-rose-500">
+                  PR: <span className="font-bold">{statsPolyPR.cur}W</span>
+                </span>
+                <span className="flex items-center gap-1 text-amber-500">
+                  PY: <span className="font-bold">{statsPolyPY.cur}W</span>
+                </span>
+                <span className="flex items-center gap-1 text-cyan-500">
+                  PB: <span className="font-bold">{statsPolyPB.cur}W</span>
+                </span>
+                <span className="flex items-center gap-1 text-emerald-500 font-bold">
+                  TOTAL: {(statsPolyPTotal.cur / 1000).toFixed(2)} kW
+                </span>
+              </div>
+            </div>
+
+            <div
+              className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none min-h-[220px] h-[260px] xl:h-[285px]"
+              onMouseLeave={() => setHoverIndex(null)}
+            >
+              <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
+                <defs>
+                  <linearGradient id="gradPolyPTotal" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#10b981" stopOpacity="0.16" />
+                    <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
+                  </linearGradient>
+                </defs>
+
+                {yTicks.map((p, idx) => {
+                  const val = minPolyP + p * (maxPolyP - minPolyP);
+                  const y = getYCoord(val, minPolyP, maxPolyP);
+                  return (
+                    <g key={idx}>
+                      <line x1={padding.left} y1={y} x2={svgWidth - padding.right} y2={y} stroke="currentColor" className="text-slate-200 dark:text-zinc-800" strokeWidth="1" strokeDasharray="3 3" />
+                      <text x={padding.left - 8} y={y + 3.5} className="fill-slate-500 dark:fill-zinc-400" fontSize="10" fontWeight="500" textAnchor="end">
+                        {val.toFixed(0)}W
+                      </text>
+                    </g>
+                  );
+                })}
+
+                {xTimeMarkers.map((marker, idx) => {
+                  const x = padding.left + marker.p * graphWidth;
+                  return (
+                    <g key={idx}>
+                      <line x1={x} y1={padding.top} x2={x} y2={svgHeight - padding.bottom} stroke="currentColor" className="text-slate-200 dark:text-zinc-800/60" strokeWidth="1" strokeDasharray="2 3" />
+                      <text x={x} y={svgHeight - padding.bottom + 18} className="fill-slate-400 dark:fill-zinc-500" fontSize="9.5" textAnchor="middle">
+                        {marker.label}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                <path d={areaPolyPTotal} fill="url(#gradPolyPTotal)" />
+                <path d={pathPolyPTotal} fill="none" stroke="#10b981" strokeWidth="1.8" strokeLinecap="round" />
+                <path d={pathPolyPR} fill="none" stroke="#f43f5e" strokeWidth="1.2" strokeLinecap="round" />
+                <path d={pathPolyPY} fill="none" stroke="#f59e0b" strokeWidth="1.2" strokeLinecap="round" />
+                <path d={pathPolyPB} fill="none" stroke="#06b6d4" strokeWidth="1.2" strokeLinecap="round" />
+
+                {hoverIndex !== null && polyHistory[hoverIndex] && (
+                  <g>
+                    <line x1={getPolyX(hoverIndex, polyHistory.length)} y1={padding.top} x2={getPolyX(hoverIndex, polyHistory.length)} y2={svgHeight - padding.bottom} stroke="#ffffff" strokeWidth="1.0" strokeDasharray="3 3" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].pTotal, minPolyP, maxPolyP)} r="3" fill="#10b981" stroke="#fff" strokeWidth="1" />
+                  </g>
+                )}
+
+                {polyHistory.map((_, idx) => (
+                  <rect key={idx} x={getPolyX(idx, polyHistory.length) - graphWidth / (polyHistory.length * 2)} y={padding.top} width={graphWidth / polyHistory.length} height={graphHeight} fill="transparent" className="cursor-crosshair" onMouseEnter={() => setHoverIndex(idx)} />
+                ))}
+              </svg>
+
+              {hoveredPolyPoint && (
+                <div className="absolute top-2 left-20 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs shadow-md backdrop-blur-xs">
+                  <span className="text-slate-400 dark:text-zinc-400 font-mono">{hoveredPolyPoint.timeLabel}</span>
+                  <span className="text-emerald-400 font-bold">TOTAL: {hoveredPolyPoint.pTotal}W</span>
+                  <span className="text-rose-400">R: {hoveredPolyPoint.pR}W</span>
+                  <span className="text-amber-400">Y: {hoveredPolyPoint.pY}W</span>
+                  <span className="text-cyan-400">B: {hoveredPolyPoint.pB}W</span>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums">
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0" />
+                <span>TOTAL DEMAND: <span className="font-bold text-emerald-600 dark:text-emerald-400">{(statsPolyPTotal.cur / 1000).toFixed(2)} kW</span> <span className="text-slate-400 dark:text-zinc-500">({statsPolyPTotal.cur} W)</span></span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0" />
+                <span>AVERAGE LOAD: <span className="font-bold text-slate-800 dark:text-zinc-200">{(statsPolyPTotal.avg / 1000).toFixed(2)} kW</span></span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0" />
+                <span>PEAK DEMAND: <span className="font-bold text-slate-800 dark:text-zinc-200">{(statsPolyPTotal.max / 1000).toFixed(2)} kW</span></span>
+              </div>
+            </div>
+          </div>
+
+          {/* ------------------------------------------------------------------------- */}
+          {/* POLY CHART 4: 3-PHASE POWER FACTOR & DISPLACEMENT QUALITY */}
+          {/* ------------------------------------------------------------------------- */}
+          <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none min-h-[300px]">
+            <div className="flex flex-wrap items-center justify-between px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/80 border-b border-slate-200 dark:border-zinc-800/80 text-xs">
+              <div className="flex items-center gap-2">
+                <Gauge className="h-4 w-4 text-purple-400" />
+                <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs tracking-wide">
+                  4. POWER FACTOR PER PHASE &amp; DISPLACEMENT QUALITY
+                </span>
+              </div>
+              <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
+                <span className="flex items-center gap-1 text-rose-500">
+                  PFR: <span className="font-bold">{statsPolyPfR.cur.toFixed(2)}</span>
+                </span>
+                <span className="flex items-center gap-1 text-amber-500">
+                  PFY: <span className="font-bold">{statsPolyPfY.cur.toFixed(2)}</span>
+                </span>
+                <span className="flex items-center gap-1 text-cyan-500">
+                  PFB: <span className="font-bold">{statsPolyPfB.cur.toFixed(2)}</span>
+                </span>
+                <span className="flex items-center gap-1 text-emerald-400 font-bold">
+                  AVG: {((statsPolyPfR.cur + statsPolyPfY.cur + statsPolyPfB.cur) / 3).toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            <div
+              className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none min-h-[220px] h-[260px] xl:h-[285px]"
+              onMouseLeave={() => setHoverIndex(null)}
+            >
+              <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
+                {yTicks.map((p, idx) => {
+                  const val = minPolyPf + p * (maxPolyPf - minPolyPf);
+                  const y = getYCoord(val, minPolyPf, maxPolyPf);
+                  return (
+                    <g key={idx}>
+                      <line x1={padding.left} y1={y} x2={svgWidth - padding.right} y2={y} stroke="currentColor" className="text-slate-200 dark:text-zinc-800" strokeWidth="1" strokeDasharray="3 3" />
+                      <text x={padding.left - 8} y={y + 3.5} className="fill-slate-500 dark:fill-zinc-400" fontSize="10" fontWeight="500" textAnchor="end">
+                        {val.toFixed(2)}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                <line x1={padding.left} y1={yPfNominal} x2={svgWidth - padding.right} y2={yPfNominal} stroke="#a855f7" strokeWidth="1.2" strokeDasharray="4 3" opacity="0.7" />
+
+                {xTimeMarkers.map((marker, idx) => {
+                  const x = padding.left + marker.p * graphWidth;
+                  return (
+                    <g key={idx}>
+                      <line x1={x} y1={padding.top} x2={x} y2={svgHeight - padding.bottom} stroke="currentColor" className="text-slate-200 dark:text-zinc-800/60" strokeWidth="1" strokeDasharray="2 3" />
+                      <text x={x} y={svgHeight - padding.bottom + 18} className="fill-slate-400 dark:fill-zinc-500" fontSize="9.5" textAnchor="middle">
+                        {marker.label}
+                      </text>
+                    </g>
+                  );
+                })}
+
+                <path d={pathPolyPfR} fill="none" stroke="#f43f5e" strokeWidth="1.5" strokeLinecap="round" />
+                <path d={pathPolyPfY} fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" />
+                <path d={pathPolyPfB} fill="none" stroke="#06b6d4" strokeWidth="1.5" strokeLinecap="round" />
+
+                {hoverIndex !== null && polyHistory[hoverIndex] && (
+                  <g>
+                    <line x1={getPolyX(hoverIndex, polyHistory.length)} y1={padding.top} x2={getPolyX(hoverIndex, polyHistory.length)} y2={svgHeight - padding.bottom} stroke="#ffffff" strokeWidth="1.0" strokeDasharray="3 3" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].pfR, minPolyPf, maxPolyPf)} r="3" fill="#f43f5e" stroke="#fff" strokeWidth="1" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].pfY, minPolyPf, maxPolyPf)} r="3" fill="#f59e0b" stroke="#fff" strokeWidth="1" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].pfB, minPolyPf, maxPolyPf)} r="3" fill="#06b6d4" stroke="#fff" strokeWidth="1" />
+                  </g>
+                )}
+
+                {polyHistory.map((_, idx) => (
+                  <rect key={idx} x={getPolyX(idx, polyHistory.length) - graphWidth / (polyHistory.length * 2)} y={padding.top} width={graphWidth / polyHistory.length} height={graphHeight} fill="transparent" className="cursor-crosshair" onMouseEnter={() => setHoverIndex(idx)} />
+                ))}
+              </svg>
+
+              {hoveredPolyPoint && (
+                <div className="absolute top-2 left-20 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs shadow-md backdrop-blur-xs">
+                  <span className="text-slate-400 dark:text-zinc-400 font-mono">{hoveredPolyPoint.timeLabel}</span>
+                  <span className="text-rose-400">PFR: {hoveredPolyPoint.pfR.toFixed(2)}</span>
+                  <span className="text-amber-400">PFY: {hoveredPolyPoint.pfY.toFixed(2)}</span>
+                  <span className="text-cyan-400">PFB: {hoveredPolyPoint.pfB.toFixed(2)}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums">
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#f43f5e] shrink-0" />
+                <span>PF (R): <span className="font-bold text-slate-800 dark:text-zinc-200">{statsPolyPfR.cur.toFixed(2)}</span> <span className="text-slate-400 dark:text-zinc-500">IND</span></span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0" />
+                <span>PF (Y): <span className="font-bold text-slate-800 dark:text-zinc-200">{statsPolyPfY.cur.toFixed(2)}</span> <span className="text-slate-400 dark:text-zinc-500">IND</span></span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0" />
+                <span>PF (B): <span className="font-bold text-slate-800 dark:text-zinc-200">{statsPolyPfB.cur.toFixed(2)}</span> <span className="text-slate-400 dark:text-zinc-500">IND</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

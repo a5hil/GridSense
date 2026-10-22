@@ -1612,6 +1612,9 @@ export default function SCADADashboard() {
               tripLimit={0.35}
               isFrozen={isWaveformFrozen}
               onToggleFreeze={() => setIsWaveformFrozen(!isWaveformFrozen)}
+              networkSnapshot={networkSnapshot}
+              selectedPoleId={selectedPoleId}
+              onSelectPole={setSelectedPoleId}
             />
           </div>
         )}
