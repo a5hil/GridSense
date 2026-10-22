@@ -40,7 +40,7 @@ enum NodeRole {
     ROLE_REPEATER = 1   // Relay pole: monitors own line + relays downstream packets
 };
 
-#define POLE_ID                     2       // Set to 1 for Pole 1, set to 2 for Pole 2
+#define POLE_ID                     1       // Set to 1 for Pole 1, set to 2 for Pole 2
 #define NODE_ROLE                   (POLE_ID == 1 ? ROLE_REPEATER : ROLE_ENDPOINT)
 
 // Metering Sensor Driver Selection
@@ -369,6 +369,7 @@ void loop() {
 
     processSerialCommands();
 
+    unsigned long current_ms = millis();
     static uint32_t current_interval = TELEMETRY_INTERVAL_MS;
 
     if (current_ms - last_tx_ms >= current_interval) {
