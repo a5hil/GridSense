@@ -1634,6 +1634,9 @@ export default function SCADADashboard() {
               onRefresh={fetchTickets}
               isBreakerTripped={isBreakerTripped}
               isFault={isFault}
+              networkSnapshot={networkSnapshot}
+              selectedPoleId={selectedPoleId}
+              onSelectPole={handlePoleSelect}
             />
           </div>
         )}

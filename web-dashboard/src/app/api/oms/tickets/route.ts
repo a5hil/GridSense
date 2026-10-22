@@ -13,6 +13,21 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { action, ticketId, status, message, linemanName, notes } = body;
 
+    if (action === "create_ticket") {
+      const { faultCode, affectedPole, gps, idiff, severity, feederId, feederName, estimatedCustomers } = body;
+      const created = omsManager.autoCreateTicketForFault({
+        faultCode: faultCode || "DISTRIBUTION_FAULT",
+        affectedPole: affectedPole || "F1-P01",
+        gps: gps || { lat: 10.2318, lng: 76.4088 },
+        idiff: idiff || 0.45,
+        severity: severity || "CRITICAL",
+        feederId: feederId || "LT-1",
+        feederName: feederName || "Feeder LT-1",
+        estimatedCustomers: estimatedCustomers ?? 35,
+      });
+      return NextResponse.json({ success: true, ticket: created });
+    }
+
     if (action === "update_status" && ticketId && status) {
       const updated = omsManager.updateTicketStatus(ticketId, status, message);
       return NextResponse.json({ success: true, ticket: updated });
