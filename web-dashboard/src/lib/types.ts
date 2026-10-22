@@ -101,6 +101,7 @@ export interface GridTelemetry {
   status: "OK" | "WARN" | "ALERT" | "TRIP" | "WAITING_DATA" | "DISCONNECTED";
   fault: boolean; // boolean fault flag for prompt requirement
   fault_code: "NORMAL" | "DIFF_CURRENT_FAULT" | "OUTAGE_LAST_GASP" | "POLE_OFFLINE" | "THEFT_SUSPECTED" | string;
+  fault_phase?: string; // "R" | "Y" | "B" | "NEUTRAL" | "ALL" | "NONE"
   idiff: number; // |I_A - I_B| (A)
   trip_limit: number; // 0.350 A (Indian distribution standard)
   nodes: PoleData[]; // Nodes array as required by prompt

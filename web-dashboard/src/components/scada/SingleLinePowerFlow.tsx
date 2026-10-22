@@ -41,10 +41,6 @@ export function SingleLinePowerFlow({
     telemetry?.status === "WAITING_DATA" ||
     telemetry?.fault_code === "GATEWAY_DISCONNECTED";
 
-  const isFault = !isGatewayOffline && (telemetry?.fault || (telemetry?.idiff ?? 0) >= (telemetry?.trip_limit ?? 0.35));
-  const isP1Stale = isGatewayOffline || (telemetry?.p1?.age_ms ?? 0) > 20000;
-  const isP2Stale = isGatewayOffline || (telemetry?.p2?.age_ms ?? 0) > 20000;
-  const isP2Offline = isGatewayOffline || (telemetry?.p2 ? (!telemetry.p2.isOnline || (telemetry.p2.age_ms ?? 0) > 10000) : true);
   const idiff = isGatewayOffline ? 0.0 : (telemetry?.idiff ?? 0.0);
   const tripLimit = telemetry?.trip_limit ?? 0.35;
 
@@ -61,7 +57,18 @@ export function SingleLinePowerFlow({
   const pf2 = isGatewayOffline ? 0.0 : (telemetry?.p2?.pf ?? 0.95);
   const freq2 = isGatewayOffline ? 0.0 : (telemetry?.p2?.freq ?? 50.0);
 
-  const isPowerCut = !isGatewayOffline && (v1 < 50.0 && v2 < 50.0);
+  const isPowerCut = !isGatewayOffline && (telemetry?.fault_code === "POWERCUT" || (v1 < 50.0 && v2 < 50.0));
+  const isDifferentialFault = !isGatewayOffline && !isPowerCut && (telemetry?.fault_code === "DIFF_LEAKAGE" || idiff >= tripLimit);
+  const isBrokenConductor = !isGatewayOffline && telemetry?.fault_code === "BROKEN_CONDUCTOR";
+  const isBrokenNeutral = !isGatewayOffline && telemetry?.fault_code === "BROKEN_NEUTRAL";
+  const isOvercurrent = !isGatewayOffline && telemetry?.fault_code === "OVERCURRENT";
+  const isLastGasp = !isGatewayOffline && telemetry?.fault_code === "OUTAGE_LAST_GASP";
+  const isPoleOffline = !isGatewayOffline && telemetry?.fault_code === "POLE_OFFLINE";
+  const isFault = isDifferentialFault || isBrokenConductor || isBrokenNeutral || isOvercurrent || isLastGasp;
+
+  const isP1Stale = isGatewayOffline || (telemetry?.p1?.age_ms ?? 0) > 20000;
+  const isP2Stale = isGatewayOffline || (telemetry?.p2?.age_ms ?? 0) > 20000;
+  const isP2Offline = isGatewayOffline || (telemetry?.p2 ? (!telemetry.p2.isOnline || (telemetry.p2.age_ms ?? 0) > 10000) : true);
 
   return (
     <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm p-4 flex flex-col gap-3 font-mono transition-colors shadow-xs dark:shadow-none">
@@ -553,6 +560,8 @@ export function SingleLinePowerFlow({
             ? "border-rose-500/80 bg-rose-50/70 dark:bg-rose-950/40 text-rose-800 dark:text-rose-200 ring-1 ring-rose-500"
             : isPowerCut
             ? "border-amber-500/80 bg-amber-50/70 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200"
+            : isPoleOffline
+            ? "border-amber-500/80 bg-amber-50/70 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200"
             : "border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 text-slate-700 dark:text-zinc-300"
         }`}
       >
@@ -561,7 +570,7 @@ export function SingleLinePowerFlow({
             <Radio className="h-4 w-4 text-amber-500 animate-pulse shrink-0" />
           ) : isFault ? (
             <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0 animate-bounce" />
-          ) : isPowerCut ? (
+          ) : isPowerCut || isPoleOffline ? (
             <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0" />
           ) : (
             <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
@@ -571,13 +580,33 @@ export function SingleLinePowerFlow({
               <span className="font-semibold text-amber-600 dark:text-amber-400">
                 GATEWAY OFFLINE: Central Telemetry Gateway disconnected. Communications bus is idle. Awaiting gateway reconnection to resume real-time SCADA monitoring.
               </span>
-            ) : isFault ? (
-              <span className="font-semibold">
+            ) : isPowerCut ? (
+              <span className="font-semibold text-amber-600 dark:text-amber-400">
+                FEEDER DE-ENERGIZED: Voltage collapse detected (&lt;50V across all phases). Feeder 04 supply de-energized or power cut in progress.
+              </span>
+            ) : isDifferentialFault ? (
+              <span className="font-semibold text-rose-600 dark:text-rose-400">
                 FAULT ALERT: Inter-pole differential current ΔI = {idiff.toFixed(3)}A exceeds {tripLimit.toFixed(3)}A protection limit. Anomaly detected on Feeder 04 overhead span.
               </span>
-            ) : isPowerCut ? (
-              <span className="font-semibold">
-                FEEDER DE-ENERGIZED: Voltage collapse detected (&lt;50V). LoRa outage event recorded.
+            ) : isBrokenConductor ? (
+              <span className="font-semibold text-rose-600 dark:text-rose-400">
+                FAULT ALERT: Open Conductor snap detected on Phase {telemetry?.fault_phase || "Y"} (ANSI 46BC). Upstream line energized, downstream voltage collapsed.
+              </span>
+            ) : isBrokenNeutral ? (
+              <span className="font-semibold text-rose-600 dark:text-rose-400">
+                VOLTAGE ALERT: Broken Neutral / Severe Voltage Unbalance (ANSI 59N). Neutral floating across Indian LT 3-phase grid.
+              </span>
+            ) : isOvercurrent ? (
+              <span className="font-semibold text-rose-600 dark:text-rose-400">
+                TRIP ALERT: Overcurrent condition detected (ANSI 50/51). Line current exceeds 16.0A thermal limit.
+              </span>
+            ) : isLastGasp ? (
+              <span className="font-semibold text-rose-600 dark:text-rose-400">
+                EMERGENCY ALERT: Pole 2 Outage Last-Gasp beacon received. Lineman dispatch recommended.
+              </span>
+            ) : isPoleOffline ? (
+              <span className="font-semibold text-amber-600 dark:text-amber-400">
+                COMMS ALERT: Downstream pole telemetry timeout (&gt;20s). Awaiting LoRa Sub-GHz packets.
               </span>
             ) : (
               <span>

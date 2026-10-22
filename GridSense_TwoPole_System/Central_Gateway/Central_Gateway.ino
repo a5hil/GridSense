@@ -550,6 +550,7 @@ void loop() {
             Serial.println("\n[GW CMD] Breaker Trip Acknowledged / Latched Fault Reset.");
             streamFDIRJsonToHost();
         } else if (ch == 't' || ch == 'T' || ch == '?') {
+            evaluateCentralFDIR();
             streamFDIRJsonToHost();
             printConsoleSummary();
         }

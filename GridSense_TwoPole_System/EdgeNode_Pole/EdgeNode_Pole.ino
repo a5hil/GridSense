@@ -40,7 +40,7 @@ enum NodeRole {
     ROLE_REPEATER = 1   // Relay pole: monitors own line + relays downstream packets
 };
 
-#define POLE_ID                     1       // Set to 1 for Pole 1, set to 2 for Pole 2
+#define POLE_ID                     2       // Set to 1 for Pole 1, set to 2 for Pole 2
 #define NODE_ROLE                   (POLE_ID == 1 ? ROLE_REPEATER : ROLE_ENDPOINT)
 
 // Metering Sensor Driver Selection
@@ -163,6 +163,16 @@ void sendLastGaspBroadcast(float last_v, float last_i) {
 }
 
 void handleCommand(char ch) {
+    // Automatically switch active meter driver to MOCK_3PHASE whenever a simulation command is issued
+    if (ch == 'n' || ch == 'N' || ch == 'd' || ch == 'D' || ch == 'y' || ch == 'Y' ||
+        ch == 'b' || ch == 'B' || ch == 'o' || ch == 'O' || ch == 'u' || ch == 'U' ||
+        ch == 'p' || ch == 'P' || ch == 'a' || ch == 'A') {
+        if (currentMeterMode != METER_MODE_MOCK_3PHASE) {
+            selectMeter(METER_MODE_MOCK_3PHASE);
+            Serial.printf("[AUTO] Switched Meter Driver to: %s\n", getMeterModeString(currentMeterMode));
+        }
+    }
+
     if (ch == 'n' || ch == 'N') {
         mock3PhaseMeter.setScenario(MOCK3P_NORMAL);
         last_gasp_broadcast_sent = false;

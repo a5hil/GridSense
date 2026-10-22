@@ -295,22 +295,40 @@ export default function SCADADashboard() {
   React.useEffect(() => {
     if (!telemetry) return;
 
-    const isDifferentialFault = telemetry.fault || (telemetry.idiff ?? 0) >= 0.35;
-    const isLastGasp = telemetry.fault_code === "OUTAGE_LAST_GASP";
-    const currentFault = isDifferentialFault || isLastGasp;
+    const faultCode = telemetry.fault_code || "NORMAL";
+    const isPowerCut = faultCode === "POWERCUT" || ((telemetry.p1?.v ?? 0) < 50 && (telemetry.p2?.v ?? 0) < 50);
+    const isDifferential = faultCode === "DIFF_LEAKAGE" || (!isPowerCut && (telemetry.idiff ?? 0) >= (telemetry.trip_limit ?? 0.35));
+    const isBrokenConductor = faultCode === "BROKEN_CONDUCTOR";
+    const isBrokenNeutral = faultCode === "BROKEN_NEUTRAL";
+    const isOvercurrent = faultCode === "OVERCURRENT";
+    const isLastGasp = faultCode === "OUTAGE_LAST_GASP";
+
+    const currentFault = isDifferential || isBrokenConductor || isBrokenNeutral || isOvercurrent || isLastGasp;
 
     // Fire toast and Industrial Audio Alarm strictly ONCE when transitioning from NORMAL to FAULT
     if (currentFault && !wasFaultRef.current && !activeFaultToastRef.current) {
       wasFaultRef.current = true;
       playIndustrialAlarm(); // Dual-Tone 880Hz / 660Hz Industrial SCADA Buzzer
 
-      const faultTitle = isLastGasp
-        ? "CRITICAL ALARM: LAST GASP OUTAGE (ANSI 67/N)"
-        : "CRITICAL ALARM: DIFFERENTIAL TRIP (|IA - IB| ≥ 0.35A)";
+      let faultTitle = "CRITICAL ALARM: ELECTRICAL FAULT DETECTED";
+      let faultDesc = "Feeder anomaly detected by Central FDIR Engine.";
 
-      const faultDesc = isLastGasp
-        ? "Pole 2 power lost! Mains collapse emergency last-gasp beacon transmitted over LoRa Sub-GHz mesh."
-        : `Feeder Differential Current ΔI = ${telemetry.idiff.toFixed(3)} A (Exceeds trip limit 0.350 A). Potential broken conductor, ground fault, or illegal tap.`;
+      if (isLastGasp) {
+        faultTitle = "CRITICAL ALARM: LAST GASP OUTAGE (ANSI 67/N)";
+        faultDesc = "Pole 2 power lost! Mains collapse emergency last-gasp beacon transmitted over LoRa Sub-GHz mesh.";
+      } else if (isDifferential) {
+        faultTitle = "CRITICAL ALARM: DIFFERENTIAL TRIP (|IA - IB| ≥ 0.35A)";
+        faultDesc = `Feeder Differential Current ΔI = ${telemetry.idiff.toFixed(3)} A (Exceeds trip limit 0.350 A). Potential broken conductor, ground fault, or illegal tap.`;
+      } else if (isBrokenConductor) {
+        faultTitle = `CRITICAL ALARM: BROKEN CONDUCTOR (PHASE ${telemetry.fault_phase || "Y"})`;
+        faultDesc = `Overhead conductor snapped downstream on Phase ${telemetry.fault_phase || "Y"}. Upstream energized, downstream collapsed to 0V.`;
+      } else if (isBrokenNeutral) {
+        faultTitle = "VOLTAGE ALARM: BROKEN NEUTRAL / SEVERE UNBALANCE";
+        faultDesc = "Neutral displacement detected. Phase voltage unbalance exceeds 15% NEMA threshold across 3-phase grid.";
+      } else if (isOvercurrent) {
+        faultTitle = "TRIP ALARM: OVERCURRENT EXCEEDED (ANSI 50/51)";
+        faultDesc = "Feeder line current exceeds 16.0 A continuous thermal limit.";
+      }
 
       const toastId = addToast({
         title: faultTitle,

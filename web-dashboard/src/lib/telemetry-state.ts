@@ -608,6 +608,7 @@ class TelemetryStore extends EventEmitter {
         status: statusVerdict,
         fault: isSystemAlert,
         fault_code: faultCode,
+        fault_phase: parsed.phase || parsed.fault_phase || "NONE",
         idiff,
         trip_limit: tripLimit,
         nodes: [p1, p2],
