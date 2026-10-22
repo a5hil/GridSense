@@ -541,5 +541,19 @@ void loop() {
         }
     }
 
+    // Process remote SCADA operator commands from USB Serial
+    if (Serial.available()) {
+        char ch = Serial.read();
+        if (ch == 'r' || ch == 'R') {
+            current_fault = FAULT_NONE;
+            fault_phase = "NONE";
+            Serial.println("\n[GW CMD] Breaker Trip Acknowledged / Latched Fault Reset.");
+            streamFDIRJsonToHost();
+        } else if (ch == 't' || ch == 'T' || ch == '?') {
+            streamFDIRJsonToHost();
+            printConsoleSummary();
+        }
+    }
+
     delay(5);
 }

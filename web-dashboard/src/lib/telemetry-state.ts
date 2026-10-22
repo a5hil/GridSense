@@ -484,7 +484,7 @@ class TelemetryStore extends EventEmitter {
         relay: parsed.p1.relay || 1,
         hops: parsed.p1.hops || 0,
         age_ms: parsed.p1.age_ms || 0,
-        isOnline: parsed.p1.age_ms !== 99999 && (parsed.p1.v || 0) > 10,
+        isOnline: parsed.p1.age_ms !== 99999 && (Number(parsed.p1.age_ms) || 0) < 15000,
         lastSeen: timestamp,
         lat: 10.2318,
         lng: 76.4088,
@@ -514,7 +514,7 @@ class TelemetryStore extends EventEmitter {
         relay: parsed.p2.relay || 2,
         hops: parsed.p2.hops || 0,
         age_ms: parsed.p2.age_ms || 0,
-        isOnline: parsed.p2.age_ms !== 99999 && (parsed.p2.v || 0) > 10,
+        isOnline: parsed.p2.age_ms !== 99999 && (Number(parsed.p2.age_ms) || 0) < 15000,
         lastSeen: timestamp,
         lat: 10.2325,
         lng: 76.4095,
@@ -537,15 +537,22 @@ class TelemetryStore extends EventEmitter {
       const idiff = Number(Math.abs(p1.i - p2.i).toFixed(3));
       const tripLimit = Number(parsed.trip_limit ?? 0.35);
 
+      // Comprehensive Fault Classification aligned with Central Gateway Polyphase FDIR
       const isDiffTrip = bothNodesActive && (parsed.fault === "DIFF_LEAKAGE" || idiff >= tripLimit);
+      const isBrokenConductor = parsed.fault === "BROKEN_CONDUCTOR" || parsed.fault === "LINE_BREAK";
+      const isPowerCut = parsed.fault === "POWERCUT" || (p1.v < 50 && p2.v < 50);
+      const isBrokenNeutral = parsed.fault === "BROKEN_NEUTRAL";
       const isOtherTrip =
         parsed.fault === "OVERCURRENT" ||
-        parsed.fault === "LINE_BREAK" ||
         parsed.fault === "UNDERVOLTAGE" ||
         parsed.fault === "OVERVOLTAGE" ||
+        isBrokenConductor ||
+        isBrokenNeutral ||
         (bothNodesActive && (parsed.status === "ALERT" || parsed.status === "TRIP"));
 
       const isElectricalTrip = isDiffTrip || isOtherTrip;
+      const isSystemAlert = isElectricalTrip || isPowerCut || parsed.status === "ALERT";
+      const isWarn = parsed.status === "WARN" || parsed.fault === "POLE_OFFLINE";
 
       // 2. Strict Radial Voltage Drop: Upstream Substation V1 >= Downstream Load End V2
       // Under healthy radial flow, power flows from Incomer (Pole 1) to Load (Pole 2).
@@ -561,20 +568,28 @@ class TelemetryStore extends EventEmitter {
         }
       }
 
-      const isWarn = parsed.status === "WARN" || parsed.fault === "POLE_OFFLINE";
-
-      const faultCode = isElectricalTrip
+      const faultCode = isPowerCut
+        ? "POWERCUT"
+        : isElectricalTrip
         ? (parsed.fault && parsed.fault !== "NORMAL" ? parsed.fault : "DIFF_CURRENT_FAULT")
         : isWarn
         ? (parsed.fault || "POLE_OFFLINE")
         : "NORMAL";
 
+      const statusVerdict: GridTelemetry["status"] = isElectricalTrip
+        ? "TRIP"
+        : isPowerCut
+        ? "ALERT"
+        : isWarn
+        ? "WARN"
+        : "OK";
+
       this.updateTelemetry({
         timestamp,
         gw_ms: parsed.gw_ms,
         sec: parsed.sec || "AES128",
-        status: isElectricalTrip ? "TRIP" : isWarn ? "WARN" : "OK",
-        fault: isElectricalTrip,
+        status: statusVerdict,
+        fault: isSystemAlert,
         fault_code: faultCode,
         idiff,
         trip_limit: tripLimit,
