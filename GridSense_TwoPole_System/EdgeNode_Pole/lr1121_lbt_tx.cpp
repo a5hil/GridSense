@@ -179,7 +179,13 @@ void lora_node_radio_irq_process(void)
         return;
     }
 
-    radio_irq &= RADIO_IRQ_MASK;
+    // Drop corrupted frames immediately
+    if (radio_irq & (LR11XX_SYSTEM_IRQ_CRC_ERROR | LR11XX_SYSTEM_IRQ_HEADER_ERROR))
+    {
+        lr11xx_system_clear_irq_status(&lr1121, radio_irq);
+        lora_start_node_rx();
+        return;
+    }
 
     if((radio_irq & LR11XX_SYSTEM_IRQ_RX_DONE) == LR11XX_SYSTEM_IRQ_RX_DONE)
     {

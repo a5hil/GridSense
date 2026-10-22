@@ -25,7 +25,7 @@
 #define LORA_PREAMBLE_LENGTH    8
 #define LORA_PKT_LEN_MODE       LR11XX_RADIO_LORA_PKT_EXPLICIT
 #define LORA_IQ                 LR11XX_RADIO_LORA_IQ_STANDARD
-#define LORA_CRC                LR11XX_RADIO_LORA_CRC_OFF
+#define LORA_CRC                LR11XX_RADIO_LORA_CRC_ON
 #define LORA_SYNCWORD           0x12
 
 extern lr1121_t lr1121;

@@ -199,12 +199,19 @@ function handleIncomingLine(raw: string) {
   const line = raw.trim();
   if (!line) return;
 
-  // Find any embedded JSON object in the line (e.g. from Serial.printf)
+  // Ignore gateway diagnostic banners, logs, and RF debug prints
+  if (line.startsWith("[") || line.startsWith("=") || line.startsWith("-") || line.startsWith("*") || line.startsWith("Pole") || line.startsWith("Inter-Pole")) {
+    return;
+  }
+
+  // Find any embedded JSON object in the line (e.g. from streamFDIRJsonToHost)
   const jsonMatch = line.match(/\{.*?\}(?=\s*$)/) || line.match(/\{.*\}/);
   if (jsonMatch) {
     try {
       const parsed = JSON.parse(jsonMatch[0]);
-      telemetryStore.ingestRawJson(parsed, "SERIAL");
+      if (parsed && typeof parsed === "object" && ("gw_ms" in parsed || "p1" in parsed || "type" in parsed)) {
+        telemetryStore.ingestRawJson(parsed, "SERIAL");
+      }
     } catch (e: any) {
       console.warn(`[SerialPort] Malformed JSON: ${line}`);
     }
