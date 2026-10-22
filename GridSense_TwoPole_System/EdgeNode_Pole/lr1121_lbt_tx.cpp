@@ -100,7 +100,7 @@ bool lora_is_channel_busy(void)
     return false;
 }
 
-static void lora_execute_tx(const uint8_t* payload, uint8_t length)
+static bool lora_execute_tx(const uint8_t* payload, uint8_t length)
 {
     tx_done_flag = false;
     tx_timeout_flag = false;
@@ -119,11 +119,11 @@ static void lora_execute_tx(const uint8_t* payload, uint8_t length)
     lr11xx_radio_set_tx(&lr1121, 0);
     digitalWrite(lr1121.led, LOW); // Active Low LED ON during TX
 
-    // Wait synchronously for TX completion (typically 25-45 ms for SF7/125kHz)
+    // Wait synchronously for TX completion (ToA for 226-byte 3-phase packet is ~360ms at SF7/125kHz)
     uint32_t t_start = millis();
     lr11xx_system_irq_mask_t status = LR11XX_SYSTEM_IRQ_NONE;
 
-    while ((millis() - t_start) < 250) {
+    while ((millis() - t_start) < 800) {
         if (lr11xx_system_get_irq_status(&lr1121, &status) == LR11XX_STATUS_OK) {
             if (status & LR11XX_SYSTEM_IRQ_TX_DONE) {
                 lr11xx_system_clear_irq_status(&lr1121, status);
@@ -142,6 +142,8 @@ static void lora_execute_tx(const uint8_t* payload, uint8_t length)
 
     // Return radio immediately to background RX mode
     lora_start_node_rx();
+
+    return tx_done_flag;
 }
 
 bool lora_send_with_lbt(const char* message, uint8_t maxRetries, uint32_t minBackoffMs, uint32_t maxBackoffMs)
@@ -157,15 +159,13 @@ bool lora_send_with_lbt(const char* message, uint8_t maxRetries, uint32_t minBac
             delay(backoff);
         } else {
             // Step 2: Channel clear, transmit!
-            lora_execute_tx((const uint8_t*)message, len);
-            return true;
+            return lora_execute_tx((const uint8_t*)message, len);
         }
     }
 
     // Fallback: If channel remained busy after all retries, force transmit
     Serial.println("[LBT CAD] Channel persistently busy. Force transmitting...");
-    lora_execute_tx((const uint8_t*)message, len);
-    return false;
+    return lora_execute_tx((const uint8_t*)message, len);
 }
 
 void lora_node_radio_irq_process(void)
