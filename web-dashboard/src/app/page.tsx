@@ -4,6 +4,7 @@ import * as React from "react";
 import {
   Activity,
   AlertOctagon,
+  AlertTriangle,
   ArrowRight,
   BatteryCharging,
   Check,
@@ -81,6 +82,8 @@ export default function SCADADashboard() {
   const [activeView, setActiveView] = React.useState<
     "OPERATOR" | "GIS" | "NETWORK" | "WAVEFORMS" | "OMS" | "DIAGNOSTICS" | "LOGS"
   >("OPERATOR");
+  // Operator Desk Scope: Live hardware anchor span (Pole 1 & 2) vs 28-pole digital twin distribution grid
+  const [operatorDeskScope, setOperatorDeskScope] = React.useState<"LIVE_SPAN" | "GRID_TWIN">("LIVE_SPAN");
 
   // Waveform Freeze / Capture State
   const [isWaveformFrozen, setIsWaveformFrozen] = React.useState(false);
@@ -524,6 +527,37 @@ export default function SCADADashboard() {
   const lineLossW = Math.max(0, p1PowerW - p2PowerW);
   const lineLossPct = p1PowerW > 0 ? ((lineLossW / p1PowerW) * 100).toFixed(2) : "0.00";
   const feederEnergyKWh = accumulatedEnergyKWh.toFixed(3);
+  
+  // Digital Twin Grid macro metrics across 28 poles and 3 feeders
+  const gridMetrics = React.useMemo(() => {
+    if (!networkSnapshot) return null;
+    const totalLoadKw = networkSnapshot.nodes.reduce(
+      (acc, n) => acc + (n.phases.R.p + n.phases.Y.p + n.phases.B.p) / 1000,
+      0
+    );
+    const technicalLossKw = Math.max(0, networkSnapshot.dtr.kw - totalLoadKw);
+    const technicalLossPct =
+      networkSnapshot.dtr.kw > 0 ? (technicalLossKw / networkSnapshot.dtr.kw) * 100 : 0;
+    const criticalDetections = networkSnapshot.detections.filter(
+      (d) => d.severity === "CRITICAL"
+    ).length;
+    const trippedSections = networkSnapshot.sections.filter((s) => s.tripped).length;
+    const f1 = networkSnapshot.feeders.find((f) => f.id === "LT-1");
+    const f2 = networkSnapshot.feeders.find((f) => f.id === "LT-2");
+    const f3 = networkSnapshot.feeders.find((f) => f.id === "LT-3");
+
+    return {
+      totalLoadKw,
+      technicalLossKw,
+      technicalLossPct,
+      criticalDetections,
+      trippedSections,
+      totalDetections: networkSnapshot.detections.length,
+      f1Kw: f1?.kw ?? 0,
+      f2Kw: f2?.kw ?? 0,
+      f3Kw: f3?.kw ?? 0,
+    };
+  }, [networkSnapshot]);
 
   const handleExportCsv = () => {
     if (!logs || logs.length === 0) return;
@@ -852,206 +886,469 @@ export default function SCADADashboard() {
         {/* ============================================================== */}
         {activeView === "OPERATOR" && (
           <div className="flex-1 flex flex-col gap-3">
+            {/* OPERATOR SCOPE SELECTOR: LIVE ANCHOR SPAN vs 28-POLE DISTRIBUTION GRID */}
+            <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-100 dark:bg-zinc-900/90 border border-slate-200 dark:border-zinc-800 rounded-sm px-3 py-1.5 font-mono shadow-xs">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase font-bold text-slate-500 dark:text-zinc-400 tracking-wider">
+                  OPERATOR SCOPE:
+                </span>
+                <div className="flex items-center bg-white dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5">
+                  <button
+                    onClick={() => setOperatorDeskScope("LIVE_SPAN")}
+                    className={`px-2.5 py-1 text-[11px] font-bold uppercase rounded-xs transition-colors flex items-center gap-1.5 ${
+                      operatorDeskScope === "LIVE_SPAN"
+                        ? "bg-slate-100 dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
+                        : "text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    <Radio className="h-3 w-3" />
+                    <span>LIVE ANCHOR SPAN (POLE 1 ↔ 2)</span>
+                  </button>
+                  <button
+                    onClick={() => setOperatorDeskScope("GRID_TWIN")}
+                    className={`px-2.5 py-1 text-[11px] font-bold uppercase rounded-xs transition-colors flex items-center gap-1.5 ${
+                      operatorDeskScope === "GRID_TWIN"
+                        ? "bg-slate-100 dark:bg-zinc-800 text-cyan-600 dark:text-cyan-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
+                        : "text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    <Layers className="h-3 w-3" />
+                    <span>28-POLE DISTRIBUTION GRID (3 FEEDERS)</span>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 text-[11px] text-slate-500 dark:text-zinc-400">
+                {operatorDeskScope === "LIVE_SPAN" ? (
+                  <>
+                    <span>PZEM-004T MODBUS • 866MHz LORA</span>
+                    <span className="text-emerald-600 dark:text-emerald-400 font-bold">● HARDWARE TELEMETRY</span>
+                  </>
+                ) : (
+                  <>
+                    <span>DTR-01 (250 kVA) • 3 RADIAL FEEDERS • 27 SPANS</span>
+                    <span className="text-cyan-600 dark:text-cyan-400 font-bold">
+                      ● {networkSnapshot ? `${networkSnapshot.nodes.length} NODES MONITORED` : "GRID SYNCING"}
+                    </span>
+                  </>
+                )}
+              </div>
+            </div>
+
             {/* ROW 1: FOUR CLEAN OPERATOR KPI METRIC CARDS */}
-            <div className="grid grid-cols-12 gap-3">
-              {/* CARD 1: Feeder Protection Status */}
-              <Card
-                isFault={isFault}
-                className="col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between"
-              >
-                <CardHeader className="pb-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
-                      FEEDER PROTECTION
-                    </span>
-                    {isGatewayOffline ? (
-                      <Badge variant="outline" className="text-[10px] border-amber-500/80 text-amber-500 font-bold">
-                        DISCONNECTED
-                      </Badge>
-                    ) : (
-                      <Badge variant={isFault ? "destructive" : "healthy"} className="text-[10px]">
-                        {isFault ? "TRIP ALERT" : "SUPERVISED"}
-                      </Badge>
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-1 pb-2">
-                  <div className="flex items-center gap-2.5">
-                    {isGatewayOffline ? (
-                      <Radio className="h-7 w-7 text-amber-500 animate-pulse shrink-0" />
-                    ) : isFault ? (
-                      <AlertOctagon className="h-7 w-7 text-rose-500 shrink-0 animate-bounce" />
-                    ) : (
-                      <ShieldCheck className="h-7 w-7 text-emerald-400 shrink-0" />
-                    )}
-                    <div>
-                      <div
-                        className={`text-lg font-bold font-mono tracking-tight ${
-                          isGatewayOffline
-                            ? "text-amber-500"
-                            : isFault
-                            ? "text-rose-400"
-                            : "text-emerald-400"
-                        }`}
-                      >
-                        {isGatewayOffline
-                          ? "GATEWAY OFFLINE"
-                          : isFault
-                          ? "ANOMALY / TRIP"
-                          : "HEALTHY & BALANCED"}
-                      </div>
-                      <div className="text-[11px] text-zinc-400 font-mono">
-                        {isGatewayOffline
-                          ? "Gateway Connection Lost // Telemetry Feed Offline"
-                          : isFault
-                          ? telemetry?.fault_code || "FAULT"
-                          : "No Leakage Detected"}
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-                <div className="border-t border-zinc-800/80 px-3 py-1 text-[10px] text-zinc-400 font-mono bg-zinc-950/40 flex justify-between">
-                  <span>TRIP LIMIT: 0.350 A</span>
-                  <span className="text-zinc-300">LOOP: 250ms</span>
-                </div>
-              </Card>
-
-              {/* CARD 2: Active Power Demand */}
-              <Card className={`col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between transition-opacity ${
-                isP1Stale ? "opacity-50 border-amber-500/50" : ""
-              }`}>
-                <CardHeader className="pb-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
-                      TOTAL FEEDER LOAD
-                    </span>
-                    <div className="flex items-center gap-1.5">
+            {operatorDeskScope === "LIVE_SPAN" ? (
+              <div className="grid grid-cols-12 gap-3">
+                {/* CARD 1: Feeder Protection Status (Live Hardware) */}
+                <Card
+                  isFault={isFault}
+                  className="col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between"
+                >
+                  <CardHeader className="pb-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
+                        FEEDER PROTECTION
+                      </span>
                       {isGatewayOffline ? (
-                        <Badge variant="outline" className="text-[9px] py-0 border-amber-500 text-amber-500 font-bold">
-                          OFFLINE
-                        </Badge>
-                      ) : isP1Stale ? (
-                        <Badge variant="warning" className="text-[9px] py-0 border-amber-500 text-amber-400 animate-pulse font-bold">
-                          STALE / WAITING
-                        </Badge>
-                      ) : null}
-                      <Badge variant="outline" className="text-[10px]">
-                        POLE 1 INCOMER
-                      </Badge>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-1 pb-2">
-                  <div className="flex items-center gap-2.5">
-                    <Zap className="h-7 w-7 text-amber-400 shrink-0" />
-                    <div>
-                      <div className="text-2xl font-bold font-mono text-zinc-100 tabular-nums">
-                        {feederLoadKW} <span className="text-sm text-zinc-500 font-normal">kW</span>
-                        <span className="text-xs text-zinc-400 font-normal ml-2 font-mono">({feederLoadW} W)</span>
-                      </div>
-                      <div className="text-[11px] text-zinc-400 font-mono">
-                        LINE LOSS: <span className="text-zinc-200 tabular-nums">{lineLossW.toFixed(1)} W ({lineLossPct}%)</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-                <div className="border-t border-zinc-800/80 px-3 py-1 text-[10px] text-zinc-400 font-mono bg-zinc-950/40 flex justify-between">
-                  <span>ENERGY: {feederEnergyKWh} kWh</span>
-                  <span className="text-emerald-400">SERIES RADIAL FEEDER</span>
-                </div>
-              </Card>
-
-              {/* CARD 3: Bus Voltage Quality */}
-              <Card className={`col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between transition-opacity ${
-                isP1Stale ? "opacity-50 border-amber-500/50" : ""
-              }`}>
-                <CardHeader className="pb-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
-                      GRID VOLTAGE LEVEL
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      {isGatewayOffline ? (
-                        <Badge variant="outline" className="text-[9px] py-0 border-amber-500 text-amber-500 font-bold">
-                          OFFLINE
-                        </Badge>
-                      ) : isP1Stale ? (
-                        <Badge variant="warning" className="text-[9px] py-0 border-amber-500 text-amber-400 animate-pulse font-bold">
-                          STALE / WAITING
+                        <Badge variant="outline" className="text-[10px] border-amber-500/80 text-amber-500 font-bold">
+                          DISCONNECTED
                         </Badge>
                       ) : (
-                        <Badge variant="healthy" className="text-[10px]">
-                          STABLE ±0.4%
+                        <Badge variant={isFault ? "destructive" : "healthy"} className="text-[10px]">
+                          {isFault ? "TRIP ALERT" : "SUPERVISED"}
                         </Badge>
                       )}
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-1 pb-2">
-                  <div className="flex items-center gap-2.5">
-                    <Activity className="h-7 w-7 text-cyan-400 shrink-0" />
-                    <div>
-                      <div className="text-2xl font-bold font-mono text-zinc-100 tabular-nums">
-                        {v1 > 0 ? v1.toFixed(1) : "0.0"}{" "}
-                        <span className="text-sm text-zinc-500 font-normal">V</span>
-                      </div>
-                      <div className="text-[11px] text-zinc-400 font-mono">
-                        Frequency: <span className="text-zinc-200">{!isGatewayOffline && telemetry?.p1?.freq !== undefined && telemetry.p1.freq > 0 ? `${telemetry.p1.freq.toFixed(2)} Hz` : "0.00 Hz"}</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-                <div className="border-t border-zinc-800/80 px-3 py-1 text-[10px] text-zinc-400 font-mono bg-zinc-950/40 flex justify-between">
-                  <span>STANDARD: 230V</span>
-                  <span className="text-emerald-400">CLEAN SINE WAVE</span>
-                </div>
-              </Card>
-
-              {/* CARD 4: Conductor Balance & Leakage */}
-              <Card
-                isFault={isFault}
-                className="col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between"
-              >
-                <CardHeader className="pb-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
-                      LINE CURRENT BALANCE
-                    </span>
-                    <Badge variant={isGatewayOffline ? "outline" : isFault ? "destructive" : "healthy"} className={`text-[10px] ${isGatewayOffline ? "border-slate-400 dark:border-zinc-700 text-slate-500 dark:text-zinc-400" : ""}`}>
-                      {isGatewayOffline ? "OFFLINE" : isFault ? "EXCEEDED" : "BALANCED"}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-1 pb-2">
-                  <div className="flex items-center gap-2.5">
-                    <GitBranch className="h-7 w-7 text-emerald-400 shrink-0" />
-                    <div>
-                      <div
-                        className={`text-2xl font-bold font-mono tabular-nums ${
-                          isGatewayOffline
-                            ? "text-slate-400 dark:text-zinc-500"
+                  </CardHeader>
+                  <CardContent className="pt-1 pb-2">
+                    <div className="flex items-center gap-2.5">
+                      {isGatewayOffline ? (
+                        <Radio className="h-7 w-7 text-amber-500 animate-pulse shrink-0" />
+                      ) : isFault ? (
+                        <AlertOctagon className="h-7 w-7 text-rose-500 shrink-0 animate-bounce" />
+                      ) : (
+                        <ShieldCheck className="h-7 w-7 text-emerald-400 shrink-0" />
+                      )}
+                      <div>
+                        <div
+                          className={`text-lg font-bold font-mono tracking-tight ${
+                            isGatewayOffline
+                              ? "text-amber-500"
+                              : isFault
+                              ? "text-rose-400"
+                              : "text-emerald-400"
+                          }`}
+                        >
+                          {isGatewayOffline
+                            ? "GATEWAY OFFLINE"
                             : isFault
-                            ? "text-rose-400"
-                            : "text-emerald-400"
-                        }`}
-                      >
-                        {idiff.toFixed(3)}{" "}
-                        <span className="text-sm text-zinc-500 font-normal">A</span>
-                      </div>
-                      <div className="text-[11px] text-zinc-400 font-mono">
-                        {isGatewayOffline ? "Telemetry Feed Disconnected" : isFault ? "Unbalanced Leakage" : "Conductor Monitored"}
+                            ? "ANOMALY / TRIP"
+                            : "HEALTHY & BALANCED"}
+                        </div>
+                        <div className="text-[11px] text-zinc-400 font-mono">
+                          {isGatewayOffline
+                            ? "Gateway Connection Lost // Telemetry Feed Offline"
+                            : isFault
+                            ? telemetry?.fault_code || "FAULT"
+                            : "No Leakage Detected"}
+                        </div>
                       </div>
                     </div>
+                  </CardContent>
+                  <div className="border-t border-zinc-800/80 px-3 py-1 text-[10px] text-zinc-400 font-mono bg-zinc-950/40 flex justify-between">
+                    <span>TRIP LIMIT: 0.350 A</span>
+                    <span className="text-zinc-300">LOOP: 250ms</span>
                   </div>
-                </CardContent>
-                <div className="border-t border-zinc-800/80 px-3 py-1 text-[10px] text-zinc-400 font-mono bg-zinc-950/40 flex justify-between">
-                  <span>THRESHOLD: 0.350 A</span>
-                  <span className={isFault ? "text-rose-400" : "text-emerald-400"}>
-                    {isFault ? "CONDUCTOR LEAK" : "CONDUCTOR INTACT"}
-                  </span>
-                </div>
-              </Card>
-            </div>
+                </Card>
+
+                {/* CARD 2: Active Power Demand (Live Hardware) */}
+                <Card className={`col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between transition-opacity ${
+                  isP1Stale ? "opacity-50 border-amber-500/50" : ""
+                }`}>
+                  <CardHeader className="pb-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
+                        TOTAL FEEDER LOAD
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {isGatewayOffline ? (
+                          <Badge variant="outline" className="text-[9px] py-0 border-amber-500 text-amber-500 font-bold">
+                            OFFLINE
+                          </Badge>
+                        ) : isP1Stale ? (
+                          <Badge variant="warning" className="text-[9px] py-0 border-amber-500 text-amber-400 animate-pulse font-bold">
+                            STALE / WAITING
+                          </Badge>
+                        ) : null}
+                        <Badge variant="outline" className="text-[10px]">
+                          POLE 1 INCOMER
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-1 pb-2">
+                    <div className="flex items-center gap-2.5">
+                      <Zap className="h-7 w-7 text-amber-400 shrink-0" />
+                      <div>
+                        <div className="text-2xl font-bold font-mono text-zinc-100 tabular-nums">
+                          {feederLoadKW} <span className="text-sm text-zinc-500 font-normal">kW</span>
+                          <span className="text-xs text-zinc-400 font-normal ml-2 font-mono">({feederLoadW} W)</span>
+                        </div>
+                        <div className="text-[11px] text-zinc-400 font-mono">
+                          LINE LOSS: <span className="text-zinc-200 tabular-nums">{lineLossW.toFixed(1)} W ({lineLossPct}%)</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <div className="border-t border-zinc-800/80 px-3 py-1 text-[10px] text-zinc-400 font-mono bg-zinc-950/40 flex justify-between">
+                    <span>ENERGY: {feederEnergyKWh} kWh</span>
+                    <span className="text-emerald-400">SERIES RADIAL FEEDER</span>
+                  </div>
+                </Card>
+
+                {/* CARD 3: Bus Voltage Quality (Live Hardware) */}
+                <Card className={`col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between transition-opacity ${
+                  isP1Stale ? "opacity-50 border-amber-500/50" : ""
+                }`}>
+                  <CardHeader className="pb-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
+                        GRID VOLTAGE LEVEL
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        {isGatewayOffline ? (
+                          <Badge variant="outline" className="text-[9px] py-0 border-amber-500 text-amber-500 font-bold">
+                            OFFLINE
+                          </Badge>
+                        ) : isP1Stale ? (
+                          <Badge variant="warning" className="text-[9px] py-0 border-amber-500 text-amber-400 animate-pulse font-bold">
+                            STALE / WAITING
+                          </Badge>
+                        ) : (
+                          <Badge variant="healthy" className="text-[10px]">
+                            STABLE ±0.4%
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-1 pb-2">
+                    <div className="flex items-center gap-2.5">
+                      <Activity className="h-7 w-7 text-cyan-400 shrink-0" />
+                      <div>
+                        <div className="text-2xl font-bold font-mono text-zinc-100 tabular-nums">
+                          {v1 > 0 ? v1.toFixed(1) : "0.0"}{" "}
+                          <span className="text-sm text-zinc-500 font-normal">V</span>
+                        </div>
+                        <div className="text-[11px] text-zinc-400 font-mono">
+                          Frequency: <span className="text-zinc-200">{!isGatewayOffline && telemetry?.p1?.freq !== undefined && telemetry.p1.freq > 0 ? `${telemetry.p1.freq.toFixed(2)} Hz` : "0.00 Hz"}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <div className="border-t border-zinc-800/80 px-3 py-1 text-[10px] text-zinc-400 font-mono bg-zinc-950/40 flex justify-between">
+                    <span>STANDARD: 230V</span>
+                    <span className="text-emerald-400">CLEAN SINE WAVE</span>
+                  </div>
+                </Card>
+
+                {/* CARD 4: Conductor Balance & Leakage (Live Hardware) */}
+                <Card
+                  isFault={isFault}
+                  className="col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between"
+                >
+                  <CardHeader className="pb-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
+                        LINE CURRENT BALANCE
+                      </span>
+                      <Badge variant={isGatewayOffline ? "outline" : isFault ? "destructive" : "healthy"} className={`text-[10px] ${isGatewayOffline ? "border-slate-400 dark:border-zinc-700 text-slate-500 dark:text-zinc-400" : ""}`}>
+                        {isGatewayOffline ? "OFFLINE" : isFault ? "EXCEEDED" : "BALANCED"}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-1 pb-2">
+                    <div className="flex items-center gap-2.5">
+                      <GitBranch className="h-7 w-7 text-emerald-400 shrink-0" />
+                      <div>
+                        <div
+                          className={`text-2xl font-bold font-mono tabular-nums ${
+                            isGatewayOffline
+                              ? "text-slate-400 dark:text-zinc-500"
+                              : isFault
+                              ? "text-rose-400"
+                              : "text-emerald-400"
+                          }`}
+                        >
+                          {idiff.toFixed(3)}{" "}
+                          <span className="text-sm text-zinc-500 font-normal">A</span>
+                        </div>
+                        <div className="text-[11px] text-zinc-400 font-mono">
+                          {isGatewayOffline ? "Telemetry Feed Disconnected" : isFault ? "Unbalanced Leakage" : "Conductor Monitored"}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <div className="border-t border-zinc-800/80 px-3 py-1 text-[10px] text-zinc-400 font-mono bg-zinc-950/40 flex justify-between">
+                    <span>THRESHOLD: 0.350 A</span>
+                    <span className={isFault ? "text-rose-400" : "text-emerald-400"}>
+                      {isFault ? "CONDUCTOR LEAK" : "CONDUCTOR INTACT"}
+                    </span>
+                  </div>
+                </Card>
+              </div>
+            ) : (
+              /* GRID TWIN MACRO METRICS (28 POLES, 3 FEEDERS, DTR-01) */
+              <div className="grid grid-cols-12 gap-3">
+                {/* CARD 1: Grid Protection & FLISR Automation */}
+                <Card
+                  isFault={(gridMetrics?.totalDetections ?? 0) > 0}
+                  className="col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between"
+                >
+                  <CardHeader className="pb-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
+                        GRID PROTECTION &amp; FLISR
+                      </span>
+                      <Badge
+                        variant={(gridMetrics?.totalDetections ?? 0) > 0 ? "destructive" : "healthy"}
+                        className="text-[10px]"
+                      >
+                        {(gridMetrics?.totalDetections ?? 0) > 0
+                          ? `TRIP ALERT (${gridMetrics?.totalDetections})`
+                          : "100% SUPERVISED"}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-1 pb-2">
+                    <div className="flex items-center gap-2.5">
+                      {(gridMetrics?.criticalDetections ?? 0) > 0 ? (
+                        <AlertOctagon className="h-7 w-7 text-rose-500 shrink-0 animate-bounce" />
+                      ) : (gridMetrics?.totalDetections ?? 0) > 0 ? (
+                        <AlertTriangle className="h-7 w-7 text-amber-500 shrink-0 animate-pulse" />
+                      ) : (
+                        <ShieldCheck className="h-7 w-7 text-emerald-400 shrink-0" />
+                      )}
+                      <div>
+                        <div
+                          className={`text-lg font-bold font-mono tracking-tight ${
+                            (gridMetrics?.totalDetections ?? 0) > 0
+                              ? "text-rose-400"
+                              : "text-emerald-400"
+                          }`}
+                        >
+                          {(gridMetrics?.totalDetections ?? 0) > 0
+                            ? `${gridMetrics?.totalDetections} ACTIVE ALERTS`
+                            : "ALL FEEDERS NORMAL"}
+                        </div>
+                        <div className="text-[11px] text-zinc-400 font-mono">
+                          {(gridMetrics?.totalDetections ?? 0) > 0
+                            ? `${gridMetrics?.criticalDetections} Critical • ${gridMetrics?.trippedSections} Spans Tripped`
+                            : "27 Spans & 28 Poles Balanced"}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <div className="border-t border-zinc-800/80 px-3 py-1 text-[10px] text-zinc-400 font-mono bg-zinc-950/40 flex justify-between">
+                    <span>FLISR: AUTOMATIC</span>
+                    <span className="text-emerald-400">ISOLATION READY</span>
+                  </div>
+                </Card>
+
+                {/* CARD 2: DTR-01 Total Demand & Technical Loss */}
+                <Card className="col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between">
+                  <CardHeader className="pb-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
+                        DTR-01 TRANSFORMER LOAD
+                      </span>
+                      <Badge
+                        variant={
+                          (networkSnapshot?.dtr.loadingPct ?? 0) > 85
+                            ? "destructive"
+                            : (networkSnapshot?.dtr.loadingPct ?? 0) > 65
+                            ? "warning"
+                            : "healthy"
+                        }
+                        className="text-[10px]"
+                      >
+                        {networkSnapshot ? `${networkSnapshot.dtr.loadingPct.toFixed(1)}%` : "--%"} CAPACITY
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-1 pb-2">
+                    <div className="flex items-center gap-2.5">
+                      <Zap className="h-7 w-7 text-amber-400 shrink-0" />
+                      <div>
+                        <div className="text-2xl font-bold font-mono text-zinc-100 tabular-nums">
+                          {networkSnapshot ? networkSnapshot.dtr.kw.toFixed(1) : "---"}{" "}
+                          <span className="text-sm text-zinc-500 font-normal">kW</span>
+                          <span className="text-xs text-zinc-400 font-normal ml-2 font-mono">
+                            ({networkSnapshot ? networkSnapshot.dtr.kva.toFixed(1) : "---"} kVA)
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-zinc-400 font-mono">
+                          TECH LOSS:{" "}
+                          <span className="text-zinc-200 tabular-nums">
+                            {gridMetrics ? gridMetrics.technicalLossKw.toFixed(2) : "0.00"} kW (
+                            {gridMetrics ? gridMetrics.technicalLossPct.toFixed(1) : "0.0"}%)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <div className="border-t border-zinc-800/80 px-3 py-1 text-[10px] text-zinc-400 font-mono bg-zinc-950/40 flex justify-between">
+                    <span>
+                      LT-1: {gridMetrics?.f1Kw.toFixed(0)}k | LT-2: {gridMetrics?.f2Kw.toFixed(0)}k | LT-3: {gridMetrics?.f3Kw.toFixed(0)}k
+                    </span>
+                    <span className="text-cyan-400 font-bold">250 kVA RATING</span>
+                  </div>
+                </Card>
+
+                {/* CARD 3: 3-Phase Bus Voltage Level & Balance */}
+                <Card className="col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between">
+                  <CardHeader className="pb-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
+                        3-PHASE BUS VOLTAGE (DTR)
+                      </span>
+                      <Badge
+                        variant={
+                          (networkSnapshot?.dtr.unbalancePct ?? 0) > 3.0
+                            ? "destructive"
+                            : "healthy"
+                        }
+                        className="text-[10px]"
+                      >
+                        {(networkSnapshot?.dtr.unbalancePct ?? 0) > 3.0
+                          ? "UNBALANCED"
+                          : "BALANCED ±0.4%"}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-1 pb-2">
+                    <div className="flex items-center gap-2.5">
+                      <Activity className="h-7 w-7 text-cyan-400 shrink-0" />
+                      <div>
+                        <div className="text-xs font-bold font-mono text-zinc-100 tabular-nums space-x-1.5">
+                          <span>
+                            <strong className="text-rose-400">R:</strong>{" "}
+                            {networkSnapshot ? networkSnapshot.dtr.voltage.R.toFixed(1) : "---"}V
+                          </span>
+                          <span>
+                            <strong className="text-amber-400">Y:</strong>{" "}
+                            {networkSnapshot ? networkSnapshot.dtr.voltage.Y.toFixed(1) : "---"}V
+                          </span>
+                          <span>
+                            <strong className="text-cyan-400">B:</strong>{" "}
+                            {networkSnapshot ? networkSnapshot.dtr.voltage.B.toFixed(1) : "---"}V
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-zinc-400 font-mono mt-1">
+                          Voltage Unbalance:{" "}
+                          <span className="text-zinc-200 tabular-nums">
+                            {networkSnapshot ? networkSnapshot.dtr.unbalancePct.toFixed(2) : "0.00"}% (IEEE 1159)
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <div className="border-t border-zinc-800/80 px-3 py-1 text-[10px] text-zinc-400 font-mono bg-zinc-950/40 flex justify-between">
+                    <span>SECONDARY: 415V L-L / 240V L-N</span>
+                    <span className="text-emerald-400">REGULATION OK</span>
+                  </div>
+                </Card>
+
+                {/* CARD 4: Grid Incomer Current & Feeder Integrity */}
+                <Card
+                  isFault={(gridMetrics?.trippedSections ?? 0) > 0}
+                  className="col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between"
+                >
+                  <CardHeader className="pb-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
+                        GRID INCOMER CURRENT
+                      </span>
+                      <Badge
+                        variant={(gridMetrics?.trippedSections ?? 0) > 0 ? "destructive" : "healthy"}
+                        className="text-[10px]"
+                      >
+                        {(gridMetrics?.trippedSections ?? 0) > 0 ? "SPAN TRIP" : "ALL FEEDERS BALANCED"}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-1 pb-2">
+                    <div className="flex items-center gap-2.5">
+                      <GitBranch className="h-7 w-7 text-emerald-400 shrink-0" />
+                      <div>
+                        <div className="text-xl font-bold font-mono text-emerald-400 tabular-nums">
+                          {networkSnapshot
+                            ? (
+                                networkSnapshot.dtr.current.R +
+                                networkSnapshot.dtr.current.Y +
+                                networkSnapshot.dtr.current.B
+                              ).toFixed(1)
+                            : "---"}{" "}
+                          <span className="text-sm text-zinc-500 font-normal">A (3Φ SUM)</span>
+                        </div>
+                        <div className="text-[10px] text-zinc-400 font-mono mt-0.5 space-x-1 tabular-nums">
+                          <span>R: {networkSnapshot?.dtr.current.R.toFixed(1)}A</span>
+                          <span>•</span>
+                          <span>Y: {networkSnapshot?.dtr.current.Y.toFixed(1)}A</span>
+                          <span>•</span>
+                          <span>B: {networkSnapshot?.dtr.current.B.toFixed(1)}A</span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <div className="border-t border-zinc-800/80 px-3 py-1 text-[10px] text-zinc-400 font-mono bg-zinc-950/40 flex justify-between">
+                    <span>
+                      ANCHOR: {networkSnapshot?.liveLinkUp ? "LIVE LINKED" : "AUTONOME"}
+                    </span>
+                    <span className="text-emerald-400">TRIP LIMIT: 0.350 A</span>
+                  </div>
+                </Card>
+              </div>
+            )}
 
             {/* ROW 2: SINGLE-LINE DIAGRAM (SLD) POWER FLOW */}
             <SingleLinePowerFlow
