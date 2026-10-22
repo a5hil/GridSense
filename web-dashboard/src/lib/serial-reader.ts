@@ -1,12 +1,31 @@
-import { SerialPort } from "serialport";
-import { ReadlineParser } from "serialport";
+import { SerialPort, ReadlineParser } from "serialport";
 import { telemetryStore } from "./telemetry-state";
 
-let activeSerialPort: SerialPort | null = null;
-let parser: ReadlineParser | null = null;
-let isReconnecting = false;
-let configuredPortName = process.env.SERIAL_PORT || "COM8";
-let lastErrorPort = "";
+interface GlobalSerialState {
+  activeSerialPort: SerialPort | null;
+  parser: ReadlineParser | null;
+  isReconnecting: boolean;
+  configuredPortName: string;
+  hasAutoInitialized: boolean;
+  lastErrorPort: string;
+  pollTimer: NodeJS.Timeout | null;
+}
+
+const globalForSerial = globalThis as unknown as { __gridsense_serial?: GlobalSerialState };
+
+if (!globalForSerial.__gridsense_serial) {
+  globalForSerial.__gridsense_serial = {
+    activeSerialPort: null,
+    parser: null,
+    isReconnecting: false,
+    configuredPortName: process.env.SERIAL_PORT || "COM8",
+    hasAutoInitialized: false,
+    lastErrorPort: "",
+    pollTimer: null,
+  };
+}
+
+const state = globalForSerial.__gridsense_serial;
 
 export async function listAvailablePorts() {
   try {
@@ -29,29 +48,36 @@ export async function connectSerialPort(
   baudRate = 115200
 ): Promise<{ success: boolean; message: string; port?: string }> {
   try {
-    // If already connected to this port, return success
-    if (activeSerialPort && activeSerialPort.isOpen) {
-      if (!portPath || activeSerialPort.path === portPath) {
+    // If already connected and port is active, return success without re-opening
+    if (state.activeSerialPort && state.activeSerialPort.isOpen) {
+      if (!portPath || state.activeSerialPort.path.toUpperCase() === portPath.toUpperCase()) {
+        telemetryStore.setPortStatus(state.activeSerialPort.path, true, false);
+        if (!state.pollTimer) {
+          state.pollTimer = setInterval(() => {
+            if (state.activeSerialPort && state.activeSerialPort.isOpen) {
+              state.activeSerialPort.write("t\n", () => {});
+            }
+          }, 3000);
+        }
+        state.activeSerialPort.write("t\n", () => {});
         return {
           success: true,
-          message: `Already connected to ${activeSerialPort.path}`,
-          port: activeSerialPort.path,
+          message: `Already connected to ${state.activeSerialPort.path}`,
+          port: state.activeSerialPort.path,
         };
       }
       await disconnectSerialPort();
     }
 
-    // If port not specified, try to find an available USB / ESP32 port (preferring COM8 or configuredPortName)
-    let targetPort = portPath || configuredPortName;
+    // Determine target port (preferring COM8 or configured name)
+    let targetPort = portPath || state.configuredPortName;
     const availablePorts = await listAvailablePorts();
 
     if (!targetPort || !availablePorts.some((p) => p.path.toUpperCase() === targetPort.toUpperCase())) {
-      // Look for preferred COM8 first
       const com8Port = availablePorts.find((p) => p.path.toUpperCase() === "COM8");
       if (com8Port) {
         targetPort = com8Port.path;
       } else {
-        // Fallback: look specifically for USB Serial ports (e.g., Espressif, Silicon Labs CP210x, WCH CH340)
         const likelyPort = availablePorts.find(
           (p) =>
             p.manufacturer?.toLowerCase().includes("espressif") ||
@@ -70,34 +96,35 @@ export async function connectSerialPort(
     }
 
     if (!targetPort) {
-      // No physical port found; inform operator
       telemetryStore.setPortStatus("DISCONNECTED", false, false);
       return {
         success: false,
-        message: "No USB Gateway serial port found. Connect ESP32-S3 or use Simulator.",
+        message: "No USB Gateway serial port found. Connect ESP32-S3.",
       };
     }
 
-    configuredPortName = targetPort;
+    state.configuredPortName = targetPort;
 
-    activeSerialPort = new SerialPort({
+    // Create SerialPort instance with hupcl: false to prevent resetting the ESP32 on close
+    state.activeSerialPort = new SerialPort({
       path: targetPort,
       baudRate: baudRate,
       autoOpen: false,
+      hupcl: false,
     });
 
-    parser = activeSerialPort.pipe(new ReadlineParser({ delimiter: "\n" }));
+    state.parser = state.activeSerialPort.pipe(new ReadlineParser({ delimiter: "\n" }));
 
     return new Promise((resolve) => {
-      activeSerialPort!.open((err) => {
+      state.activeSerialPort!.open((err) => {
         if (err) {
           const isAccessDenied = err.message.toLowerCase().includes("access denied");
           const userFriendlyMsg = isAccessDenied
             ? `Port ${targetPort} is locked by another app (e.g. Arduino IDE Serial Monitor). Close the Serial Monitor to connect.`
             : `Could not open ${targetPort}: ${err.message}`;
 
-          if (lastErrorPort !== targetPort + err.message) {
-            lastErrorPort = targetPort + err.message;
+          if (state.lastErrorPort !== targetPort + err.message) {
+            state.lastErrorPort = targetPort + err.message;
             console.warn(`[SerialPort] ${userFriendlyMsg}`);
             telemetryStore.addEventLog({
               level: "WARN",
@@ -106,12 +133,18 @@ export async function connectSerialPort(
             });
           }
           telemetryStore.setPortStatus(targetPort, false, false);
+          handleReconnect();
           resolve({
             success: false,
             message: userFriendlyMsg,
           });
           return;
         }
+
+        // Prevent ESP32-S3 hardware reset by holding DTR/RTS low
+        try {
+          state.activeSerialPort!.set({ dtr: false, rts: false }, () => {});
+        } catch {}
 
         console.log(`[SerialPort] Connected to Gateway on ${targetPort} @ ${baudRate} baud.`);
         telemetryStore.stopSimulation();
@@ -123,11 +156,23 @@ export async function connectSerialPort(
         });
 
         // Line parser listener
-        parser!.on("data", (line: string) => {
+        state.parser!.on("data", (line: string) => {
           handleIncomingLine(line);
         });
 
-        activeSerialPort!.on("close", () => {
+        // Start periodic 3s telemetry poll to gateway to prevent inactivity timeout
+        if (state.pollTimer) clearInterval(state.pollTimer);
+        state.pollTimer = setInterval(() => {
+          if (state.activeSerialPort && state.activeSerialPort.isOpen) {
+            state.activeSerialPort.write("t\n", () => {});
+          }
+        }, 3000);
+
+        state.activeSerialPort!.on("close", () => {
+          if (state.pollTimer) {
+            clearInterval(state.pollTimer);
+            state.pollTimer = null;
+          }
           console.warn(`[SerialPort] Connection to ${targetPort} closed.`);
           telemetryStore.setPortStatus("DISCONNECTED", false, false);
           telemetryStore.addEventLog({
@@ -135,24 +180,29 @@ export async function connectSerialPort(
             source: "SERIAL",
             message: `Serial connection closed on ${targetPort}`,
           });
+          state.activeSerialPort = null;
+          state.parser = null;
           handleReconnect();
         });
 
-        activeSerialPort!.on("error", (portErr) => {
+        state.activeSerialPort!.on("error", (portErr) => {
           console.error(`[SerialPort] Error on ${targetPort}: ${portErr.message}`);
           telemetryStore.addEventLog({
             level: "ERROR",
             source: "SERIAL",
             message: `Serial error on ${targetPort}: ${portErr.message}`,
           });
-          // On USB reset or communication fault, cleanly recycle handle and auto-reconnect
           try {
-            if (activeSerialPort && activeSerialPort.isOpen) {
-              activeSerialPort.close();
+            if (state.activeSerialPort && state.activeSerialPort.isOpen) {
+              state.activeSerialPort.close();
             }
           } catch {}
-          activeSerialPort = null;
-          parser = null;
+          if (state.pollTimer) {
+            clearInterval(state.pollTimer);
+            state.pollTimer = null;
+          }
+          state.activeSerialPort = null;
+          state.parser = null;
           telemetryStore.setPortStatus("DISCONNECTED", false, false);
           handleReconnect();
         });
@@ -171,22 +221,25 @@ export async function connectSerialPort(
 }
 
 export async function disconnectSerialPort() {
-  configuredPortName = "";
-  if (activeSerialPort) {
+  if (state.pollTimer) {
+    clearInterval(state.pollTimer);
+    state.pollTimer = null;
+  }
+  if (state.activeSerialPort) {
     return new Promise<void>((resolve) => {
       try {
-        if (activeSerialPort!.isOpen) {
-          activeSerialPort!.close(() => {
-            activeSerialPort = null;
-            parser = null;
+        if (state.activeSerialPort!.isOpen) {
+          state.activeSerialPort!.close(() => {
+            state.activeSerialPort = null;
+            state.parser = null;
             telemetryStore.setPortStatus("DISCONNECTED", false, false);
             resolve();
           });
           return;
         }
       } catch {}
-      activeSerialPort = null;
-      parser = null;
+      state.activeSerialPort = null;
+      state.parser = null;
       telemetryStore.setPortStatus("DISCONNECTED", false, false);
       resolve();
     });
@@ -194,11 +247,11 @@ export async function disconnectSerialPort() {
 }
 
 export async function sendSerialCommand(command: string): Promise<boolean> {
-  if (!activeSerialPort || !activeSerialPort.isOpen) {
+  if (!state.activeSerialPort || !state.activeSerialPort.isOpen) {
     return false;
   }
   return new Promise((resolve) => {
-    activeSerialPort!.write(command + "\n", (err) => {
+    state.activeSerialPort!.write(command + "\n", (err) => {
       if (err) {
         console.error("[SerialPort] Failed to send command:", err.message);
         resolve(false);
@@ -218,6 +271,12 @@ export async function sendSerialCommand(command: string): Promise<boolean> {
 function handleIncomingLine(raw: string) {
   const line = raw.trim();
   if (!line) return;
+
+  // Detect gateway heartbeats to keep connection active even before node packets arrive
+  if (line.includes("[GW HEARTBEAT]") || line.includes("[GW_INIT]")) {
+    telemetryStore.recordGatewayHeartbeat();
+    return;
+  }
 
   // Ignore gateway diagnostic banners, logs, and RF debug prints
   if (line.startsWith("[") || line.startsWith("=") || line.startsWith("-") || line.startsWith("*") || line.startsWith("Pole") || line.startsWith("Inter-Pole")) {
@@ -240,23 +299,25 @@ function handleIncomingLine(raw: string) {
 }
 
 function handleReconnect() {
-  if (isReconnecting || !configuredPortName) return;
-  isReconnecting = true;
+  if (state.isReconnecting || !state.configuredPortName) return;
+  state.isReconnecting = true;
   setTimeout(async () => {
-    isReconnecting = false;
-    if (!activeSerialPort || !activeSerialPort.isOpen) {
-      await connectSerialPort(configuredPortName);
+    state.isReconnecting = false;
+    if (!state.activeSerialPort || !state.activeSerialPort.isOpen) {
+      await connectSerialPort(state.configuredPortName);
     }
   }, 3000);
 }
 
-// Auto-initialize background attempt (skip during build phase)
+// Auto-initialize background attempt ONCE across Next.js dev reloads
 if (typeof window === "undefined" && process.env.NEXT_PHASE !== "phase-production-build") {
-  // Probe once on startup
-  listAvailablePorts().then((ports) => {
-    if (ports.length > 0) {
-      console.log(`[SerialPort] Detected ${ports.length} COM port(s):`, ports.map((p) => p.path));
-      connectSerialPort();
-    }
-  });
+  if (!state.hasAutoInitialized) {
+    state.hasAutoInitialized = true;
+    listAvailablePorts().then((ports) => {
+      if (ports.length > 0) {
+        console.log(`[SerialPort] Detected ${ports.length} COM port(s):`, ports.map((p) => p.path));
+        connectSerialPort();
+      }
+    });
+  }
 }

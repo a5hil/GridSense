@@ -105,13 +105,13 @@ class TelemetryStore extends EventEmitter {
       details: "Awaiting serial packets from Gateway at 115200 baud.",
     });
 
-    // Inactivity Watchdog: If physical ESP32 gateway is unplugged or halts packets for >7s, zero out state
+    // Inactivity Watchdog: If physical ESP32 gateway halts packets for >15s (5 consecutive missed cycles), flag disconnected
     setInterval(() => {
-      if (this.systemStatus.gatewayConnected && this.lastIngestTime > 0 && Date.now() - this.lastIngestTime > 7000) {
-        console.warn("[Watchdog] Gateway inactive for >7s. Marking disconnected and zeroing telemetry.");
+      if (this.systemStatus.gatewayConnected && this.lastIngestTime > 0 && Date.now() - this.lastIngestTime > 15000) {
+        console.warn("[Watchdog] Gateway inactive for >15s. Marking disconnected and zeroing telemetry.");
         this.setPortStatus("DISCONNECTED", false, false);
       }
-    }, 2000);
+    }, 3000);
 
     this.initFromDb().catch(() => {});
   }
@@ -234,10 +234,24 @@ class TelemetryStore extends EventEmitter {
     return this.telemetryHistory;
   }
 
+  public recordGatewayHeartbeat() {
+    this.lastIngestTime = Date.now();
+    if (!this.systemStatus.gatewayConnected && this.systemStatus.activePort && this.systemStatus.activePort !== "DISCONNECTED") {
+      this.systemStatus.gatewayConnected = true;
+      if (this.currentTelemetry.status === "DISCONNECTED") {
+        this.currentTelemetry.status = "WAITING_DATA";
+      }
+      this.broadcast();
+    }
+  }
+
   public setPortStatus(port: string, connected: boolean, isSimulated = false) {
     this.systemStatus.activePort = port;
     this.systemStatus.gatewayConnected = connected;
     this.systemStatus.isSimulated = isSimulated;
+    if (connected) {
+      this.lastIngestTime = Date.now();
+    }
 
     if (!connected) {
       this.currentTelemetry.status = "DISCONNECTED";
