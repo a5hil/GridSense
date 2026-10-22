@@ -24,7 +24,7 @@ interface FeederAssetTreeProps {
   onSelectPole?: (poleId: string) => void;
 }
 
-export function FeederAssetTree({
+export const FeederAssetTree = React.memo(function FeederAssetTree({
   telemetry,
   networkSnapshot,
   selectedPoleId,
@@ -229,4 +229,4 @@ export function FeederAssetTree({
       </div>
     </div>
   );
-}
+});

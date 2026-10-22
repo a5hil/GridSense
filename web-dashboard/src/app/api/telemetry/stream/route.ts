@@ -6,6 +6,8 @@ import "@/lib/serial-reader"; // Trigger serial reader discovery
 export async function GET(req: NextRequest) {
   const encoder = new TextEncoder();
 
+  let cleanup: (() => void) | null = null;
+
   const stream = new ReadableStream({
     start(controller) {
       // 1. Send immediate initial state
@@ -27,7 +29,7 @@ export async function GET(req: NextRequest) {
           });
           controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
         } catch (err) {
-          // stream closed
+          cleanup?.();
         }
       };
 
@@ -40,7 +42,7 @@ export async function GET(req: NextRequest) {
           });
           controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
         } catch (err) {
-          // stream closed
+          cleanup?.();
         }
       };
 
@@ -53,7 +55,7 @@ export async function GET(req: NextRequest) {
           });
           controller.enqueue(encoder.encode(`data: ${payload}\n\n`));
         } catch (err) {
-          // stream closed
+          cleanup?.();
         }
       };
 
@@ -66,17 +68,25 @@ export async function GET(req: NextRequest) {
         try {
           controller.enqueue(encoder.encode(`: ping\n\n`));
         } catch (e) {
-          clearInterval(pingInterval);
+          cleanup?.();
         }
       }, 10000);
 
-      // Clean up on disconnect
-      req.signal.addEventListener("abort", () => {
+      let isClosed = false;
+      cleanup = () => {
+        if (isClosed) return;
+        isClosed = true;
         clearInterval(pingInterval);
         telemetryStore.off("update", updateListener);
         telemetryStore.off("log", logListener);
         networkTwin.off("snapshot", snapshotListener);
-      });
+      };
+
+      // Clean up on request abort or stream close
+      req.signal.addEventListener("abort", () => cleanup?.(), { once: true });
+    },
+    cancel() {
+      cleanup?.();
     },
   });
 

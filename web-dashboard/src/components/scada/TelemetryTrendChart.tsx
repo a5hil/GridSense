@@ -22,7 +22,7 @@ interface TelemetryTrendChartProps {
   onToggleFreeze?: () => void;
 }
 
-export function TelemetryTrendChart({
+export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
   history,
   tripLimit = 0.35,
   isFrozen: controlledFrozen,
@@ -1061,4 +1061,4 @@ export function TelemetryTrendChart({
       </div>
     </div>
   );
-}
+});

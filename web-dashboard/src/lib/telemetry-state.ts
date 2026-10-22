@@ -17,6 +17,7 @@ class TelemetryStore extends EventEmitter {
   private eventLogs: SCADAEventLog[] = [];
   private telemetryHistory: HistoricalTelemetryPoint[] = [];
   private simulationInterval: NodeJS.Timeout | null = null;
+  private watchdogInterval: NodeJS.Timeout | null = null;
   private lastIngestTime = 0;
 
   constructor() {
@@ -106,12 +107,13 @@ class TelemetryStore extends EventEmitter {
     });
 
     // Inactivity Watchdog: If physical ESP32 gateway halts packets for >15s (5 consecutive missed cycles), flag disconnected
-    setInterval(() => {
+    this.watchdogInterval = setInterval(() => {
       if (this.systemStatus.gatewayConnected && this.lastIngestTime > 0 && Date.now() - this.lastIngestTime > 15000) {
         console.warn("[Watchdog] Gateway inactive for >15s. Marking disconnected and zeroing telemetry.");
         this.setPortStatus("DISCONNECTED", false, false);
       }
     }, 3000);
+    this.watchdogInterval.unref?.();
 
     this.initFromDb().catch(() => {});
   }

@@ -29,7 +29,7 @@ interface EngineeringDiagnosticsProps {
   onConnectPort: () => void;
 }
 
-export function EngineeringDiagnostics({
+export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics({
   telemetry,
   networkSnapshot,
   systemStatus,
@@ -405,4 +405,4 @@ export function EngineeringDiagnostics({
       </div>
     </div>
   );
-}
+});

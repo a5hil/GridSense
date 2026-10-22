@@ -78,7 +78,7 @@ const DEFAULT_RESOLVED_INCIDENTS = [
   },
 ];
 
-export function WorkforceOmsPanel({
+export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
   tickets,
   onRefresh,
   isBreakerTripped = false,
@@ -693,4 +693,4 @@ export function WorkforceOmsPanel({
       </div>
     </div>
   );
-}
+});

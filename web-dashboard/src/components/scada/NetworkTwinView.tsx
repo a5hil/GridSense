@@ -52,7 +52,7 @@ interface NetworkTwinViewProps {
   selectedPoleId?: string;
 }
 
-export function NetworkTwinView({
+export const NetworkTwinView = React.memo(function NetworkTwinView({
   snapshot,
   onRefresh,
   onSelectPole,
@@ -840,4 +840,4 @@ export function NetworkTwinView({
       </div>
     </div>
   );
-}
+});

@@ -24,7 +24,7 @@ interface SingleLinePowerFlowProps {
   onSelectPole?: (poleId: string) => void;
 }
 
-export function SingleLinePowerFlow({
+export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
   telemetry,
   networkSnapshot,
   selectedPoleId,
@@ -397,7 +397,19 @@ export function SingleLinePowerFlow({
                   : "text-slate-500 dark:text-zinc-500"
               }`}
             >
-              {isFault ? "LEAKAGE DETECTED" : "SPAN 1-2 NORMAL"}
+              {isBrokenConductor
+                ? `BROKEN COND (${telemetry?.fault_phase || "Y"})`
+                : isBrokenNeutral
+                ? "BROKEN NEUTRAL"
+                : isPowerCut
+                ? "FEEDER DE-ENERGIZED"
+                : isOvercurrent
+                ? "OVERCURRENT TRIP"
+                : isDifferentialFault
+                ? "LEAKAGE DETECTED"
+                : isFault
+                ? "FAULT DETECTED"
+                : "SPAN 1-2 NORMAL"}
             </span>
           </div>
 
@@ -622,4 +634,4 @@ export function SingleLinePowerFlow({
       </div>
     </div>
   );
-}
+});

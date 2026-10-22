@@ -97,7 +97,7 @@ declare global {
   }
 }
 
-export function GisFeederMap({
+export const GisFeederMap = React.memo(function GisFeederMap({
   telemetry,
   networkSnapshot,
   selectedPoleId,
@@ -1139,4 +1139,4 @@ export function GisFeederMap({
       )}
     </div>
   );
-}
+});

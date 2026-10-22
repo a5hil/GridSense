@@ -454,6 +454,31 @@ export default function SCADADashboard() {
           : "Line voltage exceeded 265V insulation surge threshold.",
         severity: "WARNING",
       };
+    } else if (faultCode === "BROKEN_CONDUCTOR") {
+      const brokenPhase = telemetry?.fault_phase && telemetry.fault_phase !== "NONE" ? telemetry.fault_phase : "Y";
+      activeFault = {
+        ansiCode: "ANSI 46/47",
+        title: `CRITICAL ALARM: BROKEN CONDUCTOR (PHASE ${brokenPhase})`,
+        reading: `PHASE ${brokenPhase} DOWNSTREAM SNAP (0V) // UPSTREAM ENERGIZED`,
+        description: `Overhead line discontinuity on Phase ${brokenPhase}. Upstream energized, downstream collapsed to 0V.`,
+        severity: "CRITICAL",
+      };
+    } else if (faultCode === "BROKEN_NEUTRAL") {
+      activeFault = {
+        ansiCode: "ANSI 47/N",
+        title: "VOLTAGE ALARM: BROKEN NEUTRAL / SEVERE UNBALANCE",
+        reading: "NEUTRAL DISPLACEMENT > 15% NEMA TRIP THRESHOLD",
+        description: "Broken neutral return conductor detected. Phase voltages asymmetric across 3-phase grid.",
+        severity: "CRITICAL",
+      };
+    } else if (faultCode === "POWERCUT" || (v1 < 50 && v2 < 50 && !isGatewayOffline)) {
+      activeFault = {
+        ansiCode: "ANSI 27",
+        title: "FEEDER DE-ENERGIZED // SCHEDULED OUTAGE OR BLACKOUT",
+        reading: `V1: ${v1.toFixed(1)}V | V2: ${v2.toFixed(1)}V (0V SUPPLY)`,
+        description: "Feeder is fully de-energized across all phases (scheduled power cut or upstream feeder trip).",
+        severity: "WARNING",
+      };
     } else if (bothNodesActive && (telemetry?.fault || idiff >= 0.35)) {
       activeFault = {
         ansiCode: "ANSI 87L",
