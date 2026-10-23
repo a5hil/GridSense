@@ -34,30 +34,30 @@ interface GisFeederMapProps {
 const ASSETS = {
   substation: {
     name: "Angamaly 33/11kV Substation",
-    coords: [76.4082, 10.2312] as [number, number],
+    coords: [76.4078, 10.2312] as [number, number],
     type: "SUBSTATION",
   },
   dtr: {
     name: "DTR-01 (250 kVA, 11kV/415V)",
-    coords: [76.4085, 10.2315] as [number, number],
+    coords: [76.4082, 10.2315] as [number, number],
     type: "DTR",
   },
   pole1: {
-    id: "Pole-A",
-    name: "Pole 1 // Incomer (Node A)",
-    coords: [76.4088, 10.2318] as [number, number],
+    id: "F1-P01",
+    name: "F1-P01 // Incomer Terminal",
+    coords: [76.4085, 10.2318] as [number, number],
     role: "Incomer",
   },
   pole2: {
-    id: "Pole-B",
-    name: "Pole 2 // Outgoing (Node B)",
-    coords: [76.4095, 10.2325] as [number, number],
+    id: "F1-P02",
+    name: "F1-P02 // Feeder Section Terminal",
+    coords: [76.40875, 10.232172] as [number, number],
     role: "Outgoing",
   },
   spur3: {
     id: "Pole-C",
     name: "Pole 3 // Branch Spur (Planned)",
-    coords: [76.4102, 10.2331] as [number, number],
+    coords: [76.40892, 10.232444] as [number, number],
     role: "Branch",
   },
 };
@@ -196,7 +196,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       const map = new gl.Map({
         container: mapContainerRef.current,
         style: styleUrl,
-        center: [76.4089, 10.2319],
+        center: [76.4084, 10.2318],
         zoom: 16.5,
         pitch: 45, // 3D SCADA perspective tilt
         bearing: -15,
@@ -476,7 +476,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         `;
       } else if (isLive) {
         // Live Hardware Node with Bolt + P1/P2
-        const shortNum = spec.id === "POLE-A" || spec.id === "Pole-A" ? "P1" : "P2";
+        const shortNum = spec.id === "F1-P01" || spec.id === "POLE-A" || spec.id === "Pole-A" ? "P1" : "P2";
         iconSvg = `
           <div class="flex flex-col items-center justify-center leading-none">
             <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 text-emerald-400 fill-current"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
@@ -612,9 +612,9 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         }
 
         const label = isLive
-          ? node.id === "POLE-A"
-            ? "Pole 1 (Incomer // LIVE)"
-            : "Pole 2 (Outgoing // LIVE)"
+          ? (node.id === "F1-P01" || node.id === "POLE-A")
+            ? "F1-P01 (Live Incomer)"
+            : "F1-P02 (Live Outgoing)"
           : node.label;
 
         const shortId = node.id.split("-").pop() || node.id;
@@ -651,8 +651,8 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       const p1Current = telemetry ? telemetry.p1.i : 2.45;
       const p1Color = isFault ? "#f43f5e" : "#10b981";
       const p1El = createCircularNodeMarker({
-        id: "POLE-A",
-        label: "Pole 1 (Incomer // LIVE)",
+        id: "F1-P01",
+        label: "F1-P01 (Live Incomer)",
         badgeText: `${(telemetry?.p1.v ?? 230).toFixed(0)}V • ${p1Current.toFixed(2)}A`,
         color: p1Color,
         iconType: "LIVE_POLE",
@@ -674,8 +674,8 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       const p2Current = telemetry ? telemetry.p2.i : 2.43;
       const p2Color = isLastGasp || telemetry?.p2.isOnline === false ? "#f43f5e" : isFault ? "#f43f5e" : "#10b981";
       const p2El = createCircularNodeMarker({
-        id: "POLE-B",
-        label: "Pole 2 (Outgoing // LIVE)",
+        id: "F1-P02",
+        label: "F1-P02 (Live Outgoing)",
         badgeText: telemetry?.p2.isOnline === false ? "OUTAGE" : `${(telemetry?.p2.v ?? 230).toFixed(0)}V • ${p2Current.toFixed(2)}A`,
         color: p2Color,
         iconType: "LIVE_POLE",
@@ -1037,15 +1037,15 @@ export const GisFeederMap = React.memo(function GisFeederMap({
           </div>
           <div className="flex items-center gap-2">
             <span className="h-3.5 w-3.5 rounded-full border-2 border-emerald-400 bg-[#090a0f] flex items-center justify-center text-[7px] text-emerald-400">◎</span>
-            <span className="text-zinc-300">250 kVA DTR-01 (Load Donut Arc)</span>
+            <span className="text-zinc-300">250 kVA Distribution Transformer (DTR-01)</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="h-3.5 w-3.5 rounded-full border-2 border-emerald-400 bg-[#090a0f] ring-2 ring-emerald-500/50 animate-pulse flex items-center justify-center text-[7px] text-white font-bold">P1</span>
-            <span className="text-emerald-400 font-bold">Physical Pole (Live Hardware PZEM)</span>
+            <span className="text-emerald-400 font-bold">Differential Protection Terminal (ANSI 87L)</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="h-3 w-3 rounded-full border-2 border-purple-400 bg-[#090a0f]" />
-            <span className="text-zinc-300">Simulated Distribution Pole (P01..P08)</span>
+            <span className="text-zinc-300">Distribution Pole (Standard Span)</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="h-3 w-3 rounded-full border-2 border-rose-500 bg-[#090a0f] animate-ping" />

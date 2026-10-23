@@ -301,7 +301,7 @@ class NetworkTwin extends EventEmitter {
 
     // 2. Voltages top-down. Anchor DTR phase R to live V1 when available.
     const pathToA: string[] = [];
-    for (let cur: string | null = "POLE-A"; cur && cur !== "DTR-01"; cur = NODE_BY_ID[cur].parentId) pathToA.push(cur);
+    for (let cur: string | null = "F1-P01"; cur && cur !== "DTR-01"; cur = NODE_BY_ID[cur]?.parentId ?? null) pathToA.push(cur);
     if (live.a.online && live.a.v > 180) {
       const drop = pathToA.reduce((acc, id) => acc + iSpan[id].R * ohm(id), 0);
       this.dtrV.R = live.a.v + drop;

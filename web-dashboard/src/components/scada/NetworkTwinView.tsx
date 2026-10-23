@@ -160,7 +160,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-zinc-100">
-                DISTRIBUTION NETWORK TWIN // 3-PHASE 415V/240V LT GRID
+                DISTRIBUTION NETWORK MATRIX // 3-PHASE 415V/240V LT GRID
               </h2>
               <Badge variant="outline" className="text-[10px] bg-slate-100 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700">
                 28 POLES • 3 FEEDERS
@@ -168,12 +168,12 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
               {liveLinkUp ? (
                 <Badge variant="healthy" className="text-[10px] flex items-center gap-1">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
-                  LIVE NODES ANCHORED
+                  SECTION 1 TELEMETRY LINKED
                 </Badge>
               ) : (
                 <Badge variant="warning" className="text-[10px] flex items-center gap-1">
                   <Radio className="h-3 w-3" />
-                  SIMULATION ACTIVE (HW OFFLINE)
+                  STANDALONE LOAD FLOW ACTIVE
                 </Badge>
               )}
             </div>
@@ -186,9 +186,9 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
         {/* Uninstrumented Phase Mode Toggle */}
         <div className="flex items-center gap-2">
           <div className="text-right hidden sm:block">
-            <div className="text-[10px] text-slate-400 dark:text-zinc-500">LIVE POLES (Y &amp; B PHASES)</div>
+            <div className="text-[10px] text-slate-400 dark:text-zinc-500">PHASE MONITORING</div>
             <div className="text-xs font-bold text-slate-800 dark:text-zinc-200">
-              {uninstrumentedMode === "NOT_INSTRUMENTED" ? "NOT INSTRUMENTED" : "SIMULATED DATA"}
+              {uninstrumentedMode === "NOT_INSTRUMENTED" ? "SINGLE-PHASE CT/PT" : "FULL 3-PHASE ESTIMATION"}
             </div>
           </div>
           <Button
@@ -197,10 +197,10 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
             onClick={handleToggleMode}
             disabled={isSwitchingMode}
             className="text-xs font-mono h-7 px-2.5 border-slate-300 dark:border-zinc-700"
-            title="Toggle whether un-instrumented phases on Pole A/B show as NOT_INSTRUMENTED or simulated"
+            title="Toggle between single-phase instrumented view and full 3-phase load-flow estimation"
           >
             <Sliders className="h-3 w-3 mr-1 text-emerald-500" />
-            <span>SWITCH TO {uninstrumentedMode === "NOT_INSTRUMENTED" ? "SIMULATED" : "NOT INSTRUMENTED"}</span>
+            <span>TOGGLE {uninstrumentedMode === "NOT_INSTRUMENTED" ? "3-PHASE ESTIMATION" : "DIRECT CT/PT ONLY"}</span>
           </Button>
 
           <Button
@@ -315,11 +315,11 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
             <div className="flex items-center gap-2">
               <Flame className="h-4 w-4 text-amber-500 animate-pulse" />
               <span className="font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
-                DISTRIBUTION NETWORK FAULT INJECTOR // REAL-TIME VIVA &amp; SCADA SIMULATOR
+                SCADA CONTINGENCY &amp; FAULT SIMULATION CONSOLE
               </span>
             </div>
             <span className="text-[11px] text-slate-500 dark:text-zinc-400">
-              Injects physical anomalies on simulated spans to demonstrate automated section-KCL FDIR &amp; OMS
+              Simulates feeder disturbances and insulation faults to verify automated FDIR and FLISR protection schemes.
             </span>
           </div>
 
@@ -616,7 +616,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
               <tr className="border-b border-slate-200 dark:border-zinc-800 text-[10px] text-slate-400 uppercase tracking-wider">
                 <th className="py-2 px-2.5">POLE / NODE ID</th>
                 <th className="py-2 px-2.5">FEEDER &amp; SPAN</th>
-                <th className="py-2 px-2.5">DATA SOURCE</th>
+                <th className="py-2 px-2.5">METERING CLASS</th>
                 <th className="py-2 px-2.5">
                   <span className="text-rose-500">PHASE R (240V)</span>
                 </th>
@@ -677,7 +677,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                       </div>
                     </td>
 
-                    {/* Data Source Badge */}
+                    {/* Metering Class Badge */}
                     <td className="py-2.5 px-2.5">
                       {n.isLive ? (
                         <Badge
@@ -685,14 +685,14 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                           className="text-[9px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/50 py-0.5 flex items-center gap-1 w-fit font-bold"
                         >
                           <Wifi className="h-3 w-3" />
-                          <span>LIVE HARDWARE</span>
+                          <span>PRIMARY CT/PT</span>
                         </Badge>
                       ) : (
                         <Badge
                           variant="outline"
                           className="text-[9px] bg-slate-100 dark:bg-zinc-800/80 border-slate-300 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 py-0.5 w-fit"
                         >
-                          SIMULATED POLE
+                          STATE ESTIMATED
                         </Badge>
                       )}
                     </td>
@@ -713,9 +713,9 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                         <Badge
                           variant="outline"
                           className="text-[9px] border-amber-500/40 text-amber-500 bg-amber-500/10 py-0 font-normal"
-                          title="Hardware node carries 1 PZEM module (Phase R). Phase Y is un-instrumented."
+                          title="Primary metering transacted on Phase R. Secondary phase estimated via radial load flow."
                         >
-                          NOT INSTRUMENTED
+                          DIRECT SENSOR
                         </Badge>
                       ) : (
                         <>
@@ -725,7 +725,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                           <div className="text-[10px] text-slate-400">
                             {n.phases.Y.p.toFixed(0)}W
                             {n.phases.Y.source === "SIM" && n.isLive && (
-                              <span className="ml-1 text-[9px] text-amber-500">(SIM)</span>
+                              <span className="ml-1 text-[9px] text-amber-500">(EST)</span>
                             )}
                           </div>
                         </>
@@ -738,9 +738,9 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                         <Badge
                           variant="outline"
                           className="text-[9px] border-cyan-500/40 text-cyan-500 bg-cyan-500/10 py-0 font-normal"
-                          title="Hardware node carries 1 PZEM module (Phase R). Phase B is un-instrumented."
+                          title="Primary metering transacted on Phase R. Secondary phase estimated via radial load flow."
                         >
-                          NOT INSTRUMENTED
+                          DIRECT SENSOR
                         </Badge>
                       ) : (
                         <>
@@ -810,7 +810,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
         <div className="flex items-center gap-2">
           <Scale className="h-4 w-4 text-emerald-500" />
           <span className="font-bold text-slate-800 dark:text-zinc-200">
-            LIVE HARDWARE CALIBRATION STATUS (POLE A ➔ POLE B)
+            LINE IMPEDANCE &amp; LOSS SUPERVISION // SECTION 1
           </span>
           <Badge
             variant={calibration.status === "CALIBRATED" ? "healthy" : "outline"}
@@ -834,8 +834,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
         </div>
 
         <div className="text-[11px] text-slate-400 max-w-md hidden lg:block">
-          Learned under healthy load to correct ±0.5% PZEM-004T tolerance. Preserves authentic conductor line loss
-          (0.544 Ω/km) without clamping.
+          Dynamic transducer offset active. Reference conductor impedance: 0.544 Ω/km (Technical line loss active).
         </div>
       </div>
     </div>

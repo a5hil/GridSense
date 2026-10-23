@@ -268,6 +268,8 @@ export async function sendSerialCommand(command: string): Promise<boolean> {
   });
 }
 
+let serialChunkBuffer = "";
+
 function handleIncomingLine(raw: string) {
   const line = raw.trim();
   if (!line) return;
@@ -275,25 +277,79 @@ function handleIncomingLine(raw: string) {
   // Detect gateway heartbeats to keep connection active even before node packets arrive
   if (line.includes("[GW HEARTBEAT]") || line.includes("[GW_INIT]")) {
     telemetryStore.recordGatewayHeartbeat();
+    serialChunkBuffer = "";
     return;
   }
 
   // Ignore gateway diagnostic banners, logs, and RF debug prints
-  if (line.startsWith("[") || line.startsWith("=") || line.startsWith("-") || line.startsWith("*") || line.startsWith("Pole") || line.startsWith("Inter-Pole")) {
+  if (
+    line.startsWith("[") ||
+    line.startsWith("=") ||
+    line.startsWith("-") ||
+    line.startsWith("*") ||
+    line.startsWith("Pole") ||
+    line.startsWith("Inter-Pole")
+  ) {
+    serialChunkBuffer = "";
     return;
   }
 
-  // Find boundaries of JSON object (handles any prefixes or trailing newlines safely)
-  const start = line.indexOf("{");
-  const end = line.lastIndexOf("}");
-  if (start !== -1 && end > start) {
-    try {
-      const parsed = JSON.parse(line.substring(start, end + 1));
-      if (parsed && typeof parsed === "object" && ("gw_ms" in parsed || "p1" in parsed || "type" in parsed)) {
-        telemetryStore.ingestRawJson(parsed, "SERIAL");
+  // Combine with previously buffered fragment if a packet was split across serial chunks
+  const candidate = serialChunkBuffer.length > 0 ? serialChunkBuffer + line : line;
+
+  const start = candidate.indexOf("{");
+  const end = candidate.lastIndexOf("}");
+
+  if (start !== -1) {
+    if (end > start) {
+      // Validate that all opening and closing braces balance before attempting parse
+      let openBraces = 0;
+      let inString = false;
+      let escaped = false;
+      for (let i = start; i <= end; i++) {
+        const ch = candidate[i];
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+        if (ch === "\\") {
+          escaped = true;
+          continue;
+        }
+        if (ch === '"') {
+          inString = !inString;
+          continue;
+        }
+        if (!inString) {
+          if (ch === "{") openBraces++;
+          else if (ch === "}") openBraces--;
+        }
       }
-    } catch (e: any) {
-      console.warn(`[SerialPort] Malformed JSON: ${line}`);
+
+      // Braces are completely balanced: parse the full telemetry frame
+      if (openBraces === 0) {
+        try {
+          const parsed = JSON.parse(candidate.substring(start, end + 1));
+          serialChunkBuffer = "";
+          if (
+            parsed &&
+            typeof parsed === "object" &&
+            ("gw_ms" in parsed || "p1" in parsed || "type" in parsed)
+          ) {
+            telemetryStore.ingestRawJson(parsed, "SERIAL");
+          }
+          return;
+        } catch {
+          // Fall through to retain buffer if still partially corrupted
+        }
+      }
+    }
+
+    // If candidate has an opening brace but hasn't closed yet, retain in buffer (up to 2048 chars)
+    if (candidate.length < 2048) {
+      serialChunkBuffer = candidate;
+    } else {
+      serialChunkBuffer = "";
     }
   }
 }

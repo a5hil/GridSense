@@ -24,9 +24,9 @@ const EMA_ALPHA = 0.02;
 const WARMUP_SAMPLES = 10;
 const MIN_SAMPLES_CALIBRATED = 15;
 
-/** Phase-conductor resistance of the live span POLE-A → POLE-B (ohm). */
+/** Phase-conductor resistance of the live span F1-P01 → F1-P02 (ohm). */
 export const LIVE_SPAN_OHM =
-  ((NODE_BY_ID["POLE-B"]?.spanM ?? 100) / 1000) * NETWORK_TOPOLOGY.conductorOhmPerKm;
+  ((NODE_BY_ID["F1-P02"]?.spanM ?? NODE_BY_ID["POLE-B"]?.spanM ?? 100) / 1000) * NETWORK_TOPOLOGY.conductorOhmPerKm;
 
 class LiveCalibration {
   private vOffset = 0;

@@ -776,7 +776,7 @@ class TelemetryStore extends EventEmitter {
         // Auto-Issue Trouble Ticket in Outage Management System (OMS)
         omsManager.autoCreateTicketForFault({
           faultCode: next.fault_code,
-          affectedPole: "Pole 1 ➔ Pole 2 Feeder Span",
+          affectedPole: "Feeder LT-1: Span F1-P01 ↔ F1-P02",
           gps: { lat: 10.2325, lng: 76.4095 },
           idiff: next.idiff,
         });
@@ -785,7 +785,7 @@ class TelemetryStore extends EventEmitter {
           level: "CRITICAL",
           source: "FDIR_CORE",
           message: `FEEDER TRIP: ${faultDesc}`,
-          details: `P1=${next.p1.i.toFixed(2)}A, P2=${next.p2.i.toFixed(2)}A`,
+          details: `F1-P01=${next.p1.i.toFixed(2)}A, F1-P02=${next.p2.i.toFixed(2)}A`,
         });
       }
     }

@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "GridSense // SCADA Power Telemetry & FDIR Control",
   description:
-    "Distribution Office Real-Time SCADA Dashboard for LoRa Mesh IoT Power Telemetry and Central FDIR Fault Protection",
+    "Distribution Office Real-Time SCADA Dashboard for Power Telemetry and Central FDIR Grid Protection",
 };
 
 export default function RootLayout({

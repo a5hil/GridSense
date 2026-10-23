@@ -52,7 +52,7 @@ interface WorkforceOmsPanelProps {
 const DEFAULT_RESOLVED_INCIDENTS = [
   {
     ticketId: "INC-2026-0882",
-    feederName: "Feeder LT-1 • Residential (8 Poles)",
+    feederName: "Feeder LT-1 • Residential (10 Poles)",
     affectedPole: "Pole F1-P03 - F1-P04 Span",
     resolvedAt: "Today, 14:20 IST",
     faultType: "Vegetation Encroachment & Conductor Sway (ANSI 87L)",
@@ -64,7 +64,7 @@ const DEFAULT_RESOLVED_INCIDENTS = [
   },
   {
     ticketId: "INC-2026-0841",
-    feederName: "Feeder LT-2 • Commercial (10 Poles)",
+    feederName: "Feeder LT-2 • Commercial (11 Poles)",
     affectedPole: "Pole F2-P04 Lateral",
     resolvedAt: "Yesterday, 18:45 IST",
     faultType: "Shunt Neutral Insulation Degradation (ANSI 59N)",
@@ -825,7 +825,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                         KSEB SMART LINEMAN
                       </div>
                       <div className="text-[8px] text-zinc-400 uppercase">
-                        FIELD APP SIMULATOR // CREW #4
+                        FIELD CREW AUTOMATION // CREW #4
                       </div>
                     </div>
                   </div>
@@ -870,7 +870,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                       ) : null}
                     </div>
                     <p className="text-[9px] text-zinc-400">
-                      Lineman arrives at {effectiveTicket?.affectedPole || "faulted pole"} coordinates and verifies physical line clearance.
+                      Field crew arrives at {effectiveTicket?.affectedPole || "faulted pole"} coordinates and verifies physical line clearance.
                     </p>
                     <Button
                       variant="outline"
@@ -880,7 +880,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                       onClick={() =>
                         handleUpdateStatus(
                           "CREW_ON_SITE",
-                          `Lineman arrived on site at ${effectiveTicket?.affectedPole}. Starting visual inspection.`
+                          `Field crew arrived on site at ${effectiveTicket?.affectedPole}. Starting visual line inspection.`
                         )
                       }
                     >

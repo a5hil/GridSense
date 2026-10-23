@@ -48,7 +48,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
             ENGINEERING &amp; FIRMWARE DIAGNOSTICS CONSOLE
           </span>
           <span>•</span>
-          <span>LoRa RF PHY, AES-128 Crypto &amp; Gateway Hardware Bus</span>
+          <span>SCADA Telemetry Bus, AES-128 Security &amp; Gateway Port Ingestion</span>
         </div>
         <Badge variant="crypto" className="text-[10px]">
           FIRMWARE BUILD: v2.4-AES128
@@ -61,16 +61,16 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
           <CardHeader>
             <div className="flex items-center gap-2">
               <Radio className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-              <CardTitle>LoRa Sub-GHz Link Metrics</CardTitle>
+              <CardTitle>Sub-GHz SCADA RF Link Metrics</CardTitle>
             </div>
-            <Badge variant="outline">LR1121 SUB-GHZ RF MESH</Badge>
+            <Badge variant="outline">SUB-GHZ SCADA MESH</Badge>
           </CardHeader>
 
           <CardContent className="space-y-3 text-xs">
             {/* Pole 1 RF */}
             <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/60 p-2.5 rounded-sm space-y-1">
               <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold uppercase flex justify-between">
-                <span>Pole 1 (Incomer) RF</span>
+                <span>Section 1 Incomer (F1-P01) RF</span>
                 <span className="text-emerald-600 dark:text-emerald-400">
                   {telemetry?.p1 ? `Hop ${telemetry.p1.hops} (Direct)` : "---"}
                 </span>
@@ -98,7 +98,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
             {/* Pole 2 RF */}
             <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/60 p-2.5 rounded-sm space-y-1">
               <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold uppercase flex justify-between">
-                <span>Pole 2 (Outgoing) RF</span>
+                <span>Section 1 Terminal (F1-P02) RF</span>
                 <span className="text-emerald-600 dark:text-emerald-400">
                   {telemetry?.p2 ? (telemetry.p2.hops === 1 ? "Hop 1 (Relayed)" : "Hop 0 (Direct)") : "---"}
                 </span>
@@ -125,7 +125,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
           </CardContent>
 
           <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-1.5 text-[11px] flex items-center justify-between text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-950/40">
-            <span>FREQUENCY: 866.3 MHz (IN865)</span>
+            <span>RF CHANNEL: SUB-GHZ UTILITY MESH • 866.3 MHz</span>
             <span className="text-cyan-600 dark:text-cyan-400">SF9 / BW 125kHz</span>
           </div>
         </Card>
@@ -135,10 +135,10 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
           <CardHeader>
             <div className="flex items-center gap-2">
               <Power className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <CardTitle>ESP32-S3 Hardware Gateway Port</CardTitle>
+              <CardTitle>Substation SCADA Gateway / Serial Ingestion</CardTitle>
             </div>
             <Badge variant={systemStatus?.gatewayConnected ? "healthy" : "warning"}>
-              {systemStatus?.gatewayConnected ? "OPEN" : "CLOSED"}
+              {systemStatus?.gatewayConnected ? "ONLINE" : "OFFLINE"}
             </Badge>
           </CardHeader>
 
@@ -180,16 +180,16 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
               <div className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase font-semibold flex justify-between items-center">
                 <span>TELEMETRY INGESTION</span>
                 <span className="text-emerald-500 font-bold">
-                  LIVE HARDWARE BUS
+                  ACTIVE SCADA BUS
                 </span>
               </div>
               <div className="text-[11px] text-slate-600 dark:text-zinc-400 space-y-1">
                 <div>Source: <span className="text-slate-800 dark:text-zinc-200 font-semibold">{systemStatus?.gatewayConnected ? (systemStatus?.activePort || "Serial Gateway") : "Awaiting Gateway Link"}</span></div>
-                <div>Status: <span className={systemStatus?.gatewayConnected ? "text-emerald-500 font-semibold" : "text-amber-500 font-semibold"}>{systemStatus?.gatewayConnected ? "Active LoRa Ingestion" : "Serial Closed"}</span></div>
+                <div>Status: <span className={systemStatus?.gatewayConnected ? "text-emerald-500 font-semibold" : "text-amber-500 font-semibold"}>{systemStatus?.gatewayConnected ? "Active Telemetry Stream" : "Serial Closed"}</span></div>
               </div>
 
               <div className="pt-2 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between">
-                <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-semibold">HARDWARE CMD:</span>
+                <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-semibold">CONTROL CMD:</span>
                 <Button
                   variant="outline"
                   size="sm"
@@ -203,9 +203,9 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
                     } catch (e) {}
                   }}
                   className="text-[10px] h-7 px-2.5 bg-slate-200 dark:bg-zinc-800 hover:bg-emerald-600 hover:text-white rounded text-slate-700 dark:text-zinc-200 font-mono transition-colors font-bold"
-                  title="Send 'n' command over serial to clear undervoltage/fault on physical nodes"
+                  title="Send remote command over SCADA link to clear trips and re-arm line protection relays"
                 >
-                  RESET HARDWARE ('n')
+                  RESET PROTECTION / RE-ARM ('n')
                 </Button>
               </div>
             </div>
@@ -231,7 +231,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
             <div className="space-y-1">
               <div className="flex justify-between items-baseline border-b border-slate-200 dark:border-zinc-800/60 pb-1">
                 <span className="text-slate-500 dark:text-zinc-400">Cipher Suite</span>
-                <span className="text-cyan-700 dark:text-cyan-400 font-bold">AES-128-CTR HARDWARE</span>
+                <span className="text-cyan-700 dark:text-cyan-400 font-bold">AES-128-CTR ENCRYPTED</span>
               </div>
               <div className="flex justify-between items-baseline border-b border-slate-200 dark:border-zinc-800/60 pb-1">
                 <span className="text-slate-500 dark:text-zinc-400">Gateway Uptime (gw_ms)</span>
@@ -283,10 +283,10 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
           <CardHeader>
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <CardTitle>3-Phase Distribution Network Twin &amp; Continuous ADC Calibration</CardTitle>
+              <CardTitle>3-Phase Distribution Grid Model &amp; Continuous Line Calibration</CardTitle>
             </div>
             <Badge variant="healthy">
-              {networkSnapshot ? "TWIN ENGINE ACTIVE (28 POLES)" : "IDLE"}
+              {networkSnapshot ? "GRID MODEL ACTIVE (28 POLES)" : "IDLE"}
             </Badge>
           </CardHeader>
 
@@ -294,7 +294,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
             {/* Column 1: Calibration Engine */}
             <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/60 p-3 rounded-sm space-y-2">
               <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold uppercase flex justify-between items-center border-b border-slate-200 dark:border-zinc-800/60 pb-1.5">
-                <span>PZEM-004T DYNAMIC ADC CALIBRATION</span>
+                <span>INSTRUMENT TRANSFORMER (CT/PT) RATIO &amp; LINE CALIBRATION</span>
                 <span className="text-emerald-500 font-bold">
                   {networkSnapshot?.calibration?.status === "CALIBRATED" ? "LOCKED & CONVERGED" : "INITIALIZING"}
                 </span>
@@ -323,7 +323,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
                   </span>
                 </div>
                 <p className="text-[10px] text-slate-500 dark:text-zinc-500 pt-1 border-t border-slate-200 dark:border-zinc-800/60">
-                  Compensates for PZEM-004T ±0.5% resistive divider tolerances during normal load to eliminate phantom line loss.
+                  Compensates for transducer ratio variances and conductor baseline losses during normal load to prevent phantom differential trips.
                 </p>
               </div>
             </div>
@@ -331,30 +331,30 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
             {/* Column 2: Physical Hardware Anchor Mapping */}
             <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/60 p-3 rounded-sm space-y-2">
               <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold uppercase flex justify-between items-center border-b border-slate-200 dark:border-zinc-800/60 pb-1.5">
-                <span>HARDWARE-TO-TWIN BINDINGS</span>
-                <span className="text-cyan-500 font-bold">HYBRID MODE</span>
+                <span>DISTRIBUTION LINE METERING BINDINGS</span>
+                <span className="text-cyan-500 font-bold">LIVE SUPERVISION</span>
               </div>
               <div className="space-y-1.5 text-[11px]">
                 <div className="flex justify-between items-baseline">
-                  <span className="text-slate-500 dark:text-zinc-400">Pole-A Binding:</span>
+                  <span className="text-slate-500 dark:text-zinc-400">Section 1 Incomer:</span>
                   <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                    Node P-1-01 (Incomer, Phase R LIVE)
+                    F1-P01 (LT-1 Incomer • Phase R Metered)
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline">
-                  <span className="text-slate-500 dark:text-zinc-400">Pole-B Binding:</span>
+                  <span className="text-slate-500 dark:text-zinc-400">Section 1 Terminal:</span>
                   <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                    Node P-1-02 (Terminal, Phase R LIVE)
+                    F1-P02 (LT-1 Section 1 Terminal • Phase R Metered)
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline">
-                  <span className="text-slate-500 dark:text-zinc-400">Phases Y &amp; B Mode:</span>
+                  <span className="text-slate-500 dark:text-zinc-400">Phases Y &amp; B Modeling:</span>
                   <Badge variant="outline" className="text-[9px] py-0 border-cyan-500 text-cyan-400">
-                    {networkSnapshot?.uninstrumentedMode === "SIM" ? "SIMULATED 3-PHASE" : "NOT INSTRUMENTED"}
+                    {networkSnapshot?.uninstrumentedMode === "SIM" ? "3-PHASE STATE ESTIMATION" : "DIRECT CT/PT ONLY"}
                   </Badge>
                 </div>
                 <div className="flex justify-between items-baseline">
-                  <span className="text-slate-500 dark:text-zinc-400">Physical Hardware Links:</span>
+                  <span className="text-slate-500 dark:text-zinc-400">Telemetry Link Status:</span>
                   <span className="text-slate-800 dark:text-zinc-200 font-mono">
                     {networkSnapshot?.liveLinkUp ? "ESTABLISHED (OK)" : "AWAITING GATEWAY"}
                   </span>

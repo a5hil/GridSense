@@ -137,7 +137,10 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
                             {isExpanded && (
                               <div className="pl-4 ml-1.5 border-l border-slate-200 dark:border-zinc-800 mt-0.5 space-y-0.5">
                                 {poles.map((pole) => {
-                                  const isSelected = selectedPoleId === pole.id || (pole.isLive && selectedPoleId === "Pole-A" && pole.id === "POLE-A");
+                                  const isSelected =
+                                    selectedPoleId?.toLowerCase() === pole.id.toLowerCase() ||
+                                    (pole.isLive && (selectedPoleId === "Pole-A" || selectedPoleId === "Pole 1" || selectedPoleId === "P1") && pole.id === "F1-P01") ||
+                                    (pole.isLive && (selectedPoleId === "Pole-B" || selectedPoleId === "Pole 2" || selectedPoleId === "P2") && pole.id === "F1-P02");
                                   const isPoleTripped = pole.status === "ALARM";
 
                                   return (
@@ -165,7 +168,7 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
                                         <span>{pole.label}</span>
                                         {pole.isLive && (
                                           <span className="text-[8.5px] bg-emerald-500/20 text-emerald-500 border border-emerald-500/40 px-1 rounded-xs font-bold">
-                                            LIVE
+                                            {pole.id === "F1-P01" ? "INCOMER" : "OUTGOING"}
                                           </span>
                                         )}
                                       </div>
@@ -184,13 +187,13 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
                       /* Fallback 2-Pole Display */
                       <>
                         <div
-                          onClick={() => onSelectPole && onSelectPole("Pole-A")}
+                          onClick={() => onSelectPole && onSelectPole("F1-P01")}
                           className="flex items-center justify-between p-1.5 rounded-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-900"
                         >
                           <div className="flex items-center gap-1.5">
                             <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                            <span>Pole 1 // Incomer (Node A)</span>
-                            <Badge variant="healthy" className="text-[8px] py-0">LIVE</Badge>
+                            <span>F1-P01 // Substation Incomer</span>
+                            <Badge variant="healthy" className="text-[8px] py-0">ENERGIZED</Badge>
                           </div>
                           <span className="text-slate-400 tabular-nums">
                             {telemetry?.p1 ? `${telemetry.p1.i.toFixed(2)}A | ${telemetry.p1.v.toFixed(0)}V` : "--"}
@@ -198,13 +201,13 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
                         </div>
 
                         <div
-                          onClick={() => onSelectPole && onSelectPole("Pole-B")}
+                          onClick={() => onSelectPole && onSelectPole("F1-P02")}
                           className="flex items-center justify-between p-1.5 rounded-sm cursor-pointer hover:bg-slate-50 dark:hover:bg-zinc-900"
                         >
                           <div className="flex items-center gap-1.5">
                             <span className={`h-2 w-2 rounded-full ${isLiveFault ? "bg-rose-500" : "bg-emerald-400"}`} />
-                            <span>Pole 2 // Outgoing (Node B)</span>
-                            <Badge variant="healthy" className="text-[8px] py-0">LIVE</Badge>
+                            <span>F1-P02 // Feeder Section Terminal</span>
+                            <Badge variant="healthy" className="text-[8px] py-0">ENERGIZED</Badge>
                           </div>
                           <span className="text-slate-400 tabular-nums">
                             {telemetry?.p2 ? `${telemetry.p2.i.toFixed(2)}A | ${telemetry.p2.v.toFixed(0)}V` : "--"}
@@ -224,7 +227,7 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
       <div className="border-t border-slate-200 dark:border-zinc-800 px-3 py-1.5 bg-slate-50 dark:bg-zinc-950/60 flex items-center justify-between text-[10px] text-slate-500 dark:text-zinc-400">
         <span>ACTIVE SUBSTATIONS: 1/1</span>
         <span>
-          {networkSnapshot ? "TOTAL POLES: 28 (2 LIVE • 26 SIM)" : "TOTAL POLES: 2 (LIVE)"}
+          {networkSnapshot ? "TOTAL POLES: 28 DISTRIBUTION NODES" : "TOTAL POLES: 2 METERED NODES"}
         </span>
       </div>
     </div>

@@ -570,19 +570,8 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
             </span>
           </div>
 
-          {/* Channel Scope Selector: Live Anchor Differential vs 3-Phase Polyphase Pole */}
+          {/* Unified SCADA Waveform View Mode: 3-Phase Polyphase vs ANSI 87L Differential Span */}
           <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5 text-xs">
-            <button
-              onClick={() => setChannelScope("ANCHOR")}
-              className={`px-2 py-1 text-[10px] font-bold uppercase rounded-xs transition-colors flex items-center gap-1.5 ${
-                channelScope === "ANCHOR"
-                  ? "bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
-                  : "text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-              }`}
-            >
-              <Radio className="h-3 w-3" />
-              <span>ANCHOR (P1 ↔ P2 LIVE)</span>
-            </button>
             <button
               onClick={() => setChannelScope("POLYPHASE")}
               className={`px-2 py-1 text-[10px] font-bold uppercase rounded-xs transition-colors flex items-center gap-1.5 ${
@@ -592,11 +581,22 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               }`}
             >
               <Layers className="h-3 w-3" />
-              <span>TWIN POLE 3Φ (R/Y/B)</span>
+              <span>3-PHASE WAVEFORMS</span>
+            </button>
+            <button
+              onClick={() => setChannelScope("ANCHOR")}
+              className={`px-2 py-1 text-[10px] font-bold uppercase rounded-xs transition-colors flex items-center gap-1.5 ${
+                channelScope === "ANCHOR"
+                  ? "bg-white dark:bg-zinc-800 text-rose-600 dark:text-rose-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
+                  : "text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+              }`}
+            >
+              <Radio className="h-3 w-3" />
+              <span>ANSI 87L DIFFERENTIAL (F1-P01 ↔ F1-P02)</span>
             </button>
           </div>
 
-          {/* Pole Selector (Available whenever network snapshot is loaded) */}
+          {/* Unified Grid Pole Selector (28 Distribution Poles across 3 Feeders) */}
           {networkSnapshot && (
             <div className="flex items-center gap-1.5">
               <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold uppercase">POLE:</span>
@@ -610,30 +610,26 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                 }}
                 className="bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xs px-2 py-1 text-[11px] font-bold text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 cursor-pointer"
               >
-                <optgroup label="FEEDER LT-1 (RESIDENTIAL - 8 POLES)">
+                <optgroup label="FEEDER LT-1 (RESIDENTIAL - 10 POLES)">
                   {nodesByFeeder["LT-1"].map((n) => (
                     <option key={n.id} value={n.id}>
-                      {n.id} - {n.label} {n.isLive ? "[LIVE ANCHOR]" : ""}
+                      {n.id} - {n.label} {n.id === "F1-P01" ? "[INCOMER TERMINAL]" : n.id === "F1-P02" ? "[SECTION TERMINAL]" : ""}
                     </option>
                   ))}
                 </optgroup>
-                <optgroup label="FEEDER LT-2 (COMMERCIAL - 10 POLES)">
+                <optgroup label="FEEDER LT-2 (COMMERCIAL - 11 POLES)">
                   {nodesByFeeder["LT-2"].map((n) => (
                     <option key={n.id} value={n.id}>
-                      {n.id} - {n.label} {n.isLive ? "[LIVE ANCHOR]" : ""}
+                      {n.id} - {n.label}
                     </option>
                   ))}
                 </optgroup>
-                <optgroup label="FEEDER LT-3 (AGRI/MIXED - 10 POLES)">
+                <optgroup label="FEEDER LT-3 (AGRI/MIXED - 7 POLES)">
                   {nodesByFeeder["LT-3"].map((n) => (
                     <option key={n.id} value={n.id}>
-                      {n.id} - {n.label} {n.isLive ? "[LIVE ANCHOR]" : ""}
+                      {n.id} - {n.label}
                     </option>
                   ))}
-                </optgroup>
-                <optgroup label="PHYSICAL ANCHORS">
-                  <option value="POLE-A">POLE-A (Pole 1 Incomer) [LIVE]</option>
-                  <option value="POLE-B">POLE-B (Pole 2 Outgoing) [LIVE]</option>
                 </optgroup>
               </select>
 
@@ -643,7 +639,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                     ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                     : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30"
                 }`}>
-                  {activeNode.isLive ? "LIVE ANCHOR" : "DIGITAL TWIN"}
+                  {activeNode.id === "F1-P01" ? "SECTION 1 INCOMER" : activeNode.id === "F1-P02" ? "SECTION 1 TERMINAL" : "DISTRIBUTION POLE"}
                 </span>
               )}
             </div>
