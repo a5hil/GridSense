@@ -63,7 +63,7 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
       </div>
 
       {/* Hierarchical Tree Body */}
-      <div className="p-3 space-y-2 overflow-y-auto flex-1 max-h-[500px]">
+      <div className="p-3 space-y-2 overflow-y-auto flex-1">
         {/* LEVEL 1: Substation */}
         <div>
           <button
@@ -95,9 +95,8 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
                   ) : (
                     <ChevronRight className="h-3 w-3 text-slate-400 dark:text-zinc-400" />
                   )}
-                  <span className="text-[10px] text-slate-400 dark:text-zinc-500">[DTR]</span>
-                  <span>{ENTERPRISE_CONFIG.DTR_NAME}</span>
-                  <span className="ml-auto text-[10px] text-slate-500 dark:text-zinc-400 tabular-nums">
+                  <span>DTR-01 (250 kVA)</span>
+                  <span className="ml-auto text-[10px] text-slate-500 dark:text-zinc-400 tabular-nums font-mono">
                     {networkSnapshot ? `${networkSnapshot.dtr.kva.toFixed(1)} kVA` : "2.4 kVA"}
                   </span>
                 </button>
@@ -224,10 +223,10 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
       </div>
 
       {/* Footer Summary */}
-      <div className="border-t border-slate-200 dark:border-zinc-800 px-3 py-1.5 bg-slate-50 dark:bg-zinc-950/60 flex items-center justify-between text-[10px] text-slate-500 dark:text-zinc-400">
-        <span>ACTIVE SUBSTATIONS: 1/1</span>
-        <span>
-          {networkSnapshot ? "TOTAL POLES: 28 DISTRIBUTION NODES" : "TOTAL POLES: 2 METERED NODES"}
+      <div className="border-t border-slate-200 dark:border-zinc-800 px-3 py-1.5 bg-slate-50 dark:bg-zinc-950/60 flex items-center justify-between text-[10px] text-slate-500 dark:text-zinc-400 font-mono">
+        <span>Angamaly Substation • 3 LT Feeders</span>
+        <span className="font-semibold text-slate-700 dark:text-zinc-300">
+          {networkSnapshot ? "28 Supervised Distribution Poles" : "2 Boundary Poles"}
         </span>
       </div>
     </div>
