@@ -126,51 +126,51 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
   const isFeederFaulted = feederDetections.length > 0 || (viewScope === "LT-1" && isFault);
 
   return (
-    <div className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 rounded-lg p-4 flex flex-col gap-3 transition-colors shadow-xs dark:shadow-none">
+    <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm p-4 flex flex-col gap-3 font-mono transition-colors shadow-xs dark:shadow-none">
       {/* Header Bar with Feeder Scope Tabs */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-zinc-800/80 pb-2.5">
         <div className="flex items-center gap-2">
-          <Zap className="h-4 w-4 text-emerald-500" />
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-            Feeder Power Flow &amp; Line Integrity <span className="text-slate-400 dark:text-slate-600 font-normal">|</span> Single-Line Diagram (SLD)
+          <Zap className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          <h2 className="text-xs font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-100">
+            FEEDER POWER FLOW &amp; LINE INTEGRITY // SINGLE-LINE DIAGRAM (SLD)
           </h2>
         </div>
 
         {/* View Scope Tabs: Unified Feeder Selection */}
-        <div className="flex items-center bg-slate-100 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-lg p-1 text-xs gap-1">
+        <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5 text-xs">
           <button
             onClick={() => setViewScope("LT-1")}
-            className={`px-3 py-1 text-xs rounded-md font-medium transition-all flex items-center gap-1.5 ${
+            className={`px-2.5 py-1 text-[10px] uppercase font-bold rounded-xs transition-colors flex items-center gap-1.5 ${
               viewScope === "LT-1"
-                ? "bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 font-semibold shadow-xs"
-                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                ? "bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
+                : "text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
             }`}
           >
-            <Radio className="h-3.5 w-3.5" />
-            <span>Feeder LT-1</span>
-            <span className="text-[10px] opacity-75 font-mono">(10 Poles)</span>
+            <Radio className="h-3 w-3" />
+            <span>FEEDER LT-1</span>
+            <span className="text-[9px] opacity-75">(10 POLES)</span>
           </button>
           <button
             onClick={() => setViewScope("LT-2")}
-            className={`px-3 py-1 text-xs rounded-md font-medium transition-all flex items-center gap-1.5 ${
+            className={`px-2.5 py-1 text-[10px] uppercase font-bold rounded-xs transition-colors flex items-center gap-1 ${
               viewScope === "LT-2"
-                ? "bg-white dark:bg-slate-800 text-cyan-600 dark:text-cyan-400 font-semibold shadow-xs"
-                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                ? "bg-white dark:bg-zinc-800 text-cyan-600 dark:text-cyan-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
+                : "text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
             }`}
           >
-            <span>Feeder LT-2</span>
-            <span className="text-[10px] opacity-75 font-mono">(11 Poles)</span>
+            <span>FEEDER LT-2</span>
+            <span className="text-[9px] opacity-75">(11 POLES)</span>
           </button>
           <button
             onClick={() => setViewScope("LT-3")}
-            className={`px-3 py-1 text-xs rounded-md font-medium transition-all flex items-center gap-1.5 ${
+            className={`px-2.5 py-1 text-[10px] uppercase font-bold rounded-xs transition-colors flex items-center gap-1 ${
               viewScope === "LT-3"
-                ? "bg-white dark:bg-slate-800 text-purple-600 dark:text-purple-400 font-semibold shadow-xs"
-                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                ? "bg-white dark:bg-zinc-800 text-purple-600 dark:text-purple-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
+                : "text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
             }`}
           >
-            <span>Feeder LT-3</span>
-            <span className="text-[10px] opacity-75 font-mono">(7 Poles)</span>
+            <span>FEEDER LT-3</span>
+            <span className="text-[9px] opacity-75">(7 POLES)</span>
           </button>
         </div>
 
@@ -179,32 +179,32 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
           {viewScope === "LT-1" && isFault ? (
             <Badge
               variant="destructive"
-              className="flex items-center gap-1.5 py-0.5 text-[11px]"
+              className="flex items-center gap-1.5 py-0.5 text-[10px] animate-pulse"
             >
-              <AlertTriangle className="h-3.5 w-3.5" />
-              <span>LT-1 Protection Trip ({telemetry?.fault_code || "Leakage"})</span>
+              <AlertTriangle className="h-3 w-3" />
+              <span>LT-1 PROTECTION TRIP ({telemetry?.fault_code || "LEAKAGE"})</span>
             </Badge>
           ) : isFeederFaulted ? (
             <Badge
               variant="destructive"
-              className="flex items-center gap-1.5 py-0.5 text-[11px]"
+              className="flex items-center gap-1.5 py-0.5 text-[10px] animate-pulse"
             >
-              <AlertTriangle className="h-3.5 w-3.5" />
-              <span>{viewScope} Fault ({feederDetections.length} Anomalies)</span>
+              <AlertTriangle className="h-3 w-3" />
+              <span>{viewScope} FAULT ({feederDetections.length} ANOMALIES)</span>
             </Badge>
           ) : (
             <Badge
               variant="healthy"
-              className="flex items-center gap-1.5 py-0.5 text-[11px]"
+              className="flex items-center gap-1.5 py-0.5 text-[10px]"
             >
-              <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
-              <span>{viewScope} Line Healthy (100% Balanced)</span>
+              <ShieldCheck className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
+              <span>{viewScope} RADIAL LINE HEALTHY (100% BALANCED)</span>
             </Badge>
           )}
-          <span className="text-slate-400 dark:text-slate-400 text-xs font-normal">
+          <span className="text-slate-500 dark:text-zinc-500 text-[11px]">
             {feederSummary
-              ? `${feederSummary.name} • ${feederNodes.length} Poles`
-              : "230V/415V LT Radial"}
+              ? `${feederSummary.name} • ${feederNodes.length} POLES`
+              : "230V/415V LT RADIAL"}
           </span>
         </div>
       </div>
@@ -215,81 +215,81 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
       <div className="relative py-2 overflow-x-auto">
           <div className="min-w-[1200px] flex items-stretch gap-2.5">
             {/* 1. Substation */}
-            <div className="w-[130px] shrink-0 border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 p-3 rounded-lg flex flex-col justify-between text-center">
+            <div className="w-[125px] shrink-0 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 p-2.5 rounded-sm flex flex-col justify-between text-center shadow-inner">
               <div>
-                <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  <span>Substation</span>
+                <div className="flex items-center justify-center gap-1 text-[10px] text-slate-500 dark:text-zinc-400 font-semibold uppercase">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+                  <span>SUBSTATION</span>
                 </div>
-                <div className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-1">
+                <div className="text-xs font-bold text-slate-800 dark:text-zinc-200 mt-1">
                   {ENTERPRISE_CONFIG.SUBSTATION_SHORT}
                 </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">33/11kV</div>
+                <div className="text-[10px] text-slate-500 dark:text-zinc-400">33/11kV</div>
               </div>
-              <div className="text-[10px] text-emerald-600 dark:text-emerald-400 bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-900/50 rounded-md py-0.5 mt-2 font-medium">
-                11kV Bus
+              <div className="text-[9px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-xs py-0.5 mt-2">
+                11kV BUS
               </div>
             </div>
 
             {/* Cable arrow */}
             <div className="w-[35px] shrink-0 flex flex-col items-center justify-center">
               <div className="w-full flex items-center">
-                <div className="h-[2px] w-full bg-emerald-500/50 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-emerald-500 w-1/3" />
+                <div className="h-[2px] w-full bg-emerald-500/60 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-emerald-500 dark:bg-emerald-400 w-1/3 animate-pulse" />
                 </div>
-                <ArrowRight className="h-3.5 w-3.5 text-emerald-500 -ml-1 shrink-0" />
+                <ArrowRight className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 -ml-1 shrink-0" />
               </div>
             </div>
 
             {/* 2. DTR-01 */}
-            <div className="w-[140px] shrink-0 border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 p-3 rounded-lg flex flex-col justify-between text-center">
+            <div className="w-[135px] shrink-0 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 p-2.5 rounded-sm flex flex-col justify-between text-center">
               <div>
-                <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                <div className="flex items-center justify-center gap-1 text-[10px] text-slate-500 dark:text-zinc-400 font-semibold uppercase">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 dark:bg-emerald-400" />
                   <span>DTR-01</span>
                 </div>
-                <div className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-0.5 font-mono">
+                <div className="text-xs font-bold text-slate-800 dark:text-zinc-200 mt-0.5">
                   {networkSnapshot ? `${networkSnapshot.dtr.kva.toFixed(1)} kVA` : "250 kVA"}
                 </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Load: {networkSnapshot ? `${networkSnapshot.dtr.loadingPct}%` : "17%"}
+                <div className="text-[10px] text-slate-500 dark:text-zinc-400">
+                  LOAD: {networkSnapshot ? `${networkSnapshot.dtr.loadingPct}%` : "17%"}
                 </div>
               </div>
-              <div className="text-[10px] text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md py-0.5 mt-1 font-medium">
-                415V 3-Phase
+              <div className="text-[9px] text-slate-600 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xs py-0.5 mt-1">
+                415V 3-PHASE
               </div>
             </div>
 
             {/* Feeder Bus Arrow */}
             <div className="w-[35px] shrink-0 flex flex-col items-center justify-center">
               <div className="w-full flex items-center">
-                <div className="h-[2px] w-full bg-emerald-500/50 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-emerald-500 w-1/3" />
+                <div className="h-[2px] w-full bg-emerald-500/60 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-emerald-500 dark:bg-emerald-400 w-1/3 animate-pulse" />
                 </div>
-                <ArrowRight className="h-3.5 w-3.5 text-emerald-500 -ml-1 shrink-0" />
+                <ArrowRight className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 -ml-1 shrink-0" />
               </div>
             </div>
 
             {/* 3. Feeder Breaker / Incomer Bus */}
-            <div className="w-[145px] shrink-0 border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 p-3 rounded-lg flex flex-col justify-between">
+            <div className="w-[145px] shrink-0 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 p-2.5 rounded-sm flex flex-col justify-between">
               <div>
-                <div className="flex items-center justify-between text-[11px] pb-1 border-b border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-800 dark:text-slate-200 font-semibold uppercase">{viewScope} Busbar</span>
+                <div className="flex items-center justify-between text-[10px] pb-1 border-b border-slate-200 dark:border-zinc-800/60">
+                  <span className="text-slate-800 dark:text-zinc-200 font-bold uppercase">{viewScope} BUSBAR</span>
                   <span
                     className={`h-2 w-2 rounded-full ${
-                      isFeederFaulted ? "bg-rose-500 animate-pulse" : "bg-emerald-500"
+                      isFeederFaulted ? "bg-rose-500 animate-pulse" : "bg-emerald-500 dark:bg-emerald-400"
                     }`}
                   />
                 </div>
-                <div className="text-xs font-bold text-slate-900 dark:text-slate-100 mt-1 font-mono tabular-nums">
+                <div className="text-xs font-bold text-slate-900 dark:text-zinc-100 mt-1 tabular-nums">
                   {feederSummary ? `${feederSummary.kw.toFixed(1)} kW` : "--- kW"}
                 </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400 font-mono">
-                  {feederSummary ? `${feederSummary.headCurrent.R.toFixed(1)}A (R)` : "---"}
+                <div className="text-[10px] text-slate-500 dark:text-zinc-400">
+                  CURRENT: {feederSummary ? `${feederSummary.headCurrent.R.toFixed(1)}A (R)` : "---"}
                 </div>
               </div>
-              <div className="text-[10px] text-center font-medium uppercase py-0.5 rounded-md mt-1 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900/50">
-                Radial Feeder
+              <div className="text-[9px] text-center font-bold uppercase py-0.5 rounded-xs mt-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900">
+                RADIAL FEEDER
               </div>
             </div>
 
@@ -318,11 +318,11 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                     <div className="w-[170px] shrink-0 flex flex-col items-center justify-center px-1">
                       <div className="w-full flex items-center relative">
                         <div
-                          className={`h-[2.5px] w-full ${
+                          className={`h-[3px] w-full ${
                             isFault || isDifferentialFault
-                              ? "bg-rose-500"
+                              ? "bg-rose-500 ring-2 ring-rose-500 animate-pulse"
                               : "bg-emerald-500"
-                          } relative overflow-hidden rounded-full`}
+                          } relative overflow-hidden rounded-xs`}
                         >
                           <div
                             className={`absolute inset-0 ${
@@ -337,18 +337,18 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                         />
                       </div>
                       <div
-                        className={`mt-1.5 px-2 py-0.5 rounded-md text-[10px] font-semibold text-center border w-full ${
+                        className={`mt-1 px-1.5 py-0.5 rounded-xs text-[9px] font-bold text-center border w-full ${
                           isFault || isDifferentialFault
-                            ? "bg-rose-500/10 text-rose-500 border-rose-500/40"
+                            ? "bg-rose-500/20 text-rose-500 border-rose-500 animate-pulse"
                             : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                         }`}
                       >
                         <div className="flex items-center justify-center gap-1">
                           <GitBranch className="h-3 w-3" />
-                          <span>ANSI 87L Differential</span>
+                          <span>ANSI 87L DIFFERENTIAL</span>
                         </div>
-                        <div className="text-[9px] font-mono tabular-nums opacity-90">
-                          ΔI = {idiff.toFixed(3)}A {isDifferentialFault ? "(Trip Limit Exceeded)" : "• Z = 0.045 Ω"}
+                        <div className="text-[8px] font-mono tabular-nums opacity-90">
+                          ΔI = {idiff.toFixed(3)}A {isDifferentialFault ? "(TRIP LIMIT EXCEEDED)" : "• Z = 0.045 Ω"}
                         </div>
                       </div>
                     </div>
@@ -357,27 +357,27 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                       <div className="w-full flex items-center">
                         <div
                           className={`h-[2px] w-full ${
-                            isSpanTripped ? "bg-rose-500" : "bg-emerald-500/50"
-                          } relative overflow-hidden rounded-full`}
+                            isSpanTripped ? "bg-rose-500 ring-1 ring-rose-400" : "bg-emerald-500/60"
+                          } relative overflow-hidden`}
                         >
                           <div
                             className={`absolute inset-0 ${
-                              isSpanTripped ? "bg-rose-400" : "bg-emerald-400"
-                            } w-1/3`}
+                              isSpanTripped ? "bg-rose-500 animate-pulse" : "bg-emerald-500 dark:bg-emerald-400"
+                            } w-1/3 animate-pulse`}
                           />
                         </div>
                         <ArrowRight
                           className={`h-3 w-3 -ml-1 shrink-0 ${
-                            isSpanTripped ? "text-rose-500 font-bold" : "text-emerald-500"
+                            isSpanTripped ? "text-rose-500 font-bold" : "text-emerald-600 dark:text-emerald-400"
                           }`}
                         />
                       </div>
                       <span
-                        className={`text-[9px] font-semibold mt-0.5 truncate uppercase ${
-                          isSpanTripped ? "text-rose-500 font-bold" : "text-slate-400 dark:text-slate-400"
+                        className={`text-[8px] font-bold mt-0.5 truncate uppercase ${
+                          isSpanTripped ? "text-rose-500 animate-pulse" : "text-slate-400 dark:text-zinc-500"
                         }`}
                       >
-                        {isSpanTripped ? "Fault" : `Span ${index + 1}`}
+                        {isSpanTripped ? "LEAK/SNAP" : `SPAN ${index + 1}`}
                       </span>
                     </div>
                   )}
@@ -385,28 +385,28 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                   {/* Pole Node Card */}
                   <div
                     onClick={() => onSelectPole?.(node.id)}
-                    className={`w-[165px] shrink-0 border p-3 rounded-lg cursor-pointer transition-all flex flex-col justify-between ${
+                    className={`w-[160px] shrink-0 border p-2.5 rounded-sm cursor-pointer transition-all flex flex-col justify-between ${
                       isSelected
-                        ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 ring-1 ring-emerald-500 shadow-sm"
+                        ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 ring-2 ring-emerald-500/50 shadow-md shadow-emerald-500/10"
                         : isNodeTripped
-                        ? "border-rose-500/80 bg-rose-50/30 dark:bg-rose-950/30"
+                        ? "border-rose-500/80 bg-rose-50/30 dark:bg-rose-950/30 ring-1 ring-rose-500"
                         : isNodeWarn
                         ? "border-amber-500/80 bg-amber-50/20 dark:bg-amber-950/20"
-                        : "border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-950/60 hover:border-slate-300 dark:hover:border-slate-700"
+                        : "border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 hover:border-slate-300 dark:hover:border-zinc-700"
                     }`}
                   >
                     <div>
                       {/* Card Header: Node ID & Status indicator */}
-                      <div className="flex items-center justify-between text-[11px] pb-1.5 border-b border-slate-100 dark:border-slate-800">
+                      <div className="flex items-center justify-between text-[10px] pb-1 border-b border-slate-200 dark:border-zinc-800/60">
                         <div className="flex items-center gap-1.5">
-                          <span className="font-bold text-slate-800 dark:text-slate-200">{node.id}</span>
+                          <span className="font-bold text-slate-800 dark:text-zinc-200">{node.id}</span>
                           {node.isLive ? (
-                            <span className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 text-[9px] px-1.5 py-0.2 rounded-full font-semibold">
-                              {isP1 ? "Incomer" : "Outgoing"}
+                            <span className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/40 text-[8px] px-1 py-0.2 rounded-xs font-bold">
+                              {isP1 ? "INCOMER" : "OUTGOING"}
                             </span>
                           ) : (
-                            <span className="bg-slate-200/60 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[9px] px-1.5 py-0.2 rounded-full font-medium">
-                              Energized
+                            <span className="bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[8px] px-1 py-0.2 rounded-xs">
+                              ENERGIZED
                             </span>
                           )}
                         </div>
@@ -415,38 +415,38 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                             isNodeTripped
                               ? "bg-rose-500 animate-pulse"
                               : isNodeWarn
-                              ? "bg-amber-500"
-                              : "bg-emerald-500"
+                              ? "bg-amber-500 animate-pulse"
+                              : "bg-emerald-500 dark:bg-emerald-400"
                           }`}
                         />
                       </div>
 
                       {/* 3-Phase Voltages */}
-                      <div className="mt-2 space-y-1 text-xs font-mono">
+                      <div className="mt-1.5 space-y-0.5 text-[10px] font-mono">
                         <div className="flex justify-between items-baseline">
                           <span className="text-rose-500 font-bold">VR:</span>
-                          <span className="text-slate-800 dark:text-slate-200 font-semibold tabular-nums">
+                          <span className="text-slate-800 dark:text-zinc-200 font-bold tabular-nums">
                             {liveV.toFixed(1)}V
                           </span>
-                          <span className="text-slate-500 dark:text-slate-400 tabular-nums">
+                          <span className="text-slate-500 dark:text-zinc-400 tabular-nums">
                             {liveI.toFixed(2)}A
                           </span>
                         </div>
                         <div className="flex justify-between items-baseline">
                           <span className="text-amber-500 font-bold">VY:</span>
-                          <span className="text-slate-800 dark:text-slate-200 font-semibold tabular-nums">
+                          <span className="text-slate-800 dark:text-zinc-200 font-bold tabular-nums">
                             {node.phases.Y.v.toFixed(1)}V
                           </span>
-                          <span className="text-slate-500 dark:text-slate-400 tabular-nums">
+                          <span className="text-slate-500 dark:text-zinc-400 tabular-nums">
                             {node.phases.Y.i.toFixed(2)}A
                           </span>
                         </div>
                         <div className="flex justify-between items-baseline">
-                          <span className="text-sky-500 font-bold">VB:</span>
-                          <span className="text-slate-800 dark:text-slate-200 font-semibold tabular-nums">
+                          <span className="text-cyan-500 font-bold">VB:</span>
+                          <span className="text-slate-800 dark:text-zinc-200 font-bold tabular-nums">
                             {node.phases.B.v.toFixed(1)}V
                           </span>
-                          <span className="text-slate-500 dark:text-slate-400 tabular-nums">
+                          <span className="text-slate-500 dark:text-zinc-400 tabular-nums">
                             {node.phases.B.i.toFixed(2)}A
                           </span>
                         </div>
@@ -454,10 +454,10 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                     </div>
 
                     {/* Pole Bottom Badge: Consumers & Load */}
-                    <div className="mt-2.5 pt-1.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
-                      <span className="font-mono">Load: {Math.round(liveP)}W</span>
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">
-                        {node.isLive ? (isP1 ? "Incomer" : "Outgoing") : node.status}
+                    <div className="mt-2 pt-1 border-t border-slate-200 dark:border-zinc-800/60 flex items-center justify-between text-[9px] text-slate-500 dark:text-zinc-400">
+                      <span>LOAD: {Math.round(liveP)}W</span>
+                      <span className="font-bold text-slate-700 dark:text-zinc-300">
+                        {node.isLive ? (isP1 ? "INCOMER" : "OUTGOING") : node.status}
                       </span>
                     </div>
                   </div>
@@ -465,22 +465,31 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
               );
             })}
 
-            {/* End of Line Terminal */}
-            <div className="w-[130px] shrink-0 border border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/60 p-3 rounded-lg flex flex-col justify-between text-center">
+            {/* Terminal Customer Service Load */}
+            <div className="w-[35px] shrink-0 flex flex-col items-center justify-center">
+              <div className="w-full flex items-center">
+                <div className="h-[2px] w-full bg-emerald-500/60 relative overflow-hidden">
+                  <div className="absolute inset-0 bg-emerald-500 dark:bg-emerald-400 w-1/3 animate-pulse" />
+                </div>
+                <ArrowRight className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 -ml-1 shrink-0" />
+              </div>
+            </div>
+
+            <div className="w-[130px] shrink-0 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 p-2.5 rounded-sm flex flex-col justify-between text-center">
               <div>
-                <div className="flex items-center justify-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                  <span>End of Line</span>
+                <div className="flex items-center justify-center gap-1 text-[10px] text-slate-500 dark:text-zinc-400 font-semibold uppercase">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+                  <span>END OF LINE</span>
                 </div>
-                <div className="text-xs font-bold text-slate-800 dark:text-slate-200 mt-1">
-                  {viewScope} Tail
+                <div className="text-xs font-bold text-slate-800 dark:text-zinc-200 mt-1">
+                  {viewScope} TAIL
                 </div>
-                <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Total Poles: {feederNodes.length}
+                <div className="text-[10px] text-slate-500 dark:text-zinc-400">
+                  TOTAL POLES: {feederNodes.length}
                 </div>
               </div>
-              <div className="text-[10px] text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-md py-0.5 mt-2 font-medium">
-                Terminal Span
+              <div className="text-[9px] text-slate-600 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xs py-0.5 mt-2">
+                TERMINAL SPAN
               </div>
             </div>
           </div>
@@ -488,126 +497,131 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
 
 
       {/* Selected Simulated / Network Pole Inspector HUD */}
-      {selectedNode && (
-        <div className="border border-sky-500/30 bg-sky-50/40 dark:bg-sky-950/20 p-3 rounded-lg flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2.5">
-            <Badge variant="outline" className="border-sky-500 text-sky-600 dark:text-sky-400 font-semibold">
-              Inspected Asset: {selectedNode.label} ({selectedNode.id})
-            </Badge>
-            <span className="text-slate-500 dark:text-slate-400">
-              Feeder: <strong className="text-slate-800 dark:text-slate-200">{selectedNode.feederId || "DTR"}</strong>
-            </span>
-            <span className="text-slate-500 dark:text-slate-400">
-              Type:{" "}
-              <strong className={selectedNode.isLive ? "text-emerald-600 dark:text-emerald-400" : "text-sky-600 dark:text-sky-400"}>
-                {selectedNode.isLive ? "Primary Metered Incomer (415V/240V)" : "Radial Distribution Pole (415V/240V)"}
-              </strong>
-            </span>
-          </div>
-          <div className="flex flex-wrap items-center gap-3 tabular-nums text-xs font-mono">
-            <div>
-              <span className="text-rose-500 font-bold">R:</span>{" "}
-              <span className="text-slate-800 dark:text-slate-200">
-                {selectedNode.isLive
-                  ? `${(selectedNode.id === "F1-P01" ? (v1 > 0 ? v1 : selectedNode.phases.R.v) : (v2 > 0 ? v2 : selectedNode.phases.R.v)).toFixed(1)}V / ${(selectedNode.id === "F1-P01" ? (i1 > 0 ? i1 : selectedNode.phases.R.i) : (i2 > 0 ? i2 : selectedNode.phases.R.i)).toFixed(2)}A`
-                  : `${selectedNode.phases.R.v.toFixed(1)}V / ${selectedNode.phases.R.i.toFixed(2)}A`}
-              </span>
-            </div>
-            <div>
-              <span className="text-amber-500 font-bold">Y:</span>{" "}
-              <span className="text-slate-800 dark:text-slate-200">
-                {selectedNode.phases.Y.v.toFixed(1)}V / {selectedNode.phases.Y.i.toFixed(2)}A
-              </span>
-            </div>
-            <div>
-              <span className="text-sky-500 font-bold">B:</span>{" "}
-              <span className="text-slate-800 dark:text-slate-200">
-                {selectedNode.phases.B.v.toFixed(1)}V / {selectedNode.phases.B.i.toFixed(2)}A
-              </span>
-            </div>
-            {selectedNode.isLive && (
-              <div className="text-emerald-600 dark:text-emerald-400 font-semibold">
-                ΔI: {idiff.toFixed(3)}A • PF: {(selectedNode.id === "F1-P01" ? pf1 : pf2).toFixed(2)}
-              </div>
-            )}
-            <Badge
-              variant={
-                selectedNode.status === "NORMAL"
-                  ? "healthy"
-                  : selectedNode.status === "WARN"
-                  ? "warning"
-                  : "destructive"
-              }
-              className="text-[10px] py-0 font-medium"
-            >
-              {selectedNode.status}
-            </Badge>
-          </div>
-        </div>
-      )}
-
-      {/* Dynamic SCADA Feeder Status Summary */}
+      {/* Unified SLD Footer: Inspected Asset or Supervisory Status */}
       <div
-        className={`border px-3.5 py-2.5 rounded-lg text-xs flex flex-wrap items-center justify-between gap-2 ${
-          viewScope === "LT-1" && isFault
-            ? "border-rose-500/60 bg-rose-50/70 dark:bg-rose-950/30 text-rose-800 dark:text-rose-200"
-            : isFeederFaulted
-            ? "border-rose-500/60 bg-rose-50/70 dark:bg-rose-950/30 text-rose-800 dark:text-rose-200"
-            : "border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40 text-slate-700 dark:text-slate-300"
+        className={`border px-3 py-2 rounded-sm text-xs flex flex-wrap items-center justify-between gap-2 font-mono transition-colors ${
+          selectedNode
+            ? "border-cyan-500/50 bg-cyan-950/20 text-cyan-200"
+            : (viewScope === "LT-1" && isFault) || isFeederFaulted
+            ? "border-rose-500/80 bg-rose-50/70 dark:bg-rose-950/40 text-rose-800 dark:text-rose-200 ring-1 ring-rose-500"
+            : "border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 text-slate-700 dark:text-zinc-300"
         }`}
       >
-        <div className="flex items-center gap-2">
-          {viewScope === "LT-1" && isFault ? (
-            <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />
-          ) : isFeederFaulted ? (
-            <AlertTriangle className="h-4 w-4 text-rose-500 shrink-0" />
-          ) : (
-            <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
-          )}
+        {selectedNode ? (
+          <>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="border-cyan-500 text-cyan-400 font-bold text-[10px]">
+                ASSET: {selectedNode.label} ({selectedNode.id})
+              </Badge>
+              <span className="text-slate-500 dark:text-zinc-400 text-[11px]">
+                Feeder <strong className="text-slate-800 dark:text-zinc-200">{selectedNode.feederId || "DTR"}</strong>
+              </span>
+              <span className="text-slate-300 dark:text-zinc-700">|</span>
+              <div className="flex items-center gap-2 tabular-nums text-[11px]">
+                <span>
+                  <strong className="text-rose-400">R:</strong>{" "}
+                  <span className="text-slate-800 dark:text-zinc-200">
+                    {selectedNode.isLive
+                      ? `${(selectedNode.id === "F1-P01" ? (v1 > 0 ? v1 : selectedNode.phases.R.v) : (v2 > 0 ? v2 : selectedNode.phases.R.v)).toFixed(1)}V/${(selectedNode.id === "F1-P01" ? (i1 > 0 ? i1 : selectedNode.phases.R.i) : (i2 > 0 ? i2 : selectedNode.phases.R.i)).toFixed(2)}A`
+                      : `${selectedNode.phases.R.v.toFixed(1)}V/${selectedNode.phases.R.i.toFixed(2)}A`}
+                  </span>
+                </span>
+                <span>
+                  <strong className="text-amber-400">Y:</strong>{" "}
+                  <span className="text-slate-800 dark:text-zinc-200">
+                    {selectedNode.phases.Y.v.toFixed(1)}V/{selectedNode.phases.Y.i.toFixed(2)}A
+                  </span>
+                </span>
+                <span>
+                  <strong className="text-cyan-400">B:</strong>{" "}
+                  <span className="text-slate-800 dark:text-zinc-200">
+                    {selectedNode.phases.B.v.toFixed(1)}V/{selectedNode.phases.B.i.toFixed(2)}A
+                  </span>
+                </span>
+                {selectedNode.isLive && (
+                  <span className="text-emerald-400 font-bold ml-1">
+                    ΔI: {idiff.toFixed(3)}A • PF: {(selectedNode.id === "F1-P01" ? pf1 : pf2).toFixed(2)}
+                  </span>
+                )}
+              </div>
+            </div>
 
-          <span>
-            {viewScope === "LT-1" && isFault ? (
-              isDifferentialFault ? (
-                <span className="font-semibold text-rose-600 dark:text-rose-400">
-                  FAULT ALERT: Inter-pole differential current ΔI = {idiff.toFixed(3)}A exceeds {tripLimit.toFixed(3)}A protection limit. Anomaly detected on Feeder LT-1 span (F1-P01 ↔ F1-P02).
-                </span>
-              ) : isBrokenConductor ? (
-                <span className="font-semibold text-rose-600 dark:text-rose-400">
-                  FAULT ALERT: Open Conductor snap detected on Phase {telemetry?.fault_phase || "Y"} (ANSI 46BC). Upstream line energized, downstream voltage collapsed.
-                </span>
-              ) : isBrokenNeutral ? (
-                <span className="font-semibold text-rose-600 dark:text-rose-400">
-                  VOLTAGE ALERT: Broken Neutral / Severe Voltage Unbalance (ANSI 59N). Neutral floating across Indian LT 3-phase grid.
-                </span>
-              ) : isOvercurrent ? (
-                <span className="font-semibold text-rose-600 dark:text-rose-400">
-                  TRIP ALERT: Overcurrent condition detected (ANSI 50/51). Line current exceeds 16.0A thermal limit.
-                </span>
-              ) : isLastGasp ? (
-                <span className="font-semibold text-rose-600 dark:text-rose-400">
-                  EMERGENCY ALERT: Pole 2 Outage Last-Gasp beacon received. Lineman dispatch recommended.
-                </span>
+            <div className="flex items-center gap-2">
+              <Badge
+                variant={
+                  selectedNode.status === "NORMAL"
+                    ? "healthy"
+                    : selectedNode.status === "WARN"
+                    ? "warning"
+                    : "destructive"
+                }
+                className="text-[9px] py-0 font-bold"
+              >
+                {selectedNode.status}
+              </Badge>
+              <button
+                onClick={() => onSelectPole?.("")}
+                className="text-[10px] text-slate-400 hover:text-slate-100 px-1 py-0.5 rounded border border-slate-700 hover:border-slate-500 transition-colors"
+                title="Clear selection"
+              >
+                ✕ Close
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              {(viewScope === "LT-1" && isFault) || isFeederFaulted ? (
+                <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0 animate-bounce" />
               ) : (
-                <span className="font-semibold text-rose-600 dark:text-rose-400">
-                  FEEDER PROTECTION ALERT: {telemetry?.fault_code || "ANOMALY"} on Feeder LT-1.
-                </span>
-              )
-            ) : isFeederFaulted ? (
-              <span className="font-semibold text-rose-600 dark:text-rose-400">
-                FDIR FAULT ON {viewScope}: {feederDetections[0]?.ansi} • {feederDetections[0]?.message}
-              </span>
-            ) : (
-              <span>
-                SUPERVISORY STATUS: {viewScope} radial feeder is 100% healthy. All {feederNodes.length} distribution poles energised. {viewScope === "LT-1" ? "Section 1 differential current within statutory tolerance (ΔI < 0.350 A)." : ""}
-              </span>
-            )}
-          </span>
-        </div>
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+              )}
 
-        <div className="text-xs text-slate-500 dark:text-slate-400 font-mono">
-          Protection Threshold:{" "}
-          <span className="text-slate-800 dark:text-slate-200 font-bold">{tripLimit.toFixed(3)} A</span>
-        </div>
+              <span>
+                {viewScope === "LT-1" && isFault ? (
+                  isDifferentialFault ? (
+                    <span className="font-semibold text-rose-600 dark:text-rose-400">
+                      FAULT ALERT: Inter-pole differential current ΔI = {idiff.toFixed(3)}A exceeds {tripLimit.toFixed(3)}A limit (F1-P01 ↔ F1-P02).
+                    </span>
+                  ) : isBrokenConductor ? (
+                    <span className="font-semibold text-rose-600 dark:text-rose-400">
+                      FAULT ALERT: Open Conductor snap detected on Phase {telemetry?.fault_phase || "Y"} (ANSI 46BC).
+                    </span>
+                  ) : isBrokenNeutral ? (
+                    <span className="font-semibold text-rose-600 dark:text-rose-400">
+                      VOLTAGE ALERT: Broken Neutral / Severe Voltage Unbalance (ANSI 59N).
+                    </span>
+                  ) : isOvercurrent ? (
+                    <span className="font-semibold text-rose-600 dark:text-rose-400">
+                      TRIP ALERT: Overcurrent condition detected (ANSI 50/51).
+                    </span>
+                  ) : isLastGasp ? (
+                    <span className="font-semibold text-rose-600 dark:text-rose-400">
+                      EMERGENCY ALERT: Pole 2 Outage Last-Gasp beacon received. Lineman dispatch recommended.
+                    </span>
+                  ) : (
+                    <span className="font-semibold text-rose-600 dark:text-rose-400">
+                      FEEDER PROTECTION ALERT: {telemetry?.fault_code || "ANOMALY"} on Feeder LT-1.
+                    </span>
+                  )
+                ) : isFeederFaulted ? (
+                  <span className="font-semibold text-rose-600 dark:text-rose-400">
+                    FDIR FAULT ON {viewScope}: {feederDetections[0]?.ansi} • {feederDetections[0]?.message}
+                  </span>
+                ) : (
+                  <span>
+                    SUPERVISORY STATUS: {viewScope} radial feeder healthy • All {feederNodes.length} poles energized • Click any pole or breaker to inspect
+                  </span>
+                )}
+              </span>
+            </div>
+
+            <div className="text-[11px] text-slate-500 dark:text-zinc-400">
+              TRIP THRESHOLD:{" "}
+              <span className="text-slate-800 dark:text-zinc-200 font-bold">{tripLimit.toFixed(3)} A</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

@@ -6,6 +6,7 @@ import {
   Crosshair,
   ExternalLink,
   Eye,
+  Info,
   Key,
   Layers,
   MapPin,
@@ -115,6 +116,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
   const [tempTokenInput, setTempTokenInput] = React.useState<string>("");
   const [showTokenModal, setShowTokenModal] = React.useState(false);
   const [tokenAuthError, setTokenAuthError] = React.useState(false);
+  const [isLegendOpen, setIsLegendOpen] = React.useState(false);
 
   const isFault = telemetry?.fault || (telemetry?.idiff ?? 0) >= (telemetry?.trip_limit ?? 0.35);
   const isLastGasp = telemetry?.fault_code === "OUTAGE_LAST_GASP";
@@ -797,51 +799,51 @@ export const GisFeederMap = React.memo(function GisFeederMap({
   const isCustomToken = mapboxToken !== DEFAULT_MAPBOX_TOKEN;
 
   return (
-    <div className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 rounded-lg flex flex-col h-full overflow-hidden transition-colors shadow-xs dark:shadow-none">
+    <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] rounded-sm flex flex-col h-full overflow-hidden transition-colors shadow-xs dark:shadow-none">
       {/* Real Map Header Controls */}
-      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-3.5 py-2.5 bg-slate-50/60 dark:bg-slate-950/40 text-xs">
-        <div className="flex items-center gap-2.5">
-          <Layers className="h-4 w-4 text-emerald-500" />
-          <span className="font-semibold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-            GIS Feeder Map <span className="text-slate-400 dark:text-slate-600 font-normal">|</span> Geospatial Topology
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 px-3 py-2 bg-slate-50 dark:bg-zinc-950/80 text-xs font-mono">
+        <div className="flex items-center gap-2">
+          <Layers className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          <span className="font-semibold uppercase tracking-wider text-slate-800 dark:text-zinc-200">
+            GIS GEOSPATIAL VECTOR MAP // FEEDER TOPOLOGY
           </span>
-          <Badge variant="outline" className="text-[10px] hidden sm:inline-flex font-mono">
+          <Badge variant="outline" className="text-[10px] hidden sm:inline-flex">
             WGS84: 10.2319° N, 76.4089° E
           </Badge>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Base Layer Switcher */}
-          <div className="flex items-center bg-slate-100 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-lg p-0.5">
+          <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5">
             <button
               onClick={() => handleStyleChange("DARK")}
-              className={`px-2.5 py-1 text-[11px] rounded-md transition-all font-medium ${
+              className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
                 currentStyleKey === "DARK"
-                  ? "bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 font-semibold shadow-xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                  ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
               }`}
             >
-              Dark
+              SCADA DARK
             </button>
             <button
               onClick={() => handleStyleChange("STREETS")}
-              className={`px-2.5 py-1 text-[11px] rounded-md transition-all font-medium ${
+              className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
                 currentStyleKey === "STREETS"
-                  ? "bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 font-semibold shadow-xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                  ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
               }`}
             >
-              Streets
+              DAY VECTOR
             </button>
             <button
               onClick={() => handleStyleChange("SATELLITE")}
-              className={`px-2.5 py-1 text-[11px] rounded-md transition-all font-medium ${
+              className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
                 currentStyleKey === "SATELLITE"
-                  ? "bg-white dark:bg-slate-800 text-sky-600 dark:text-sky-400 font-semibold shadow-xs"
-                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
+                  ? "bg-white dark:bg-zinc-800 text-cyan-700 dark:text-cyan-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
+                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
               }`}
             >
-              Satellite
+              SATELLITE
             </button>
           </div>
 
@@ -849,8 +851,8 @@ export const GisFeederMap = React.memo(function GisFeederMap({
           <Button
             variant="outline"
             size="sm"
-            className={`h-7 px-2.5 text-xs rounded-md ${
-              tokenAuthError ? "border-amber-500 text-amber-500" : isCustomToken ? "border-sky-500 text-sky-500" : ""
+            className={`h-6 px-2 text-[10px] ${
+              tokenAuthError ? "border-amber-500 text-amber-400" : isCustomToken ? "border-sky-500 text-sky-400" : ""
             }`}
             onClick={() => {
               setTempTokenInput(mapboxToken);
@@ -859,18 +861,18 @@ export const GisFeederMap = React.memo(function GisFeederMap({
             title="Configure Mapbox Access Token"
           >
             <Key className="h-3 w-3 mr-1" />
-            Token
+            TOKEN
           </Button>
 
           {/* Reset Camera */}
           <Button
             variant="outline"
             size="sm"
-            className="h-7 px-2.5 text-xs rounded-md"
+            className="h-6 px-2 text-[10px]"
             onClick={handleResetCamera}
           >
             <RotateCcw className="h-3 w-3 mr-1" />
-            Center
+            CENTER
           </Button>
         </div>
       </div>
@@ -922,7 +924,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
 
         {/* Selected Asset Telemetry HUD Popover */}
         {selectedAsset && (
-          <div className="absolute bottom-3 left-3 border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-3.5 rounded-lg shadow-2xl max-w-xs text-xs z-10 backdrop-blur-md">
+          <div className="absolute bottom-3 left-3 border border-zinc-700 bg-zinc-950/95 p-3 rounded-sm shadow-2xl max-w-xs font-mono text-xs z-10">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-1 mb-2">
               <span className="font-bold text-zinc-100 uppercase">
                 {selectedAsset.name || selectedAsset.label}
@@ -1025,36 +1027,49 @@ export const GisFeederMap = React.memo(function GisFeederMap({
           </div>
         )}
 
-        {/* Legend */}
-        <div className="absolute bottom-3 right-3 border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 px-3.5 py-2.5 rounded-lg text-xs space-y-1.5 z-10 shadow-xl backdrop-blur-md">
-          <div className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold border-b border-slate-100 dark:border-slate-800 pb-1 flex items-center justify-between">
-            <span>Topology Legend</span>
-            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-normal">Distribution</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="h-3.5 w-3.5 rounded-full border-2 border-sky-400 bg-[#090a0f] flex items-center justify-center text-[7px] text-sky-400">⚡</span>
-            <span className="text-zinc-300">33/11kV Primary Substation</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="h-3.5 w-3.5 rounded-full border-2 border-emerald-400 bg-[#090a0f] flex items-center justify-center text-[7px] text-emerald-400">◎</span>
-            <span className="text-zinc-300">250 kVA Distribution Transformer (DTR-01)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="h-3.5 w-3.5 rounded-full border-2 border-emerald-400 bg-[#090a0f] ring-2 ring-emerald-500/50 animate-pulse flex items-center justify-center text-[7px] text-white font-bold">P1</span>
-            <span className="text-emerald-400 font-bold">Differential Protection Terminal (ANSI 87L)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full border-2 border-purple-400 bg-[#090a0f]" />
-            <span className="text-zinc-300">Distribution Pole (Standard Span)</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full border-2 border-rose-500 bg-[#090a0f] animate-ping" />
-            <span className="text-rose-400 font-bold">FDIR Trip / Ground Fault</span>
-          </div>
-          <div className="flex items-center gap-2 pt-0.5 border-t border-zinc-800/80 text-[9px] text-zinc-400">
-            <span className="h-0.5 w-4 bg-white/70" />
-            <span>Animated Particles: Active Power Flow</span>
-          </div>
+        {/* Collapsible Map Legend */}
+        <div className="absolute bottom-3 right-3 z-10 font-mono">
+          {isLegendOpen ? (
+            <div className="border border-zinc-800 bg-zinc-950/95 p-3 rounded-sm text-[10px] space-y-1.5 shadow-xl backdrop-blur-xs max-w-xs">
+              <div className="text-[9px] uppercase tracking-wider text-zinc-400 font-bold border-b border-zinc-800 pb-1.5 flex items-center justify-between gap-4">
+                <span>FEEDER MAP SYMBOLS</span>
+                <button
+                  onClick={() => setIsLegendOpen(false)}
+                  className="text-zinc-400 hover:text-white px-1 py-0.5 rounded border border-zinc-800 hover:border-zinc-700 text-[9px]"
+                >
+                  ✕ Close
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="h-3.5 w-3.5 rounded-full border-2 border-sky-400 bg-[#090a0f] flex items-center justify-center text-[7px] text-sky-400">⚡</span>
+                <span className="text-zinc-300">33/11kV Primary Substation</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="h-3.5 w-3.5 rounded-full border-2 border-emerald-400 bg-[#090a0f] flex items-center justify-center text-[7px] text-emerald-400">◎</span>
+                <span className="text-zinc-300">250 kVA Transformer (DTR-01)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="h-3.5 w-3.5 rounded-full border-2 border-emerald-400 bg-[#090a0f] ring-2 ring-emerald-500/50 animate-pulse flex items-center justify-center text-[7px] text-white font-bold">P1</span>
+                <span className="text-emerald-400 font-bold">ANSI 87L Differential Unit</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full border-2 border-purple-400 bg-[#090a0f]" />
+                <span className="text-zinc-300">Distribution Pole (LT Span)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-3 rounded-full border-2 border-rose-500 bg-[#090a0f] animate-ping" />
+                <span className="text-rose-400 font-bold">Trip / Ground Fault</span>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsLegendOpen(true)}
+              className="bg-zinc-950/85 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded-sm text-[10px] shadow-lg backdrop-blur-xs flex items-center gap-1.5 transition-colors"
+            >
+              <Info className="h-3 w-3 text-emerald-400" />
+              <span>Map Legend</span>
+            </button>
+          )}
         </div>
       </div>
 

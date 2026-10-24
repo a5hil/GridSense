@@ -150,34 +150,34 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
   };
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 font-mono">
       {/* 1. TOP SUMMARY BAR: DTR SUBSTATION & 3-PHASE NETWORK METRICS */}
-      <div className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 p-4 rounded-lg shadow-xs flex flex-wrap items-center justify-between gap-3">
+      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm shadow-xs dark:shadow-none flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="p-2 border border-emerald-500/30 bg-emerald-500/10 rounded-md">
-            <Zap className="h-5 w-5 text-emerald-500" />
+          <div className="p-2 border border-emerald-500/30 bg-emerald-500/10 rounded-sm">
+            <Zap className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                Distribution Network Matrix <span className="text-slate-400 dark:text-slate-600 font-normal">|</span> 3-Phase 415V/240V LT Grid
+              <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-zinc-100">
+                DISTRIBUTION NETWORK MATRIX // 3-PHASE 415V/240V LT GRID
               </h2>
-              <Badge variant="outline" className="text-[10px]">
-                28 Poles • 3 Feeders
+              <Badge variant="outline" className="text-[10px] bg-slate-100 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700">
+                28 POLES • 3 FEEDERS
               </Badge>
               {liveLinkUp ? (
-                <Badge variant="healthy" className="text-[10px] flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                  Telemetry Linked
+                <Badge variant="healthy" className="text-[10px] flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-ping" />
+                  SECTION 1 TELEMETRY LINKED
                 </Badge>
               ) : (
-                <Badge variant="warning" className="text-[10px] flex items-center gap-1.5">
+                <Badge variant="warning" className="text-[10px] flex items-center gap-1">
                   <Radio className="h-3 w-3" />
-                  Standalone Load Flow
+                  STANDALONE LOAD FLOW ACTIVE
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+            <p className="text-[11px] text-slate-500 dark:text-zinc-400 mt-0.5">
               {ENTERPRISE_CONFIG.DTR_NAME} • {ENTERPRISE_CONFIG.SUBSTATION_NAME}
             </p>
           </div>
@@ -186,9 +186,9 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
         {/* Uninstrumented Phase Mode Toggle */}
         <div className="flex items-center gap-2">
           <div className="text-right hidden sm:block">
-            <div className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-semibold">Phase Monitoring</div>
-            <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
-              {uninstrumentedMode === "NOT_INSTRUMENTED" ? "Single-Phase CT/PT" : "Full 3-Phase Estimation"}
+            <div className="text-[10px] text-slate-400 dark:text-zinc-500">PHASE MONITORING</div>
+            <div className="text-xs font-bold text-slate-800 dark:text-zinc-200">
+              {uninstrumentedMode === "NOT_INSTRUMENTED" ? "SINGLE-PHASE CT/PT" : "FULL 3-PHASE ESTIMATION"}
             </div>
           </div>
           <Button
@@ -196,33 +196,33 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
             size="sm"
             onClick={handleToggleMode}
             disabled={isSwitchingMode}
-            className="text-xs h-8 px-2.5 rounded-md"
+            className="text-xs font-mono h-7 px-2.5 border-slate-300 dark:border-zinc-700"
             title="Toggle between single-phase instrumented view and full 3-phase load-flow estimation"
           >
-            <Sliders className="h-3 w-3 mr-1.5 text-emerald-500" />
-            <span>Toggle {uninstrumentedMode === "NOT_INSTRUMENTED" ? "3-Phase Estimation" : "Direct CT/PT Only"}</span>
+            <Sliders className="h-3 w-3 mr-1 text-emerald-500" />
+            <span>TOGGLE {uninstrumentedMode === "NOT_INSTRUMENTED" ? "3-PHASE ESTIMATION" : "DIRECT CT/PT ONLY"}</span>
           </Button>
 
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsInjecting(!isInjecting)}
-            className={`text-xs h-8 px-2.5 rounded-md ${
+            className={`text-xs font-mono h-7 px-2.5 ${
               isInjecting
-                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500"
-                : ""
+                ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500"
+                : "border-slate-300 dark:border-zinc-700"
             }`}
           >
-            <Flame className="h-3 w-3 mr-1.5 text-amber-500" />
-            <span>Fault Injector {injectedFaults.length > 0 ? `(${injectedFaults.length})` : ""}</span>
+            <Flame className="h-3 w-3 mr-1 text-amber-500" />
+            <span>FAULT INJECTOR {injectedFaults.length > 0 ? `(${injectedFaults.length})` : ""}</span>
           </Button>
         </div>
       </div>
 
       {/* 2. DTR SUBSTATION BUS 3-PHASE METRICS CARD */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 text-xs">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-2.5 text-xs">
         {/* DTR Total Loading */}
-        <div className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 p-3.5 rounded-lg flex flex-col justify-between shadow-xs">
+        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3 rounded-sm flex flex-col justify-between">
           <div className="text-[11px] text-slate-500 dark:text-zinc-400 flex items-center justify-between">
             <span>DTR-01 TOTAL LOAD</span>
             <span className="font-bold text-slate-800 dark:text-zinc-200">{dtr.loadingPct.toFixed(1)}%</span>
@@ -243,66 +243,66 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
         </div>
 
         {/* Phase R (Red Phase) */}
-        <div className="border border-rose-500/25 bg-rose-500/5 dark:bg-rose-950/20 p-3.5 rounded-lg flex flex-col justify-between shadow-xs">
-          <div className="text-[11px] text-rose-600 dark:text-rose-400 font-semibold flex items-center justify-between">
-            <span className="flex items-center gap-1.5">
+        <div className="border border-rose-500/30 bg-rose-500/5 dark:bg-rose-950/20 p-3 rounded-sm flex flex-col justify-between">
+          <div className="text-[11px] text-rose-600 dark:text-rose-400 font-bold flex items-center justify-between">
+            <span className="flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-rose-500" />
-              Phase R (Red • Live Bus)
+              PHASE R (RED // LIVE BUS)
             </span>
-            <Badge variant="outline" className="text-[9px] border-rose-500/40 text-rose-500 py-0 font-medium">
-              Anchor
+            <Badge variant="outline" className="text-[9px] border-rose-500/50 text-rose-500 py-0">
+              ANCHOR
             </Badge>
           </div>
-          <div className="mt-2 grid grid-cols-2 gap-2">
+          <div className="mt-1 grid grid-cols-2 gap-2">
             <div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Voltage</div>
-              <div className="text-base font-bold text-slate-900 dark:text-slate-100 font-mono tabular-nums">{dtr.voltage.R.toFixed(1)} V</div>
+              <div className="text-[10px] text-slate-400">VOLTAGE</div>
+              <div className="text-base font-bold text-slate-900 dark:text-zinc-100">{dtr.voltage.R.toFixed(1)} V</div>
             </div>
             <div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Current</div>
-              <div className="text-base font-bold text-rose-600 dark:text-rose-400 font-mono tabular-nums">{dtr.current.R.toFixed(1)} A</div>
+              <div className="text-[10px] text-slate-400">TOTAL CURRENT</div>
+              <div className="text-base font-bold text-rose-600 dark:text-rose-400">{dtr.current.R.toFixed(1)} A</div>
             </div>
           </div>
         </div>
 
         {/* Phase Y (Yellow Phase) */}
-        <div className="border border-amber-500/25 bg-amber-500/5 dark:bg-amber-950/20 p-3.5 rounded-lg flex flex-col justify-between shadow-xs">
-          <div className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold flex items-center justify-between">
-            <span className="flex items-center gap-1.5">
+        <div className="border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 p-3 rounded-sm flex flex-col justify-between">
+          <div className="text-[11px] text-amber-600 dark:text-amber-400 font-bold flex items-center justify-between">
+            <span className="flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-amber-400" />
-              Phase Y (Yellow • 120° Lag)
+              PHASE Y (YELLOW // 120° LAG)
             </span>
-            <span className="text-[10px] text-slate-400 font-normal">LT Bus</span>
+            <span className="text-[10px] text-slate-400 font-normal">LT BUS</span>
           </div>
-          <div className="mt-2 grid grid-cols-2 gap-2">
+          <div className="mt-1 grid grid-cols-2 gap-2">
             <div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Voltage</div>
-              <div className="text-base font-bold text-slate-900 dark:text-slate-100 font-mono tabular-nums">{dtr.voltage.Y.toFixed(1)} V</div>
+              <div className="text-[10px] text-slate-400">VOLTAGE</div>
+              <div className="text-base font-bold text-slate-900 dark:text-zinc-100">{dtr.voltage.Y.toFixed(1)} V</div>
             </div>
             <div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Current</div>
-              <div className="text-base font-bold text-amber-600 dark:text-amber-400 font-mono tabular-nums">{dtr.current.Y.toFixed(1)} A</div>
+              <div className="text-[10px] text-slate-400">TOTAL CURRENT</div>
+              <div className="text-base font-bold text-amber-600 dark:text-amber-400">{dtr.current.Y.toFixed(1)} A</div>
             </div>
           </div>
         </div>
 
         {/* Phase B (Blue Phase) */}
-        <div className="border border-cyan-500/25 bg-cyan-500/5 dark:bg-cyan-950/20 p-3.5 rounded-lg flex flex-col justify-between shadow-xs">
-          <div className="text-[11px] text-cyan-600 dark:text-cyan-400 font-semibold flex items-center justify-between">
-            <span className="flex items-center gap-1.5">
+        <div className="border border-cyan-500/30 bg-cyan-500/5 dark:bg-cyan-950/20 p-3 rounded-sm flex flex-col justify-between">
+          <div className="text-[11px] text-cyan-600 dark:text-cyan-400 font-bold flex items-center justify-between">
+            <span className="flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-cyan-400" />
-              Phase B (Blue • 240° Lag)
+              PHASE B (BLUE // 240° LAG)
             </span>
-            <span className="text-[10px] text-slate-400 font-normal font-mono tabular-nums">Unbal: {dtr.unbalancePct.toFixed(1)}%</span>
+            <span className="text-[10px] text-slate-400 font-normal">UNBALANCE: {dtr.unbalancePct.toFixed(1)}%</span>
           </div>
-          <div className="mt-2 grid grid-cols-2 gap-2">
+          <div className="mt-1 grid grid-cols-2 gap-2">
             <div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Voltage</div>
-              <div className="text-base font-bold text-slate-900 dark:text-slate-100 font-mono tabular-nums">{dtr.voltage.B.toFixed(1)} V</div>
+              <div className="text-[10px] text-slate-400">VOLTAGE</div>
+              <div className="text-base font-bold text-slate-900 dark:text-zinc-100">{dtr.voltage.B.toFixed(1)} V</div>
             </div>
             <div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-wider font-medium">Current</div>
-              <div className="text-base font-bold text-cyan-600 dark:text-cyan-400 font-mono tabular-nums">{dtr.current.B.toFixed(1)} A</div>
+              <div className="text-[10px] text-slate-400">TOTAL CURRENT</div>
+              <div className="text-base font-bold text-cyan-600 dark:text-cyan-400">{dtr.current.B.toFixed(1)} A</div>
             </div>
           </div>
         </div>
@@ -310,27 +310,27 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
 
       {/* 3. INTERACTIVE FAULT INJECTION SIMULATOR CONSOLE (COLLAPSIBLE) */}
       {isInjecting && (
-        <div className="border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 p-4 rounded-lg flex flex-col gap-3 text-xs shadow-xs">
-          <div className="flex items-center justify-between border-b border-amber-500/20 pb-2.5">
+        <div className="border border-amber-500/50 bg-amber-500/5 dark:bg-amber-950/30 p-3.5 rounded-sm flex flex-col gap-3 text-xs">
+          <div className="flex items-center justify-between border-b border-amber-500/30 pb-2">
             <div className="flex items-center gap-2">
-              <Flame className="h-4 w-4 text-amber-500" />
-              <span className="font-semibold uppercase tracking-wider text-amber-800 dark:text-amber-300">
-                SCADA Contingency &amp; Fault Simulation Console
+              <Flame className="h-4 w-4 text-amber-500 animate-pulse" />
+              <span className="font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                SCADA CONTINGENCY &amp; FAULT SIMULATION CONSOLE
               </span>
             </div>
-            <span className="text-[11px] text-slate-500 dark:text-slate-400">
-              Simulates feeder disturbances to verify automated FDIR and FLISR protection schemes.
+            <span className="text-[11px] text-slate-500 dark:text-zinc-400">
+              Simulates feeder disturbances and insulation faults to verify automated FDIR and FLISR protection schemes.
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5">
             {/* Fault Type */}
             <div>
-              <label className="text-[10px] text-slate-400 uppercase tracking-wider font-medium block mb-1">Fault Scenario</label>
+              <label className="text-[10px] text-slate-400 block mb-1">FAULT SCENARIO</label>
               <select
                 value={faultType}
                 onChange={(e) => setFaultType(e.target.value as InjectedFaultType)}
-                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-200"
+                className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-sm px-2 py-1 text-xs font-mono"
               >
                 <option value="LEAKAGE">⚡ Current Leakage / Theft (87L)</option>
                 <option value="BROKEN_CONDUCTOR">✂️ Broken Conductor / Open (46BC)</option>
@@ -342,11 +342,11 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
 
             {/* Feeder Selection */}
             <div>
-              <label className="text-[10px] text-slate-400 uppercase tracking-wider font-medium block mb-1">Target Feeder</label>
+              <label className="text-[10px] text-slate-400 block mb-1">TARGET FEEDER</label>
               <select
                 value={faultFeederId}
                 onChange={(e) => setFaultFeederId(e.target.value)}
-                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-200"
+                className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-sm px-2 py-1 text-xs font-mono"
               >
                 {feeders.map((f) => (
                   <option key={f.id} value={f.id}>
@@ -359,11 +359,11 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
             {/* Target Span Child (if span fault) */}
             {faultType !== "OVERLOAD" && faultType !== "PHASE_UNBALANCE" && (
               <div>
-                <label className="text-[10px] text-slate-400 uppercase tracking-wider font-medium block mb-1">Target Span (Child Pole)</label>
+                <label className="text-[10px] text-slate-400 block mb-1">TARGET SPAN (CHILD POLE)</label>
                 <select
                   value={faultSpanChildId}
                   onChange={(e) => setFaultSpanChildId(e.target.value)}
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-200"
+                  className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-sm px-2 py-1 text-xs font-mono"
                 >
                   {nodes
                     .filter((n) => n.id !== "DTR-01" && n.feederId === faultFeederId && !n.isLive)
@@ -379,21 +379,21 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
             {/* Target Phase (if applicable) */}
             {faultType !== "BROKEN_NEUTRAL" && faultType !== "OVERLOAD" && faultType !== "PHASE_UNBALANCE" && (
               <div>
-                <label className="text-[10px] text-slate-400 uppercase tracking-wider font-medium block mb-1">Target Phase</label>
+                <label className="text-[10px] text-slate-400 block mb-1">TARGET PHASE</label>
                 <div className="flex gap-1">
                   {PHASES.map((p) => (
                     <button
                       key={p}
                       type="button"
                       onClick={() => setFaultPhase(p)}
-                      className={`flex-1 py-1 rounded-md text-xs font-bold transition-colors ${
+                      className={`flex-1 py-1 rounded-sm text-xs font-bold ${
                         faultPhase === p
                           ? p === "R"
                             ? "bg-rose-500 text-white"
                             : p === "Y"
                             ? "bg-amber-400 text-black"
                             : "bg-cyan-500 text-white"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                          : "bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400"
                       }`}
                     >
                       {p}
@@ -406,17 +406,17 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
             {/* Magnitude (if leakage) */}
             {faultType === "LEAKAGE" && (
               <div>
-                <label className="text-[10px] text-slate-400 uppercase tracking-wider font-medium block mb-1">Leakage Current (A)</label>
+                <label className="text-[10px] text-slate-400 block mb-1">LEAKAGE CURRENT (A)</label>
                 <div className="flex gap-1">
                   {[0.5, 1.5, 3.0, 7.5].map((m) => (
                     <button
                       key={m}
                       type="button"
                       onClick={() => setFaultMagnitudeA(m)}
-                      className={`flex-1 py-1 rounded-md text-[11px] transition-colors ${
+                      className={`flex-1 py-1 rounded-sm text-[11px] ${
                         faultMagnitudeA === m
                           ? "bg-amber-500 text-white font-bold"
-                          : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700"
+                          : "bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400"
                       }`}
                     >
                       {m}A
@@ -432,10 +432,10 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                 variant="destructive"
                 size="sm"
                 onClick={handleInjectFault}
-                className="w-full text-xs h-8 rounded-md bg-amber-600 hover:bg-amber-700 text-white font-medium"
+                className="w-full text-xs font-mono h-7 bg-amber-600 hover:bg-amber-700 text-white"
               >
                 <Play className="h-3 w-3 mr-1 fill-white" />
-                <span>Trigger Fault</span>
+                <span>TRIGGER FAULT</span>
               </Button>
             </div>
           </div>
@@ -630,7 +630,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                 <th className="py-2 px-2.5 text-right">STATUS</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+            <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/60 font-mono">
               {feederNodes.map((n) => {
                 const isSelected = selectedPoleId === n.id;
                 const rSec = snapshot.sections.filter((s) => s.parentId === n.id);
@@ -806,11 +806,11 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
       </div>
 
       {/* 6. LIVE SENSOR CROSS-CALIBRATION HUD */}
-      <div className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 p-3.5 rounded-lg flex flex-wrap items-center justify-between gap-3 text-xs shadow-xs">
+      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3 rounded-sm flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2">
           <Scale className="h-4 w-4 text-emerald-500" />
-          <span className="font-semibold text-slate-800 dark:text-slate-200">
-            Line Impedance &amp; Loss Supervision (Section 1)
+          <span className="font-bold text-slate-800 dark:text-zinc-200">
+            LINE IMPEDANCE &amp; LOSS SUPERVISION // SECTION 1
           </span>
           <Badge
             variant={calibration.status === "CALIBRATED" ? "healthy" : "outline"}
