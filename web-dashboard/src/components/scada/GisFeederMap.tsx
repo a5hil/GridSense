@@ -909,16 +909,35 @@ export const GisFeederMap = React.memo(function GisFeederMap({
 
         {/* Fault Alert Callout Banner over Map */}
         {isFault && (
-          <div className="absolute top-14 left-3 border border-rose-600 bg-zinc-950/95 p-2.5 rounded-sm shadow-2xl flex items-center gap-2 text-xs font-mono text-rose-200 animate-pulse z-10">
-            <ShieldAlert className="h-4 w-4 text-rose-500 animate-bounce" />
-            <div>
-              <span className="font-bold uppercase tracking-wider block">
-                DIFFERENTIAL FAULT PINPOINTED ON REAL MAP
-              </span>
-              <span className="text-[10px] text-rose-300">
-                Between Pole 1 (10.2318°N) and Pole 2 (10.2325°N) // ΔI = {telemetry?.idiff.toFixed(3)}A
-              </span>
+          <div className="absolute top-14 left-3 border border-rose-600 bg-zinc-950/95 p-2.5 rounded-sm shadow-2xl flex items-center justify-between gap-3 text-xs font-mono text-rose-200 animate-pulse z-10 max-w-md">
+            <div className="flex items-center gap-2">
+              <ShieldAlert className="h-4 w-4 text-rose-500 animate-bounce shrink-0" />
+              <div>
+                <span className="font-bold uppercase tracking-wider block">
+                  DIFFERENTIAL FAULT PINPOINTED ON REAL MAP
+                </span>
+                <span className="text-[10px] text-rose-300">
+                  Between Pole 1 (10.2318°N) and Pole 2 (10.2325°N) // ΔI = {telemetry?.idiff.toFixed(3)}A
+                </span>
+              </div>
             </div>
+            <button
+              onClick={() => {
+                if (mapInstanceRef.current) {
+                  mapInstanceRef.current.flyTo({
+                    center: [76.4088, 10.2322],
+                    zoom: 18.5,
+                    pitch: 45,
+                    duration: 1200,
+                  });
+                }
+              }}
+              className="bg-rose-600 hover:bg-rose-500 text-white font-bold text-[10px] px-2.5 py-1 rounded-xs flex items-center gap-1 shadow-sm shrink-0 cursor-pointer transition-colors"
+              title="Smooth zoom camera to faulted differential span"
+            >
+              <Crosshair className="h-3 w-3" />
+              <span>FLY TO FAULT</span>
+            </button>
           </div>
         )}
 

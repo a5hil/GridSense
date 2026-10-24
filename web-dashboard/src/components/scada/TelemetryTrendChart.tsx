@@ -5,6 +5,7 @@ import {
   Activity,
   AlertTriangle,
   Clock,
+  Download,
   Flame,
   Gauge,
   GitBranch,
@@ -122,6 +123,66 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
     : history.length > 0
     ? history
     : [];
+
+  const handleExportWaveformCsv = () => {
+    if (polyHistory.length === 0) return;
+    const headers = [
+      "Timestamp",
+      "Pole_ID",
+      "VR_V",
+      "VY_V",
+      "VB_V",
+      "V_Unb_Pct",
+      "IR_A",
+      "IY_A",
+      "IB_A",
+      "IN_A",
+      "I_Unb_Pct",
+      "PR_W",
+      "PY_W",
+      "PB_W",
+      "PTotal_W",
+      "PFR",
+      "PFY",
+      "PFB",
+    ];
+    const rows = polyHistory.map((p) => [
+      `"${p.timeLabel}"`,
+      `"${activeNode?.id || activePoleId}"`,
+      p.vR,
+      p.vY,
+      p.vB,
+      p.vUnb,
+      p.iR,
+      p.iY,
+      p.iB,
+      p.iNeutral,
+      p.iUnb,
+      p.pR,
+      p.pY,
+      p.pB,
+      p.pTotal,
+      p.pfR,
+      p.pfY,
+      p.pfB,
+    ]);
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute(
+      "download",
+      `gridsense_waveform_${(activeNode?.id || activePoleId).toLowerCase()}_${new Date()
+        .toISOString()
+        .slice(0, 19)
+        .replace(/[:T]/g, "-")}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   // Enforce Radial Line Physics (V1 >= V2), strictly derived ΔI = |I1 - I2|, and direct data passthrough for ΔP = Math.max(0, P1 - P2) and ΔV = Math.max(0, V1 - V2)
   const data = React.useMemo(() => {
@@ -666,6 +727,16 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           >
             {isFrozen ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
             <span>{isFrozen ? "RESUME LIVE STREAM" : "FREEZE ALL WAVEFORMS"}</span>
+          </button>
+
+          {/* Export Waveforms CSV */}
+          <button
+            onClick={handleExportWaveformCsv}
+            className="px-2.5 py-1 text-xs rounded-sm transition-all flex items-center gap-1.5 font-bold cursor-pointer bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-zinc-700 shadow-xs"
+            title="Export 40-sample polyphase waveform data to CSV for post-incident power quality analysis"
+          >
+            <Download className="h-3.5 w-3.5 text-emerald-500" />
+            <span>EXPORT (.CSV)</span>
           </button>
 
           <div className="text-xs text-slate-500 dark:text-zinc-400 border-l border-slate-200 dark:border-zinc-800 pl-3">
@@ -1475,6 +1546,30 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                 <path d={pathPolyIB} fill="none" stroke="#06b6d4" strokeWidth="1.6" strokeLinecap="round" />
                 <path d={pathPolyIN} fill="none" stroke="#a855f7" strokeWidth="1.2" strokeLinecap="round" strokeDasharray="3 3" />
 
+                {/* DFR Trip Event Marker Line */}
+                {networkSnapshot && networkSnapshot.detections.length > 0 && polyHistory.length > 1 && (
+                  <g>
+                    <line
+                      x1={getPolyX(polyHistory.length - 1, polyHistory.length)}
+                      y1={padding.top}
+                      x2={getPolyX(polyHistory.length - 1, polyHistory.length)}
+                      y2={svgHeight - padding.bottom}
+                      stroke="#f43f5e"
+                      strokeWidth="1.5"
+                      strokeDasharray="4 2"
+                    />
+                    <text
+                      x={getPolyX(polyHistory.length - 1, polyHistory.length) - 6}
+                      y={padding.top + 14}
+                      className="fill-rose-500 font-bold"
+                      fontSize="9"
+                      textAnchor="end"
+                    >
+                      ⚡ TRIP EXCURSION
+                    </text>
+                  </g>
+                )}
+
                 {hoverIndex !== null && polyHistory[hoverIndex] && (
                   <g>
                     <line x1={getPolyX(hoverIndex, polyHistory.length)} y1={padding.top} x2={getPolyX(hoverIndex, polyHistory.length)} y2={svgHeight - padding.bottom} stroke="#ffffff" strokeWidth="1.0" strokeDasharray="3 3" />
@@ -1582,6 +1677,30 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                 <path d={pathPolyVR} fill="none" stroke="#f43f5e" strokeWidth="1.6" strokeLinecap="round" />
                 <path d={pathPolyVY} fill="none" stroke="#f59e0b" strokeWidth="1.6" strokeLinecap="round" />
                 <path d={pathPolyVB} fill="none" stroke="#06b6d4" strokeWidth="1.6" strokeLinecap="round" />
+
+                {/* DFR Trip Event Marker Line */}
+                {networkSnapshot && networkSnapshot.detections.length > 0 && polyHistory.length > 1 && (
+                  <g>
+                    <line
+                      x1={getPolyX(polyHistory.length - 1, polyHistory.length)}
+                      y1={padding.top}
+                      x2={getPolyX(polyHistory.length - 1, polyHistory.length)}
+                      y2={svgHeight - padding.bottom}
+                      stroke="#f43f5e"
+                      strokeWidth="1.5"
+                      strokeDasharray="4 2"
+                    />
+                    <text
+                      x={getPolyX(polyHistory.length - 1, polyHistory.length) - 6}
+                      y={padding.top + 14}
+                      className="fill-rose-500 font-bold"
+                      fontSize="9"
+                      textAnchor="end"
+                    >
+                      ⚡ TRIP EXCURSION
+                    </text>
+                  </g>
+                )}
 
                 {hoverIndex !== null && polyHistory[hoverIndex] && (
                   <g>

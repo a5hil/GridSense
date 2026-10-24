@@ -946,6 +946,15 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                     <p className="text-[9px] text-zinc-400">
                       Field crew arrives at {effectiveTicket?.affectedPole || "faulted pole"} coordinates and verifies physical line clearance.
                     </p>
+                    {hasActiveIncidents && effectiveTicket?.status === "DISPATCHED" && (
+                      <div className="bg-black/60 border border-zinc-800 p-1.5 rounded-xs text-[9px] flex items-center justify-between text-zinc-300">
+                        <div className="flex items-center gap-1.5">
+                          <Navigation className="h-3 w-3 text-cyan-400 animate-pulse" />
+                          <span>Unit #4 (KL-07-CD-4102)</span>
+                        </div>
+                        <span className="text-amber-400 font-bold">1.2 km away • ETA ~4m</span>
+                      </div>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"

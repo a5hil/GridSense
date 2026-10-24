@@ -81,10 +81,39 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
 
   const { dtr, feeders, nodes, detections, injectedFaults, uninstrumentedMode, calibration, liveLinkUp } = snapshot;
 
+  const [showFaultsOnly, setShowFaultsOnly] = React.useState(false);
+  const [showSecondaryFdir, setShowSecondaryFdir] = React.useState(false);
+
+  // Identify root-cause trips vs secondary cascade sags
+  const rootDetections = React.useMemo(() => {
+    return detections.filter((d) => !d.ansi.includes("27") || d.severity === "CRITICAL");
+  }, [detections]);
+
+  const cascadeDetections = React.useMemo(() => {
+    return detections.filter((d) => d.ansi.includes("27") && d.severity !== "CRITICAL");
+  }, [detections]);
+
+  const totalFaultedPoles = React.useMemo(() => {
+    return nodes.filter((n) => {
+      const hasTrippedSection = snapshot.sections.some(
+        (s) => s.parentId === n.id && s.tripped
+      );
+      return n.feederId !== null && (n.status === "ALARM" || n.status === "WARN" || hasTrippedSection);
+    }).length;
+  }, [nodes, snapshot.sections]);
+
   // Filter nodes for the selected feeder (+ DTR as root)
-  const feederNodes = nodes.filter(
-    (n) => n.feederId === selectedFeederId || (selectedFeederId === "ALL" && n.feederId !== null)
-  );
+  const feederNodes = React.useMemo(() => {
+    return nodes.filter((n) => {
+      if (showFaultsOnly) {
+        const hasTrippedSection = snapshot.sections.some(
+          (s) => s.parentId === n.id && s.tripped
+        );
+        return n.status === "ALARM" || n.status === "WARN" || hasTrippedSection;
+      }
+      return n.feederId === selectedFeederId || (selectedFeederId === "ALL" && n.feederId !== null);
+    });
+  }, [nodes, selectedFeederId, showFaultsOnly, snapshot.sections]);
 
   const activeFeederSummary = feeders.find((f) => f.id === selectedFeederId);
 
@@ -503,18 +532,22 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
           <div className="flex items-center justify-between border-b border-rose-500/30 pb-1.5">
             <div className="flex items-center gap-2 text-rose-600 dark:text-rose-300 font-bold">
               <AlertOctagon className="h-4 w-4 animate-bounce" />
-              <span>CENTRAL FDIR ALARMS // AUTOMATED FAULT DETECTION &amp; FLISR MATRIX ({detections.length})</span>
+              <span>
+                CENTRAL FDIR ALARMS // {rootDetections.length} ROOT PROTECTION TRIP{rootDetections.length > 1 ? "S" : ""}
+                {cascadeDetections.length > 0 ? ` (+${cascadeDetections.length} CASCADE SAGS)` : ""}
+              </span>
             </div>
-            <span className="text-[11px] text-slate-400">Section-KCL &amp; Threshold Excursions</span>
+            <span className="text-[11px] text-slate-400">ANSI Protection Suite &amp; Automated FLISR</span>
           </div>
 
+          {/* Root-Cause Protection Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-            {detections.map((d) => (
+            {rootDetections.map((d) => (
               <div
                 key={d.key}
                 className={`p-2.5 rounded-sm border flex flex-col justify-between ${
                   d.severity === "CRITICAL"
-                    ? "bg-rose-900/40 border-rose-500 text-rose-100"
+                    ? "bg-rose-900/40 border-rose-500 text-rose-100 ring-1 ring-rose-500/40"
                     : d.severity === "HIGH"
                     ? "bg-amber-900/30 border-amber-500 text-amber-100"
                     : "bg-slate-900/40 border-slate-700 text-slate-200"
@@ -558,6 +591,46 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
               </div>
             ))}
           </div>
+
+          {/* Secondary Cascade Sags Drawer */}
+          {cascadeDetections.length > 0 && (
+            <div className="border border-amber-500/40 bg-amber-500/5 dark:bg-amber-950/20 rounded-sm overflow-hidden text-xs mt-1">
+              <div
+                onClick={() => setShowSecondaryFdir(!showSecondaryFdir)}
+                className="px-2.5 py-1.5 flex items-center justify-between cursor-pointer hover:bg-amber-500/10 transition-colors"
+              >
+                <div className="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-400 text-[11px]">
+                  <ChevronRight className={`h-3.5 w-3.5 transition-transform duration-200 ${showSecondaryFdir ? "rotate-90" : ""}`} />
+                  <span>SECONDARY VOLTAGE SAGS ({cascadeDetections.length})</span>
+                  <span className="text-[10px] text-slate-400 font-normal">-- Downstream undervoltages induced across radial laterals</span>
+                </div>
+                <Badge variant="outline" className="text-[9px] border-amber-500/50 text-amber-500 py-0">
+                  {showSecondaryFdir ? "COLLAPSE" : "EXPAND LIST"}
+                </Badge>
+              </div>
+
+              {showSecondaryFdir && (
+                <div className="p-2 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 border-t border-amber-500/20 bg-black/10">
+                  {cascadeDetections.map((d) => (
+                    <div
+                      key={d.key}
+                      className="p-2 rounded-sm border border-slate-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-950/40 text-xs"
+                    >
+                      <div className="flex items-center justify-between text-[10px] mb-0.5">
+                        <span className="font-bold text-amber-600 dark:text-amber-400">
+                          {d.ansi} // {d.nodeId || d.sectionId} ({d.feederId})
+                        </span>
+                        <span className="text-slate-400">~{d.customersAffected ?? 8} Cust</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-zinc-400 truncate">
+                        {d.message}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -584,7 +657,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
               <button
                 onClick={() => setSelectedFeederId("ALL")}
                 className={`px-3 py-1 rounded-sm text-xs uppercase font-bold transition-colors ${
-                  selectedFeederId === "ALL"
+                  selectedFeederId === "ALL" && !showFaultsOnly
                     ? "bg-white dark:bg-zinc-800 text-emerald-600 dark:text-emerald-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
                     : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100"
                 }`}
@@ -592,6 +665,22 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                 ALL POLES (28)
               </button>
             </div>
+
+            {/* Quick Filter: Show Faulted Poles Only */}
+            <button
+              onClick={() => setShowFaultsOnly(!showFaultsOnly)}
+              className={`px-2.5 py-1 rounded-sm text-xs uppercase font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                showFaultsOnly
+                  ? "bg-rose-600 text-white shadow-xs border border-rose-500"
+                  : totalFaultedPoles > 0
+                  ? "bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/40 hover:bg-rose-500/20 animate-pulse"
+                  : "text-slate-500 dark:text-zinc-400 border border-slate-200 dark:border-zinc-800 hover:text-slate-800 dark:hover:text-zinc-200"
+              }`}
+              title="Filter pole matrix to only nodes with active alarms or tripped sections"
+            >
+              <AlertOctagon className="h-3.5 w-3.5 text-rose-500" />
+              <span>{showFaultsOnly ? "SHOWING FAULTS ONLY" : `SHOW FAULTS ONLY (${totalFaultedPoles})`}</span>
+            </button>
           </div>
 
           {activeFeederSummary && (
