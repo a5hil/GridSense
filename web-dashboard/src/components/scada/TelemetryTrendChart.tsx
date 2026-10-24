@@ -856,18 +856,18 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           </div>
 
           {/* Stats Bar with matching color indicators */}
-          <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums">
+          <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums font-mono">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0" />
-              <span>I1 (SUBSTATION INCOMER): <span className="font-bold text-emerald-600 dark:text-emerald-400">{statsI1.cur.toFixed(3)}A</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsI1.avg.toFixed(2)}A)</span></span>
+              <span>I1 (Incomer): <span className="font-bold text-emerald-600 dark:text-emerald-400">{statsI1.cur.toFixed(3)}A</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsI1.avg.toFixed(2)}A)</span></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0" />
-              <span>I2 (LOAD END OUTGOING): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsI2.cur.toFixed(3)}A</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsI2.avg.toFixed(2)}A)</span></span>
+              <span>I2 (Terminal): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsI2.cur.toFixed(3)}A</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsI2.avg.toFixed(2)}A)</span></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#f43f5e] shrink-0" />
-              <span>FAULT LEAKAGE ΔI: <span className={`font-bold ${statsIdiff.cur > tripLimit ? "text-rose-500 animate-pulse" : "text-rose-600 dark:text-rose-400"}`}>{statsIdiff.cur.toFixed(3)}A</span> <span className="text-slate-400 dark:text-zinc-500">(|I1 - I2|)</span></span>
+              <span>Diff ΔI: <span className={`font-bold ${statsIdiff.cur > tripLimit ? "text-rose-500 animate-pulse" : "text-rose-600 dark:text-rose-400"}`}>{statsIdiff.cur.toFixed(3)}A</span> <span className="text-slate-400 dark:text-zinc-500">(|I1 - I2|)</span></span>
             </div>
           </div>
         </div>
@@ -1033,18 +1033,18 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           </div>
 
           {/* Stats Bar */}
-          <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums">
+          <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums font-mono">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0" />
-              <span>V1 (SUBSTATION BUS): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsV1.cur.toFixed(1)}V</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsV1.avg.toFixed(1)}V)</span></span>
+              <span>V1 (Substation): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsV1.cur.toFixed(1)}V</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsV1.avg.toFixed(1)}V)</span></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#eab308] shrink-0" />
-              <span>V2 (LOAD END BUS): <span className="font-bold text-amber-600 dark:text-amber-400">{statsV2.cur.toFixed(1)}V</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsV2.avg.toFixed(1)}V)</span></span>
+              <span>V2 (Terminal): <span className="font-bold text-amber-600 dark:text-amber-400">{statsV2.cur.toFixed(1)}V</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsV2.avg.toFixed(1)}V)</span></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#a855f7] shrink-0" />
-              <span>FREQUENCY: <span className="font-bold text-purple-600 dark:text-purple-400">{statsFreq.cur.toFixed(2)} Hz</span> <span className="text-emerald-500 font-semibold">(50Hz Nominal)</span></span>
+              <span>Frequency: <span className="font-bold text-purple-600 dark:text-purple-400">{statsFreq.cur.toFixed(2)} Hz</span> <span className="text-emerald-500 font-semibold">(50Hz Nominal)</span></span>
             </div>
           </div>
         </div>

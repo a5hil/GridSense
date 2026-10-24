@@ -741,7 +741,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                   ANGAMALY 33/11kV DTR-01 • 3 RADIAL LT FEEDERS
                 </div>
                 <div className="text-[10px] text-slate-500 dark:text-zinc-400">
-                  Sub-GHz LoRa Mesh • Differential ANSI 87L &amp; IEC 61000-4-30
+                  ANSI 87L Current Differential &amp; IEC 61000 Power Quality Supervision
                 </div>
               </div>
 
