@@ -246,7 +246,9 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
               <div className="flex justify-between items-baseline border-b border-slate-200 dark:border-zinc-800/60 pb-1">
                 <span className="text-slate-500 dark:text-zinc-400">Database Storage</span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                  MongoDB (gridsense: 27017)
+                  {systemStatus?.mongoConnected
+                    ? `MongoDB (${systemStatus.dbName || "gridsense"})`
+                    : "SCADA SOE Cache (In-Memory Ring Buffer)"}
                 </span>
               </div>
             </div>
@@ -372,7 +374,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
                 <div className="flex justify-between items-baseline">
                   <span className="text-slate-500 dark:text-zinc-400">Network Buses Monitored:</span>
                   <span className="text-slate-800 dark:text-zinc-200 font-bold tabular-nums">
-                    {networkSnapshot?.nodes.length ?? 28} Poles / 3 LT Feeders
+                    {(networkSnapshot ? networkSnapshot.nodes.filter((n) => n.feederId !== null).length : 28)} Distribution Poles (+ DTR-01) / 3 LT Feeders
                   </span>
                 </div>
                 <div className="flex justify-between items-baseline">

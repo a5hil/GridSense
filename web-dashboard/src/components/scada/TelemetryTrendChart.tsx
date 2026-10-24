@@ -613,21 +613,21 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                 <optgroup label="FEEDER LT-1 (RESIDENTIAL - 10 POLES)">
                   {nodesByFeeder["LT-1"].map((n) => (
                     <option key={n.id} value={n.id}>
-                      {n.id} - {n.label} {n.id === "F1-P01" ? "[INCOMER TERMINAL]" : n.id === "F1-P02" ? "[SECTION TERMINAL]" : ""}
+                      {n.id === n.label ? n.id : `${n.id} - ${n.label}`} {n.id === "F1-P01" ? "[INCOMER TERMINAL]" : n.id === "F1-P02" ? "[SECTION TERMINAL]" : ""}
                     </option>
                   ))}
                 </optgroup>
                 <optgroup label="FEEDER LT-2 (COMMERCIAL - 11 POLES)">
                   {nodesByFeeder["LT-2"].map((n) => (
                     <option key={n.id} value={n.id}>
-                      {n.id} - {n.label}
+                      {n.id === n.label ? n.id : `${n.id} - ${n.label}`}
                     </option>
                   ))}
                 </optgroup>
                 <optgroup label="FEEDER LT-3 (AGRI/MIXED - 7 POLES)">
                   {nodesByFeeder["LT-3"].map((n) => (
                     <option key={n.id} value={n.id}>
-                      {n.id} - {n.label}
+                      {n.id === n.label ? n.id : `${n.id} - ${n.label}`}
                     </option>
                   ))}
                 </optgroup>
@@ -1492,10 +1492,10 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               {hoveredPolyPoint && (
                 <div className="absolute top-2 left-20 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs shadow-md backdrop-blur-xs">
                   <span className="text-slate-400 dark:text-zinc-400 font-mono">{hoveredPolyPoint.timeLabel}</span>
-                  <span className="text-rose-500 font-bold">R: {hoveredPolyPoint.iR.toFixed(3)}A</span>
-                  <span className="text-amber-500 font-bold">Y: {hoveredPolyPoint.iY.toFixed(3)}A</span>
-                  <span className="text-cyan-500 font-bold">B: {hoveredPolyPoint.iB.toFixed(3)}A</span>
-                  <span className="text-purple-400 font-bold">N: {hoveredPolyPoint.iNeutral.toFixed(3)}A</span>
+                  <span className="text-rose-500 font-bold">IR: {hoveredPolyPoint.iR.toFixed(3)}A</span>
+                  <span className="text-amber-500 font-bold">IY: {hoveredPolyPoint.iY.toFixed(3)}A</span>
+                  <span className="text-cyan-500 font-bold">IB: {hoveredPolyPoint.iB.toFixed(3)}A</span>
+                  <span className="text-purple-400 font-bold">IN: {hoveredPolyPoint.iNeutral.toFixed(3)}A</span>
                 </div>
               )}
             </div>

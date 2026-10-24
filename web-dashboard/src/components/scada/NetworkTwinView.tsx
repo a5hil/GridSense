@@ -668,7 +668,9 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                         />
                         <div>
                           <div className="font-bold text-slate-800 dark:text-zinc-100">{n.label}</div>
-                          <div className="text-[10px] text-slate-400">{n.id}</div>
+                          {n.label !== n.id && (
+                            <div className="text-[10px] text-slate-400">{n.id}</div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -721,7 +723,12 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                             {n.phases.Y.v.toFixed(1)}V • {n.phases.Y.i.toFixed(3)}A
                           </div>
                           <div className="text-[10px] text-slate-400">
-                            {n.phases.Y.p.toFixed(0)}W
+                            {(n.phases.Y.p > 0
+                              ? n.phases.Y.p
+                              : n.phases.Y.i > 0
+                              ? n.phases.Y.v * n.phases.Y.i * (n.phases.Y.pf || 0.96)
+                              : 0
+                            ).toFixed(0)}W
                             {n.phases.Y.source === "SIM" && n.isLive && (
                               <span className="ml-1 text-[9px] text-amber-500">(EST)</span>
                             )}
@@ -740,7 +747,12 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                             {n.phases.B.v.toFixed(1)}V • {n.phases.B.i.toFixed(3)}A
                           </div>
                           <div className="text-[10px] text-slate-400">
-                            {n.phases.B.p.toFixed(0)}W
+                            {(n.phases.B.p > 0
+                              ? n.phases.B.p
+                              : n.phases.B.i > 0
+                              ? n.phases.B.v * n.phases.B.i * (n.phases.B.pf || 0.96)
+                              : 0
+                            ).toFixed(0)}W
                             {n.phases.B.source === "SIM" && n.isLive && (
                               <span className="ml-1 text-[9px] text-cyan-500">(EST)</span>
                             )}
