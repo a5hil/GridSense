@@ -131,19 +131,24 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
   }, [networkSnapshot]);
 
   // Group root-cause events vs downstream sympathetic undervoltage sags
+  const isCascadeSymptom = React.useCallback(
+    (d: Detection) => d.ansi.includes("27") && d.severity !== "CRITICAL",
+    []
+  );
+
   const hasRootFault = React.useMemo(() => {
-    return activeDetections.some((d) => d.ansi !== "27" || d.severity === "CRITICAL");
-  }, [activeDetections]);
+    return activeDetections.some((d) => !isCascadeSymptom(d));
+  }, [activeDetections, isCascadeSymptom]);
 
   const primaryDetections = React.useMemo(() => {
     if (!hasRootFault) return activeDetections;
-    return activeDetections.filter((d) => d.ansi !== "27" || d.severity === "CRITICAL");
-  }, [activeDetections, hasRootFault]);
+    return activeDetections.filter((d) => !isCascadeSymptom(d));
+  }, [activeDetections, hasRootFault, isCascadeSymptom]);
 
   const cascadeDetections = React.useMemo(() => {
     if (!hasRootFault) return [];
-    return activeDetections.filter((d) => d.ansi === "27" && d.severity !== "CRITICAL");
-  }, [activeDetections, hasRootFault]);
+    return activeDetections.filter((d) => isCascadeSymptom(d));
+  }, [activeDetections, hasRootFault, isCascadeSymptom]);
 
   // Sync selected ticket or detection
   React.useEffect(() => {
