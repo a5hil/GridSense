@@ -511,7 +511,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
           <>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline" className="border-cyan-500 text-cyan-400 font-bold text-[10px]">
-                ASSET: {selectedNode.label} ({selectedNode.id})
+                ASSET: {selectedNode.label === selectedNode.id ? selectedNode.label : `${selectedNode.label} (${selectedNode.id})`}
               </Badge>
               <span className="text-slate-500 dark:text-zinc-400 text-[11px]">
                 Feeder <strong className="text-slate-800 dark:text-zinc-200">{selectedNode.feederId || "DTR"}</strong>

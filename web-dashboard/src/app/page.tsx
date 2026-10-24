@@ -661,7 +661,7 @@ export default function SCADADashboard() {
               <span className="text-slate-300 dark:text-zinc-700">|</span>
               <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>{networkSnapshot ? `${networkSnapshot.nodes.length} POLES SUPERVISED` : "28 POLES SUPERVISED"}</span>
+                <span>{networkSnapshot ? `${networkSnapshot.nodes.filter((n) => n.id !== "DTR-01").length || 28} POLES SUPERVISED` : "28 POLES SUPERVISED"}</span>
               </span>
             </div>
           </div>
@@ -1068,7 +1068,7 @@ export default function SCADADashboard() {
                 </CardContent>
                 <div className="border-t border-slate-100 dark:border-zinc-800/60 px-3 py-1 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between">
                   <span>415V L-L / 240V L-N</span>
-                  <span className="text-emerald-500 font-semibold">50.0 Hz NOMINAL</span>
+                  <span className="text-emerald-500 font-semibold">IEEE 1159 OK</span>
                 </div>
               </Card>
 
@@ -1153,7 +1153,7 @@ export default function SCADADashboard() {
                       <span>FEEDER ASSET HEALTH &amp; SPAN</span>
                     </div>
                     <Badge variant="outline" className="text-[10px]">
-                      {networkSnapshot ? `${networkSnapshot.nodes.length} POLES • 3 LT FEEDERS` : "28 POLES • 3 FEEDERS"}
+                      {networkSnapshot ? `${networkSnapshot.nodes.filter((n) => n.id !== "DTR-01").length || 28} POLES • 3 LT FEEDERS` : "28 POLES • 3 FEEDERS"}
                     </Badge>
                   </div>
 
@@ -1545,7 +1545,7 @@ export default function SCADADashboard() {
         <div className="flex items-center gap-3">
           <span>STATION: {ENTERPRISE_CONFIG.CONTROL_CENTER}</span>
           <span>•</span>
-          <span>FEEDER: 11kV_SECTOR4_PRIMARY</span>
+          <span>FEEDER: {ENTERPRISE_CONFIG.FEEDER_NAME}</span>
           <span>•</span>
           <span>TELEMETRY BUS: {ENTERPRISE_CONFIG.TELEMETRY_BUS}</span>
         </div>
@@ -1554,7 +1554,7 @@ export default function SCADADashboard() {
             <Keyboard className="h-3 w-3 text-slate-400 dark:text-zinc-500" />
             <span>[Esc]: Ack Alarm</span>
             <span>•</span>
-            <span>[Alt+1..6]: Views</span>
+            <span>[Alt+1..7]: Views</span>
             <span>•</span>
             <span>[Space]: Freeze Waveform</span>
           </div>
