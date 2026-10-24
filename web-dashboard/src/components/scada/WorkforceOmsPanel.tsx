@@ -9,6 +9,7 @@ import {
   Check,
   CheckCircle,
   CheckCircle2,
+  ChevronRight,
   Clock,
   CornerDownRight,
   Crosshair,
@@ -122,10 +123,27 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
     return () => clearInterval(interval);
   }, []);
 
+  const [showCascade, setShowCascade] = React.useState(false);
+
   // Sync active detections from the 28-pole Digital Twin
   const activeDetections = React.useMemo(() => {
     return networkSnapshot?.detections || [];
   }, [networkSnapshot]);
+
+  // Group root-cause events vs downstream sympathetic undervoltage sags
+  const hasRootFault = React.useMemo(() => {
+    return activeDetections.some((d) => d.ansi !== "27" || d.severity === "CRITICAL");
+  }, [activeDetections]);
+
+  const primaryDetections = React.useMemo(() => {
+    if (!hasRootFault) return activeDetections;
+    return activeDetections.filter((d) => d.ansi !== "27" || d.severity === "CRITICAL");
+  }, [activeDetections, hasRootFault]);
+
+  const cascadeDetections = React.useMemo(() => {
+    if (!hasRootFault) return [];
+    return activeDetections.filter((d) => d.ansi === "27" && d.severity !== "CRITICAL");
+  }, [activeDetections, hasRootFault]);
 
   // Sync selected ticket or detection
   React.useEffect(() => {
@@ -413,15 +431,16 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
               {hasActiveIncidents ? "DISTRIBUTION TROUBLE INCIDENTS" : "RECENT RESOLVED INCIDENTS"}
             </div>
             <Badge variant="outline" className="text-[9px]">
-              {hasActiveIncidents ? `${tickets.length + activeDetections.length} ACTIVE` : "ARCHIVE LOG"}
+              {hasActiveIncidents
+                ? `${tickets.length + primaryDetections.length} ROOT${cascadeDetections.length > 0 ? ` (+${cascadeDetections.length} SAGS)` : ""}`
+                : "ARCHIVE LOG"}
             </Badge>
           </div>
 
           <div className="space-y-2 overflow-y-auto max-h-[440px] pr-0.5">
-            {/* Live FDIR Detections from Digital Twin Network */}
-            {activeDetections.map((d) => {
+            {/* 1. Primary Root-Cause FDIR Detections from Digital Twin Network */}
+            {primaryDetections.map((d) => {
               const isSelected = activeDetection?.key === d.key;
-              const targetNode = networkSnapshot?.nodes.find((n) => n.id === (d.nodeId || d.sectionId));
               return (
                 <div
                   key={d.key}
@@ -436,7 +455,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                     <div className="flex items-center gap-1.5">
                       <span className="h-2 w-2 rounded-full bg-rose-500 animate-ping" />
                       <span className="font-bold text-rose-600 dark:text-rose-400">
-                        {d.ansi} FAULT
+                        {d.ansi} FAULT [ROOT CAUSE]
                       </span>
                     </div>
                     <Badge variant="destructive" className="text-[9px]">
@@ -460,12 +479,62 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                       ISOLATE: {d.isolate?.upstream || "DTR-01"}
                     </span>
                     <span className="text-rose-600 dark:text-rose-400 font-bold">
-                      [UNRESOLVED]
+                      [ACTION REQUIRED]
                     </span>
                   </div>
                 </div>
               );
             })}
+
+            {/* 2. Collapsible Downstream Cascade / Sympathetic Sags */}
+            {cascadeDetections.length > 0 && (
+              <div className="border border-amber-500/40 bg-amber-500/5 dark:bg-amber-950/20 rounded-sm overflow-hidden text-xs">
+                <div
+                  onClick={() => setShowCascade(!showCascade)}
+                  className="px-2.5 py-2 flex items-center justify-between cursor-pointer hover:bg-amber-500/10 transition-colors"
+                >
+                  <div className="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-400 text-[11px]">
+                    <ChevronRight className={`h-3.5 w-3.5 transition-transform duration-200 ${showCascade ? "rotate-90" : ""}`} />
+                    <span>SYMPATHETIC VOLTAGE SAGS ({cascadeDetections.length})</span>
+                  </div>
+                  <Badge variant="outline" className="text-[9px] border-amber-500/50 text-amber-500 py-0">
+                    CASCADE SYMPTOMS
+                  </Badge>
+                </div>
+
+                {showCascade && (
+                  <div className="p-2 space-y-1.5 border-t border-amber-500/20 bg-black/10">
+                    <div className="text-[10px] text-slate-500 dark:text-zinc-400 italic mb-1">
+                      Secondary undervoltages induced downstream by the primary upstream fault:
+                    </div>
+                    {cascadeDetections.map((d) => {
+                      const isSelected = activeDetection?.key === d.key;
+                      return (
+                        <div
+                          key={d.key}
+                          onClick={() => setSelectedDetectionKey(d.key)}
+                          className={`border p-2 rounded-sm cursor-pointer transition-all ${
+                            isSelected
+                              ? "border-amber-500 bg-amber-500/10 shadow-xs"
+                              : "border-slate-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-950/40 hover:bg-amber-500/5"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between text-[10px]">
+                            <span className="font-bold text-amber-600 dark:text-amber-400">
+                              {d.ansi} // {d.nodeId || d.sectionId} ({d.feederId})
+                            </span>
+                            <span className="text-slate-400">~{d.customersAffected ?? 8} Cust</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-zinc-400 truncate mt-0.5">
+                            {d.message}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Database Trouble Tickets */}
             {tickets.map((t) => {

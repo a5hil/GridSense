@@ -343,7 +343,7 @@ export default function SCADADashboard() {
         title: faultTitle,
         description: faultDesc,
         type: "destructive",
-        persistent: true, // Non-auto-dismissing: operator must click Acknowledge
+        persistent: false, // Auto-dismiss after 5s; the persistent top banner holds active unacked state without blocking the supervisory panel
         onAcknowledge: async () => {
           if (activeFaultToastRef.current) {
             removeToast(activeFaultToastRef.current);
@@ -1022,54 +1022,86 @@ export default function SCADADashboard() {
               <Card className={`col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between transition-opacity ${
                 isP1Stale ? "opacity-75 border-amber-500/50" : ""
               }`}>
-                <CardHeader className="pb-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
-                      3-PHASE BUS VOLTAGE (DTR)
-                    </span>
-                    <Badge
-                      variant={
-                        (networkSnapshot?.dtr.unbalancePct ?? 0) > 3.0
-                          ? "destructive"
-                          : "healthy"
-                      }
-                      className="text-[10px]"
-                    >
-                      {(networkSnapshot?.dtr.unbalancePct ?? 0) > 3.0
-                        ? "UNBALANCED"
-                        : "BALANCED ±0.4%"}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-1 pb-2">
-                  <div className="flex items-center gap-2.5">
-                    <Activity className="h-7 w-7 text-cyan-400 shrink-0" />
-                    <div>
-                      <div className="text-xs font-bold font-mono text-zinc-100 tabular-nums space-x-1.5">
-                        <span>
-                          <strong className="text-rose-400">R:</strong>{" "}
-                          {v1 > 0 ? v1.toFixed(1) : networkSnapshot ? networkSnapshot.dtr.voltage.R.toFixed(1) : "---"}V
-                        </span>
-                        <span>
-                          <strong className="text-amber-400">Y:</strong>{" "}
-                          {networkSnapshot ? networkSnapshot.dtr.voltage.Y.toFixed(1) : "---"}V
-                        </span>
-                        <span>
-                          <strong className="text-cyan-400">B:</strong>{" "}
-                          {networkSnapshot ? networkSnapshot.dtr.voltage.B.toFixed(1) : "---"}V
-                        </span>
+                {(() => {
+                  const dtrVr = v1 > 0 ? v1 : networkSnapshot ? networkSnapshot.dtr.voltage.R : 230;
+                  const dtrVy = networkSnapshot ? networkSnapshot.dtr.voltage.Y : 230;
+                  const dtrVb = networkSnapshot ? networkSnapshot.dtr.voltage.B : 230;
+                  const minV = Math.min(dtrVr, dtrVy, dtrVb);
+                  const maxV = Math.max(dtrVr, dtrVy, dtrVb);
+                  const isUnderVoltage = minV > 15 && minV < 207; // < -10% nominal 230V
+                  const isOverVoltage = maxV > 253; // > +10% nominal 230V
+                  const unbalance = networkSnapshot ? networkSnapshot.dtr.unbalancePct : 0;
+                  const isUnbalanced = unbalance > 3.0;
+
+                  return (
+                    <>
+                      <CardHeader className="pb-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
+                            3-PHASE BUS VOLTAGE (DTR)
+                          </span>
+                          <Badge
+                            variant={
+                              isUnderVoltage || isOverVoltage || isUnbalanced
+                                ? "destructive"
+                                : "healthy"
+                            }
+                            className="text-[10px]"
+                          >
+                            {isUnderVoltage
+                              ? `UNDERVOLTAGE (${minV.toFixed(0)}V)`
+                              : isOverVoltage
+                              ? `OVERVOLTAGE (${maxV.toFixed(0)}V)`
+                              : isUnbalanced
+                              ? "UNBALANCED"
+                              : "BALANCED ±0.4%"}
+                          </Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="pt-1 pb-2">
+                        <div className="flex items-center gap-2.5">
+                          <Activity className={`h-7 w-7 shrink-0 ${isUnderVoltage || isOverVoltage ? "text-rose-400 animate-pulse" : "text-cyan-400"}`} />
+                          <div>
+                            <div className="text-xs font-bold font-mono text-zinc-100 tabular-nums space-x-1.5">
+                              <span>
+                                <strong className="text-rose-400">R:</strong>{" "}
+                                {dtrVr.toFixed(1)}V
+                              </span>
+                              <span>
+                                <strong className="text-amber-400">Y:</strong>{" "}
+                                {dtrVy.toFixed(1)}V
+                              </span>
+                              <span>
+                                <strong className="text-cyan-400">B:</strong>{" "}
+                                {dtrVb.toFixed(1)}V
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-zinc-400 font-mono mt-1">
+                              Freq: <span className="text-zinc-200">{!isGatewayOffline && telemetry?.p1?.freq !== undefined && telemetry.p1.freq > 0 ? `${telemetry.p1.freq.toFixed(2)} Hz` : "50.00 Hz"}</span>
+                              <span className="ml-2">Unbalance: {unbalance.toFixed(2)}%</span>
+                            </div>
+                          </div>
+                        </div>
+                      </CardContent>
+                      <div className="border-t border-slate-100 dark:border-zinc-800/60 px-3 py-1 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between">
+                        <span>415V L-L / 240V L-N</span>
+                        {isUnderVoltage ? (
+                          <span className="text-rose-500 font-bold animate-pulse">
+                            ANSI 27 EXCURSION ({(((minV - 230) / 230) * 100).toFixed(0)}%)
+                          </span>
+                        ) : isOverVoltage ? (
+                          <span className="text-amber-500 font-bold animate-pulse">
+                            ANSI 59 EXCURSION (+{(((maxV - 230) / 230) * 100).toFixed(0)}%)
+                          </span>
+                        ) : isUnbalanced ? (
+                          <span className="text-amber-500 font-semibold">IEEE 1159 WARN</span>
+                        ) : (
+                          <span className="text-emerald-500 font-semibold">IEEE 1159 OK</span>
+                        )}
                       </div>
-                      <div className="text-[11px] text-zinc-400 font-mono mt-1">
-                        Freq: <span className="text-zinc-200">{!isGatewayOffline && telemetry?.p1?.freq !== undefined && telemetry.p1.freq > 0 ? `${telemetry.p1.freq.toFixed(2)} Hz` : "50.00 Hz"}</span>
-                        <span className="ml-2">Unbalance: {networkSnapshot ? networkSnapshot.dtr.unbalancePct.toFixed(2) : "0.00"}%</span>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-                <div className="border-t border-slate-100 dark:border-zinc-800/60 px-3 py-1 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between">
-                  <span>415V L-L / 240V L-N</span>
-                  <span className="text-emerald-500 font-semibold">IEEE 1159 OK</span>
-                </div>
+                    </>
+                  );
+                })()}
               </Card>
 
               {/* CARD 4: Grid Incomer Current & Conductor Integrity */}
@@ -1358,7 +1390,11 @@ export default function SCADADashboard() {
                       disabled={isAcking}
                     >
                       <Check className="h-3.5 w-3.5 mr-1" />
-                      {isAcking ? "CLEARING ALARM..." : "ACKNOWLEDGE & RESET ALARM (ESC)"}
+                      {isAcking
+                        ? "CLEARING ALARM..."
+                        : isAlarmUnacked
+                        ? "ACKNOWLEDGE ALARM (ESC)"
+                        : "LATCHED TRIP // RESET SECTION BREAKER"}
                     </Button>
                   ) : (
                     <div className="border border-slate-200 dark:border-zinc-800/60 bg-slate-50 dark:bg-zinc-950/40 p-2 rounded-sm text-[10px] text-slate-600 dark:text-zinc-400 flex items-center justify-between font-mono">
