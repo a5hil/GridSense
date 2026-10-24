@@ -797,51 +797,51 @@ export const GisFeederMap = React.memo(function GisFeederMap({
   const isCustomToken = mapboxToken !== DEFAULT_MAPBOX_TOKEN;
 
   return (
-    <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] rounded-sm flex flex-col h-full overflow-hidden transition-colors shadow-xs dark:shadow-none">
+    <div className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 rounded-lg flex flex-col h-full overflow-hidden transition-colors shadow-xs dark:shadow-none">
       {/* Real Map Header Controls */}
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 px-3 py-2 bg-slate-50 dark:bg-zinc-950/80 text-xs font-mono">
-        <div className="flex items-center gap-2">
-          <Layers className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-          <span className="font-semibold uppercase tracking-wider text-slate-800 dark:text-zinc-200">
-            GIS GEOSPATIAL VECTOR MAP // FEEDER TOPOLOGY
+      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-3.5 py-2.5 bg-slate-50/60 dark:bg-slate-950/40 text-xs">
+        <div className="flex items-center gap-2.5">
+          <Layers className="h-4 w-4 text-emerald-500" />
+          <span className="font-semibold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+            GIS Feeder Map <span className="text-slate-400 dark:text-slate-600 font-normal">|</span> Geospatial Topology
           </span>
-          <Badge variant="outline" className="text-[10px] hidden sm:inline-flex">
+          <Badge variant="outline" className="text-[10px] hidden sm:inline-flex font-mono">
             WGS84: 10.2319° N, 76.4089° E
           </Badge>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Base Layer Switcher */}
-          <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 rounded-lg p-0.5">
             <button
               onClick={() => handleStyleChange("DARK")}
-              className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
+              className={`px-2.5 py-1 text-[11px] rounded-md transition-all font-medium ${
                 currentStyleKey === "DARK"
-                  ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
-                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+                  ? "bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 font-semibold shadow-xs"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
               }`}
             >
-              SCADA DARK
+              Dark
             </button>
             <button
               onClick={() => handleStyleChange("STREETS")}
-              className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
+              className={`px-2.5 py-1 text-[11px] rounded-md transition-all font-medium ${
                 currentStyleKey === "STREETS"
-                  ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
-                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+                  ? "bg-white dark:bg-slate-800 text-emerald-600 dark:text-emerald-400 font-semibold shadow-xs"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
               }`}
             >
-              DAY VECTOR
+              Streets
             </button>
             <button
               onClick={() => handleStyleChange("SATELLITE")}
-              className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
+              className={`px-2.5 py-1 text-[11px] rounded-md transition-all font-medium ${
                 currentStyleKey === "SATELLITE"
-                  ? "bg-white dark:bg-zinc-800 text-cyan-700 dark:text-cyan-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
-                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+                  ? "bg-white dark:bg-slate-800 text-sky-600 dark:text-sky-400 font-semibold shadow-xs"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
               }`}
             >
-              SATELLITE
+              Satellite
             </button>
           </div>
 
@@ -849,8 +849,8 @@ export const GisFeederMap = React.memo(function GisFeederMap({
           <Button
             variant="outline"
             size="sm"
-            className={`h-6 px-2 text-[10px] ${
-              tokenAuthError ? "border-amber-500 text-amber-400" : isCustomToken ? "border-sky-500 text-sky-400" : ""
+            className={`h-7 px-2.5 text-xs rounded-md ${
+              tokenAuthError ? "border-amber-500 text-amber-500" : isCustomToken ? "border-sky-500 text-sky-500" : ""
             }`}
             onClick={() => {
               setTempTokenInput(mapboxToken);
@@ -859,18 +859,18 @@ export const GisFeederMap = React.memo(function GisFeederMap({
             title="Configure Mapbox Access Token"
           >
             <Key className="h-3 w-3 mr-1" />
-            TOKEN
+            Token
           </Button>
 
           {/* Reset Camera */}
           <Button
             variant="outline"
             size="sm"
-            className="h-6 px-2 text-[10px]"
+            className="h-7 px-2.5 text-xs rounded-md"
             onClick={handleResetCamera}
           >
             <RotateCcw className="h-3 w-3 mr-1" />
-            CENTER
+            Center
           </Button>
         </div>
       </div>
@@ -922,7 +922,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
 
         {/* Selected Asset Telemetry HUD Popover */}
         {selectedAsset && (
-          <div className="absolute bottom-3 left-3 border border-zinc-700 bg-zinc-950/95 p-3 rounded-sm shadow-2xl max-w-xs font-mono text-xs z-10">
+          <div className="absolute bottom-3 left-3 border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 p-3.5 rounded-lg shadow-2xl max-w-xs text-xs z-10 backdrop-blur-md">
             <div className="flex items-center justify-between border-b border-zinc-800 pb-1 mb-2">
               <span className="font-bold text-zinc-100 uppercase">
                 {selectedAsset.name || selectedAsset.label}
@@ -1026,10 +1026,10 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         )}
 
         {/* Legend */}
-        <div className="absolute bottom-3 right-3 border border-zinc-800 bg-zinc-950/90 px-3 py-2 rounded-sm font-mono text-[10px] space-y-1.5 z-10 shadow-xl backdrop-blur-xs">
-          <div className="text-[9px] uppercase tracking-wider text-zinc-400 font-bold border-b border-zinc-800 pb-1 flex items-center justify-between">
-            <span>ENERGY FLOW TOPOLOGY</span>
-            <span className="text-[8px] text-emerald-400 font-normal">CIRCULAR HUD</span>
+        <div className="absolute bottom-3 right-3 border border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 px-3.5 py-2.5 rounded-lg text-xs space-y-1.5 z-10 shadow-xl backdrop-blur-md">
+          <div className="text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-bold border-b border-slate-100 dark:border-slate-800 pb-1 flex items-center justify-between">
+            <span>Topology Legend</span>
+            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-normal">Distribution</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="h-3.5 w-3.5 rounded-full border-2 border-sky-400 bg-[#090a0f] flex items-center justify-center text-[7px] text-sky-400">⚡</span>

@@ -48,17 +48,17 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
   const isLiveFault = telemetry?.fault || (telemetry?.idiff ?? 0) >= (telemetry?.trip_limit ?? 0.35);
 
   return (
-    <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] rounded-sm flex flex-col h-full overflow-hidden text-xs font-mono shadow-xs dark:shadow-none transition-colors">
+    <div className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 rounded-lg flex flex-col h-full overflow-hidden text-xs shadow-xs transition-colors">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 px-3 py-2 bg-slate-50 dark:bg-zinc-950/70">
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800/80 px-3.5 py-2.5 bg-slate-50/60 dark:bg-slate-900/60">
         <div className="flex items-center gap-2">
           <GitBranch className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-          <span className="font-semibold uppercase tracking-wider text-slate-800 dark:text-zinc-200">
-            DISTRIBUTION ASSET HIERARCHY
+          <span className="font-semibold text-xs text-slate-800 dark:text-slate-200">
+            Distribution Asset Hierarchy
           </span>
         </div>
         <Badge variant="outline" className="text-[10px]">
-          {networkSnapshot ? "3-PHASE GRID (28 POLES)" : "DISCOM TREE"}
+          {networkSnapshot ? "3-Phase Grid (28 Poles)" : "Discom Tree"}
         </Badge>
       </div>
 

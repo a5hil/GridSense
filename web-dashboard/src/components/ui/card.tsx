@@ -8,8 +8,8 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "rounded-sm border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 transition-colors shadow-none",
-      isFault && "border-rose-500 bg-rose-50 dark:bg-rose-950/20 animate-pulse ring-1 ring-rose-500/30",
+      "rounded-lg border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 text-slate-900 dark:text-slate-100 transition-colors shadow-xs dark:shadow-none",
+      isFault && "border-rose-500/80 bg-rose-50/50 dark:bg-rose-950/30 ring-1 ring-rose-500/40",
       className
     )}
     {...props}
@@ -24,7 +24,7 @@ const CardHeader = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "flex items-center justify-between border-b border-slate-200/80 dark:border-zinc-800/80 px-3.5 py-2.5",
+      "flex items-center justify-between border-b border-slate-200/70 dark:border-slate-800/80 px-4 py-2.5",
       className
     )}
     {...props}
@@ -39,7 +39,7 @@ const CardTitle = React.forwardRef<
   <h3
     ref={ref}
     className={cn(
-      "text-xs font-semibold uppercase tracking-wider text-slate-800 dark:text-zinc-200",
+      "text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300",
       className
     )}
     {...props}
@@ -53,7 +53,7 @@ const CardDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn("text-[11px] text-slate-500 dark:text-zinc-500 font-mono", className)}
+    className={cn("text-xs text-slate-500 dark:text-slate-400 font-normal", className)}
     {...props}
   />
 ));
@@ -63,7 +63,7 @@ const CardContent = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
 >(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("p-3.5", className)} {...props} />
+  <div ref={ref} className={cn("p-4", className)} {...props} />
 ));
 CardContent.displayName = "CardContent";
 
@@ -74,7 +74,7 @@ const CardFooter = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "flex items-center justify-between border-t border-slate-200/80 dark:border-zinc-800/80 px-3.5 py-2 text-[11px] text-slate-600 dark:text-zinc-400 font-mono bg-slate-50 dark:bg-zinc-950/40",
+      "flex items-center justify-between border-t border-slate-200/70 dark:border-slate-800/80 px-4 py-2 text-xs text-slate-600 dark:text-slate-400 bg-slate-50/80 dark:bg-slate-950/40 rounded-b-lg",
       className
     )}
     {...props}

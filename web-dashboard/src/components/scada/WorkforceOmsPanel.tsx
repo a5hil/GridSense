@@ -311,39 +311,39 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
   }, [networkSnapshot, effectiveTicket]);
 
   return (
-    <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] rounded-sm flex flex-col h-full overflow-hidden text-xs font-mono shadow-sm">
+    <div className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 rounded-lg flex flex-col h-full overflow-hidden text-xs shadow-sm">
       {/* 1. Global SCADA Header Bar */}
-      <div className="flex flex-wrap items-center justify-between border-b border-slate-200 dark:border-zinc-800 px-3.5 py-2.5 bg-slate-50 dark:bg-zinc-950/80 gap-2">
+      <div className="flex flex-wrap items-center justify-between border-b border-slate-200 dark:border-slate-800/80 px-4 py-3 bg-slate-50/60 dark:bg-slate-900/60 gap-2">
         <div className="flex items-center gap-2">
           <Wrench className="h-4 w-4 text-amber-500 dark:text-amber-400" />
-          <span className="font-semibold uppercase tracking-wider text-slate-800 dark:text-zinc-100">
-            OUTAGE MANAGEMENT SYSTEM (OMS) // FLISR &amp; LINEMAN DISPATCH
+          <span className="font-semibold text-xs tracking-wide text-slate-800 dark:text-slate-100">
+            Outage Management System (OMS) • FLISR &amp; Lineman Dispatch
           </span>
           <Badge
             variant={hasActiveIncidents ? "destructive" : "healthy"}
             className="text-[10px]"
           >
             {hasActiveIncidents
-              ? `ACTIVE INCIDENTS: ${tickets.filter((t) => t.status !== "CLOSED").length + activeDetections.length}`
-              : "ALL FEEDERS HEALTHY"}
+              ? `Active Incidents: ${tickets.filter((t) => t.status !== "CLOSED").length + activeDetections.length}`
+              : "All Feeders Healthy"}
           </Badge>
           {activeDetections.length > 0 && (
             <Badge variant="warning" className="text-[10px] animate-pulse flex items-center gap-1">
               <Activity className="h-3 w-3" />
-              <span>{activeDetections.length} FDIR FAULT(S) DETECTED</span>
+              <span>{activeDetections.length} FDIR Faults Detected</span>
             </Badge>
           )}
         </div>
 
         {isPtwActive ? (
-          <Badge variant="destructive" className="flex items-center gap-1 text-[10px] animate-pulse">
+          <Badge variant="destructive" className="flex items-center gap-1.5 text-[10px] animate-pulse font-medium">
             <Lock className="h-3 w-3" />
-            SAFETY INTERLOCK ACTIVE (RECLOSING LOCKED // IEEE 1686)
+            Safety Interlock Active (Reclosing Locked • IEEE 1686)
           </Badge>
         ) : (
-          <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-zinc-400">
+          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
             <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-            <span>SCADA RECLOSER READY // NO LOCKOUT</span>
+            <span>Recloser Ready • No Lockout</span>
           </div>
         )}
       </div>

@@ -555,9 +555,9 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
       : null;
 
   return (
-    <div className="flex-1 flex flex-col gap-3 font-mono">
+    <div className="flex-1 flex flex-col gap-3">
       {/* 1. Global SCADA Header Bar with Channel Scope & Pole Selection */}
-      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-2.5 rounded-sm flex flex-wrap items-center justify-between gap-3 shadow-xs">
+      <div className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 p-3 rounded-lg flex flex-wrap items-center justify-between gap-3 shadow-xs">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
@@ -565,41 +565,41 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${isFrozen ? "bg-amber-500" : "bg-emerald-500"}`} />
             </span>
             <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            <span className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-zinc-200">
-              SCADA TELEMETRY WAVEFORM MONITOR // MULTI-CHANNEL ANALYZER
+            <span className="font-semibold text-xs tracking-wide text-slate-800 dark:text-slate-200">
+              Waveform Monitor &amp; Multi-Channel Scope
             </span>
           </div>
 
           {/* Unified SCADA Waveform View Mode: 3-Phase Polyphase vs ANSI 87L Differential Span */}
-          <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5 text-xs">
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 rounded-lg p-0.5 text-xs">
             <button
               onClick={() => setChannelScope("POLYPHASE")}
-              className={`px-2 py-1 text-[10px] font-bold uppercase rounded-xs transition-colors flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 text-[11px] font-medium rounded-md transition-colors flex items-center gap-1.5 ${
                 channelScope === "POLYPHASE"
-                  ? "bg-white dark:bg-zinc-800 text-cyan-600 dark:text-cyan-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
-                  : "text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+                  ? "bg-white dark:bg-slate-700 text-sky-600 dark:text-sky-300 shadow-xs"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
               }`}
             >
-              <Layers className="h-3 w-3" />
-              <span>3-PHASE WAVEFORMS</span>
+              <Layers className="h-3.5 w-3.5" />
+              <span>3-Phase Waveforms</span>
             </button>
             <button
               onClick={() => setChannelScope("ANCHOR")}
-              className={`px-2 py-1 text-[10px] font-bold uppercase rounded-xs transition-colors flex items-center gap-1.5 ${
+              className={`px-3 py-1.5 text-[11px] font-medium rounded-md transition-colors flex items-center gap-1.5 ${
                 channelScope === "ANCHOR"
-                  ? "bg-white dark:bg-zinc-800 text-rose-600 dark:text-rose-400 border border-slate-300 dark:border-zinc-700 shadow-xs"
-                  : "text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
+                  ? "bg-white dark:bg-slate-700 text-rose-600 dark:text-rose-400 shadow-xs"
+                  : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200"
               }`}
             >
-              <Radio className="h-3 w-3" />
-              <span>ANSI 87L DIFFERENTIAL (F1-P01 ↔ F1-P02)</span>
+              <Radio className="h-3.5 w-3.5" />
+              <span>ANSI 87L Differential (F1-P01 ↔ F1-P02)</span>
             </button>
           </div>
 
           {/* Unified Grid Pole Selector (28 Distribution Poles across 3 Feeders) */}
           {networkSnapshot && (
             <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold uppercase">POLE:</span>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider">Pole:</span>
               <select
                 value={activeNode ? activeNode.id : activePoleId}
                 onChange={(e) => {
@@ -608,7 +608,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                   setChannelScope("POLYPHASE");
                   onSelectPole?.(newId);
                 }}
-                className="bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-xs px-2 py-1 text-[11px] font-bold text-slate-800 dark:text-zinc-200 focus:outline-none focus:ring-1 focus:ring-cyan-500 cursor-pointer"
+                className="bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-md px-2.5 py-1 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-sky-500 cursor-pointer"
               >
                 <optgroup label="FEEDER LT-1 (RESIDENTIAL - 10 POLES)">
                   {nodesByFeeder["LT-1"].map((n) => (
@@ -634,12 +634,12 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               </select>
 
               {activeNode && (
-                <span className={`text-[9px] px-1.5 py-0.5 rounded-xs font-bold border ${
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium border ${
                   activeNode.isLive
                     ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                    : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30"
+                    : "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/30"
                 }`}>
-                  {activeNode.id === "F1-P01" ? "SECTION 1 INCOMER" : activeNode.id === "F1-P02" ? "SECTION 1 TERMINAL" : "DISTRIBUTION POLE"}
+                  {activeNode.id === "F1-P01" ? "Section 1 Incomer" : activeNode.id === "F1-P02" ? "Section 1 Terminal" : "Distribution Pole"}
                 </span>
               )}
             </div>
@@ -648,28 +648,28 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
 
         <div className="flex items-center gap-3">
           {isFrozen && (
-            <div className="flex items-center gap-1.5 text-xs bg-amber-500/10 border border-amber-500/40 text-amber-500 dark:text-amber-400 px-2 py-0.5 rounded-xs font-bold animate-pulse">
+            <div className="flex items-center gap-1.5 text-xs bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 px-2.5 py-1 rounded-md font-medium animate-pulse">
               <Clock className="h-3.5 w-3.5" />
-              <span>BUFFER FROZEN AT {frozenTime || "INSPECTION"}</span>
+              <span>Buffer Frozen: {frozenTime || "Inspection"}</span>
             </div>
           )}
 
           {/* Freeze / Resume Toggle Button */}
           <button
             onClick={handleToggleFreeze}
-            className={`px-3 py-1 text-xs rounded-sm transition-all flex items-center gap-1.5 font-bold cursor-pointer shadow-xs ${
+            className={`px-3 py-1.5 text-xs rounded-md transition-all flex items-center gap-1.5 font-medium cursor-pointer shadow-xs ${
               isFrozen
-                ? "bg-amber-500 hover:bg-amber-600 text-zinc-950 border border-amber-400"
-                : "bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-zinc-700"
+                ? "bg-amber-500 hover:bg-amber-600 text-slate-950 font-semibold"
+                : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700"
             }`}
             title={isFrozen ? "Resume Live Rolling Stream" : "Freeze All Waveform Buffers for Presentation Inspection"}
           >
             {isFrozen ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
-            <span>{isFrozen ? "RESUME LIVE STREAM" : "FREEZE ALL WAVEFORMS"}</span>
+            <span>{isFrozen ? "Resume Live Stream" : "Freeze Waveforms"}</span>
           </button>
 
-          <div className="text-xs text-slate-500 dark:text-zinc-400 border-l border-slate-200 dark:border-zinc-800 pl-3">
-            BUFFER: <span className="text-slate-800 dark:text-zinc-200 font-bold">{channelScope === "ANCHOR" ? data.length : polyHistory.length}</span> / 40 SAMPLES
+          <div className="text-xs text-slate-500 dark:text-slate-400 border-l border-slate-200 dark:border-slate-800 pl-3">
+            Buffer: <span className="text-slate-800 dark:text-slate-200 font-bold font-mono tabular-nums">{channelScope === "ANCHOR" ? data.length : polyHistory.length}</span>/40
           </div>
         </div>
       </div>

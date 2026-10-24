@@ -39,13 +39,13 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
   onConnectPort,
 }: EngineeringDiagnosticsProps) {
   return (
-    <div className="flex flex-col gap-3 font-mono">
+    <div className="flex flex-col gap-3">
       {/* Banner Notice */}
-      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/80 p-3 rounded-sm flex items-center justify-between text-xs text-slate-600 dark:text-zinc-400 shadow-xs dark:shadow-none transition-colors">
+      <div className="border border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900/90 p-3.5 rounded-lg flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 shadow-xs">
         <div className="flex items-center gap-2">
-          <Cpu className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-          <span className="text-slate-900 dark:text-zinc-200 font-semibold">
-            ENGINEERING &amp; FIRMWARE DIAGNOSTICS CONSOLE
+          <Cpu className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+          <span className="text-slate-900 dark:text-slate-200 font-semibold">
+            Engineering &amp; Firmware Diagnostics Console
           </span>
           <span>•</span>
           <span>SCADA Telemetry Bus, AES-128 Security &amp; Gateway Port Ingestion</span>
