@@ -10,6 +10,25 @@ import {
 } from "./db";
 import { omsManager } from "./oms-state";
 import { liveCalibration } from "./calibration";
+import { SpanProtection } from "./network/protection";
+
+const finiteNum = (val: any, fallback = 0): number => {
+  const n = Number(val);
+  return Number.isFinite(n) ? n : fallback;
+};
+
+const enforcePhaseMask = (
+  ph: any,
+  mask: number,
+  defaultV: number,
+  defaultI: number,
+  defaultP: number,
+  defaultPf: number
+) => ({
+  r: ph?.r ?? { v: defaultV, i: defaultI, p: defaultP, pf: defaultPf, src: "LIVE" },
+  y: mask & 2 ? (ph?.y ?? { v: 0, i: 0, p: 0, pf: 0, src: "LIVE" }) : { v: 0, i: 0, p: 0, pf: 0, src: "NOT_INSTRUMENTED" },
+  b: mask & 4 ? (ph?.b ?? { v: 0, i: 0, p: 0, pf: 0, src: "LIVE" }) : { v: 0, i: 0, p: 0, pf: 0, src: "NOT_INSTRUMENTED" },
+});
 
 class TelemetryStore extends EventEmitter {
   private currentTelemetry: GridTelemetry;
@@ -19,6 +38,15 @@ class TelemetryStore extends EventEmitter {
   private simulationInterval: NodeJS.Timeout | null = null;
   private watchdogInterval: NodeJS.Timeout | null = null;
   private lastIngestTime = 0;
+  private protection = new SpanProtection();
+  private p2LastGasp = false;
+  private alarmOpen = false;
+
+  public resetProtection() {
+    this.protection.reset();
+    this.p2LastGasp = false;
+    this.alarmOpen = false;
+  }
 
   constructor() {
     super();
@@ -147,10 +175,7 @@ class TelemetryStore extends EventEmitter {
           const pf1 = h.p1?.pf ?? 0.96;
           const pf2 = h.p2?.pf ?? 0.96;
           const p1 = Number((v1 * i1 * pf1).toFixed(1));
-          let p2 = Number((v2 * i2 * pf2).toFixed(1));
-          if (p1 > 0 && p2 > p1) {
-            p2 = p1;
-          }
+          const p2 = Number((v2 * i2 * pf2).toFixed(1));
 
           const s1 = Number((v1 * i1).toFixed(1));
           const s2 = Number((v2 * i2).toFixed(1));
@@ -187,7 +212,6 @@ class TelemetryStore extends EventEmitter {
             vDrop,
           };
         }).reverse();
-        this.sanitizeHistoryBuffer();
         this.currentTelemetry.history = this.telemetryHistory;
       }
 
@@ -200,23 +224,7 @@ class TelemetryStore extends EventEmitter {
   }
 
   public sanitizeHistoryBuffer() {
-    if (this.telemetryHistory.length < 3) return;
-    // Apply a 3-point moving average to filter single-sample ADC quantization noise
-    // while preserving authentic physical trends and true fault excursions.
-    for (let i = 1; i < this.telemetryHistory.length - 1; i++) {
-      const prev = this.telemetryHistory[i - 1];
-      const cur = this.telemetryHistory[i];
-      const next = this.telemetryHistory[i + 1];
-
-      if (!cur.isFault && !prev.isFault && !next.isFault) {
-        if (cur.pLoss !== undefined && prev.pLoss !== undefined && next.pLoss !== undefined) {
-          cur.pLoss = Number(((prev.pLoss + cur.pLoss + next.pLoss) / 3).toFixed(1));
-        }
-        if (cur.vDrop !== undefined && prev.vDrop !== undefined && next.vDrop !== undefined) {
-          cur.vDrop = Number(((prev.vDrop + cur.vDrop + next.vDrop) / 3).toFixed(1));
-        }
-      }
-    }
+    // Preserves raw physical sensor measurements without mutating stored history
   }
 
   public getTelemetry(): GridTelemetry {
@@ -232,7 +240,6 @@ class TelemetryStore extends EventEmitter {
   }
 
   public getHistory(): HistoricalTelemetryPoint[] {
-    this.sanitizeHistoryBuffer();
     return this.telemetryHistory;
   }
 
@@ -256,6 +263,9 @@ class TelemetryStore extends EventEmitter {
     }
 
     if (!connected) {
+      this.alarmOpen = false;
+      this.p2LastGasp = false;
+      this.protection.reset();
       this.currentTelemetry.status = "DISCONNECTED";
       this.currentTelemetry.fault = false;
       this.currentTelemetry.fault_code = "GATEWAY_DISCONNECTED";
@@ -332,10 +342,8 @@ class TelemetryStore extends EventEmitter {
 
     // Handle Last Gasp Outage Broadcast
     if (parsed.type === "LAST_GASP") {
+      this.p2LastGasp = parsed.pole === 2 || parsed.pole === "Pole-B";
       const faultMsg = `LAST GASP OUTAGE: Pole ${parsed.pole} power lost! Dispatching crew.`;
-      this.currentTelemetry.status = "ALERT";
-      this.currentTelemetry.fault = true;
-      this.currentTelemetry.fault_code = "OUTAGE_LAST_GASP";
       this.currentTelemetry.lastGasp = {
         pole: parsed.pole || 2,
         relay: parsed.relay || parsed.pole || 2,
@@ -362,44 +370,20 @@ class TelemetryStore extends EventEmitter {
         this.currentTelemetry.nodes[0].i = 0;
       }
 
-      this.systemStatus.operatorAck = false;
-      this.systemStatus.activeAlarm = {
-        active: true,
-        title: "CRITICAL: LAST GASP OUTAGE",
-        description: faultMsg,
+      const r = this.protection.step(
+        { v: this.currentTelemetry.p1.v, i: this.currentTelemetry.p1.i, ageMs: this.currentTelemetry.p1.age_ms ?? 99999 },
+        { v: this.currentTelemetry.p2.v, i: this.currentTelemetry.p2.i, ageMs: this.currentTelemetry.p2.age_ms ?? 99999, lastGasp: this.p2LastGasp }
+      );
+
+      this.updateTelemetry({
+        ...this.currentTelemetry,
         timestamp,
-        faultCode: "OUTAGE_LAST_GASP",
-      };
-
-      this.addEventLog({
-        level: "CRITICAL",
-        source: "LAST_GASP",
-        message: faultMsg,
-        details: JSON.stringify(parsed),
+        status: r.trip ? "TRIP" : "ALERT",
+        fault: true,
+        fault_code: "OUTAGE_LAST_GASP",
+        protectionState: r.state,
+        protectionMsg: r.message,
       });
-
-      // Auto-Issue Trouble Ticket in OMS
-      omsManager.autoCreateTicketForFault({
-        faultCode: "OUTAGE_LAST_GASP",
-        affectedPole: `Pole ${parsed.pole || 2} // Power Cut`,
-        gps: { lat: 10.2325, lng: 76.4095 },
-        idiff: 0,
-        severity: "CRITICAL",
-      });
-
-      this.recordHistoryPoint({
-        timestamp,
-        v1: this.currentTelemetry.p1.v,
-        v2: this.currentTelemetry.p2.v,
-        i1: this.currentTelemetry.p1.i,
-        i2: this.currentTelemetry.p2.i,
-        idiff: 0,
-        tripLimit: 0.35,
-        isFault: true,
-      });
-
-      this.broadcast();
-      saveTelemetryRecord(this.currentTelemetry).catch(() => {});
       return;
     }
 
@@ -412,18 +396,18 @@ class TelemetryStore extends EventEmitter {
         id: n1.id || "Pole-A",
         label: "Pole 1 (Incomer)",
         role: "Incomer",
-        v: Number(n1.v) || 0,
-        i: Number(n1.i) || 0,
-        p: Number(n1.p) || Number((n1.v * n1.i * 0.96).toFixed(1)),
-        pf: Number(n1.pf) || 0.96,
-        freq: 50.0,
-        energy: 14.85,
-        rssi: n1.rssi || -35,
-        snr: n1.snr || 15,
+        v: finiteNum(n1.v),
+        i: finiteNum(n1.i),
+        p: finiteNum(n1.p, finiteNum(n1.v) * finiteNum(n1.i)),
+        pf: Number.isFinite(Number(n1.pf)) ? Number(n1.pf) : 0.0,
+        freq: Number.isFinite(Number(n1.f ?? n1.freq)) ? Number(n1.f ?? n1.freq) : 0.0,
+        energy: finiteNum(n1.energy),
+        rssi: finiteNum(n1.rssi, -35),
+        snr: finiteNum(n1.snr, 15),
         relay: 1,
         hops: 0,
-        age_ms: 0,
-        isOnline: (Number(n1.v) || 0) > 10,
+        age_ms: Number.isFinite(Number(n1.age_ms)) ? Number(n1.age_ms) : 99999,
+        isOnline: finiteNum(n1.v) > 10,
         lastSeen: timestamp,
         lat: 10.2318,
         lng: 76.4088,
@@ -435,18 +419,18 @@ class TelemetryStore extends EventEmitter {
         id: n2.id || "Pole-B",
         label: "Pole 2 (Outgoing)",
         role: "Outgoing",
-        v: Number(n2.v) || 0,
-        i: Number(n2.i) || 0,
-        p: Number(n2.p) || Number((n2.v * n2.i * 0.96).toFixed(1)),
-        pf: Number(n2.pf) || 0.96,
-        freq: 50.0,
-        energy: 14.82,
-        rssi: n2.rssi || -28,
-        snr: n2.snr || 16,
+        v: finiteNum(n2.v),
+        i: finiteNum(n2.i),
+        p: finiteNum(n2.p, finiteNum(n2.v) * finiteNum(n2.i)),
+        pf: Number.isFinite(Number(n2.pf)) ? Number(n2.pf) : 0.0,
+        freq: Number.isFinite(Number(n2.f ?? n2.freq)) ? Number(n2.f ?? n2.freq) : 0.0,
+        energy: finiteNum(n2.energy),
+        rssi: finiteNum(n2.rssi, -28),
+        snr: finiteNum(n2.snr, 16),
         relay: 2,
         hops: 0,
-        age_ms: 150,
-        isOnline: (Number(n2.v) || 0) > 10,
+        age_ms: Number.isFinite(Number(n2.age_ms)) ? Number(n2.age_ms) : 99999,
+        isOnline: finiteNum(n2.v) > 10,
         lastSeen: timestamp,
         lat: 10.2325,
         lng: 76.4095,
@@ -454,30 +438,28 @@ class TelemetryStore extends EventEmitter {
         dtrId: "DTR_SECTOR4_01",
       };
 
-      // 1. Enforce Radial Feeder Physics (V1 >= V2, P1 >= P2)
-      if (p1.v > 10) {
-        if (p2.v > p1.v) {
-          p2.v = p1.v;
-        }
-        const p1p = p1.p ?? 0;
-        const p2p = p2.p ?? 0;
-        if (p2p > p1p && p1p > 0) {
-          p2.p = p1p;
-        }
-      }
-
-      // 2. Enforce ΔI strictly equals |I1 - I2| on every tick
-      const idiff = Number(Math.abs(p1.i - p2.i).toFixed(3));
-      const isFault = parsed.fault === true || idiff >= 0.35;
+      const r = this.protection.step(
+        { v: p1.v, i: p1.i, ageMs: p1.age_ms ?? 99999 },
+        { v: p2.v, i: p2.i, ageMs: p2.age_ms ?? 99999, lastGasp: this.p2LastGasp }
+      );
+      const code: Record<string, string> = {
+        TRIP_LEAKAGE: "DIFF_CURRENT_FAULT",
+        TRIP_UNCLASSIFIED: "DIFF_UNCLASSIFIED",
+        OPEN_CONDUCTOR: "BROKEN_CONDUCTOR",
+      };
+      const faultCode = code[r.state] ?? (r.blind ? "PROTECTION_BLIND" : "NORMAL");
+      const statusVerdict: GridTelemetry["status"] = r.trip ? "TRIP" : r.blind ? "WARN" : "OK";
 
       this.updateTelemetry({
         timestamp,
         sec: "AES128",
-        status: isFault ? "TRIP" : "OK",
-        fault: isFault,
-        fault_code: isFault ? "DIFF_CURRENT_FAULT" : "NORMAL",
-        idiff,
-        trip_limit: 0.35,
+        status: statusVerdict,
+        fault: r.trip,
+        fault_code: faultCode,
+        idiff: r.idiff,
+        trip_limit: r.thresholdA,
+        protectionState: r.state,
+        protectionMsg: r.message,
         nodes: [p1, p2],
         p1,
         p2,
@@ -489,135 +471,105 @@ class TelemetryStore extends EventEmitter {
 
     // Normalizing Format B: Live Gateway Format {"gw_ms":48740,"sec":"AES128","status":"OK","fault":"NORMAL","idiff":0.005,"trip_limit":0.350,"p1":{...},"p2":{...}}
     if (parsed.p1 && parsed.p2) {
+      const p1Mask = Number(parsed.p1.mask) || 1;
+      const p1V = finiteNum(parsed.p1.v);
+      const p1I = finiteNum(parsed.p1.i);
+      const p1P = finiteNum(parsed.p1.p);
+      const p1Pf = Number.isFinite(Number(parsed.p1.pf)) ? Number(parsed.p1.pf) : 0.0;
+      const p1Freq = Number.isFinite(Number(parsed.p1.f ?? parsed.p1.freq)) ? Number(parsed.p1.f ?? parsed.p1.freq) : 0.0;
+      const p1Age = Number.isFinite(Number(parsed.p1.age_ms)) ? Number(parsed.p1.age_ms) : 99999;
+
       const p1: PoleData = {
         id: "Pole-A",
         label: "Pole 1 (Incomer)",
         role: "Incomer",
-        v: Number(parsed.p1.v) || 0,
-        i: Number(parsed.p1.i) || 0,
-        p: Number(parsed.p1.p) || 0,
-        pf: Number(parsed.p1.pf) || 0.96,
-        freq: 50.0,
-        rssi: parsed.p1.rssi || -30,
-        snr: parsed.p1.snr || 15,
-        relay: parsed.p1.relay || 1,
-        hops: parsed.p1.hops || 0,
-        age_ms: parsed.p1.age_ms || 0,
-        isOnline: parsed.p1.age_ms !== 99999 && (Number(parsed.p1.age_ms) || 0) < 15000,
+        v: p1V,
+        i: p1I,
+        p: p1P,
+        pf: p1Pf,
+        freq: p1Freq,
+        rssi: finiteNum(parsed.p1.rssi, -30),
+        snr: finiteNum(parsed.p1.snr, 15),
+        relay: finiteNum(parsed.p1.relay, 1),
+        hops: finiteNum(parsed.p1.hops, 0),
+        age_ms: p1Age,
+        isOnline: p1Age < 15000,
         lastSeen: timestamp,
         lat: 10.2318,
         lng: 76.4088,
         feederId: "FEEDER_04_SECTOR4",
         dtrId: "DTR_SECTOR4_01",
-        phases: parsed.p1.phases || {
-          r: { v: Number(parsed.p1.v) || 0, i: Number(parsed.p1.i) || 0, p: Number(parsed.p1.p) || 0, pf: Number(parsed.p1.pf) || 0.96, src: "LIVE" },
-          y: { v: 0, i: 0, p: 0, pf: 0, src: "NOT_INSTRUMENTED" },
-          b: { v: 0, i: 0, p: 0, pf: 0, src: "NOT_INSTRUMENTED" },
-        },
-        neutralCurrent: Number(parsed.p1.in) || Number(parsed.p1.i) || 0,
-        voltageUnbalancePct: Number(parsed.p1.unb) || 0,
-        phaseMask: Number(parsed.p1.mask) || 1,
+        phases: enforcePhaseMask(parsed.p1.phases, p1Mask, p1V, p1I, p1P, p1Pf),
+        neutralCurrent: finiteNum(parsed.p1.in, p1I),
+        voltageUnbalancePct: finiteNum(parsed.p1.unb, 0),
+        phaseMask: p1Mask,
       };
+
+      const p2Mask = Number(parsed.p2.mask) || 1;
+      const p2V = finiteNum(parsed.p2.v);
+      const p2I = finiteNum(parsed.p2.i);
+      const p2P = finiteNum(parsed.p2.p);
+      const p2Pf = Number.isFinite(Number(parsed.p2.pf)) ? Number(parsed.p2.pf) : 0.0;
+      const p2Freq = Number.isFinite(Number(parsed.p2.f ?? parsed.p2.freq)) ? Number(parsed.p2.f ?? parsed.p2.freq) : 0.0;
+      const p2Age = Number.isFinite(Number(parsed.p2.age_ms)) ? Number(parsed.p2.age_ms) : 99999;
 
       const p2: PoleData = {
         id: "Pole-B",
         label: "Pole 2 (Outgoing)",
         role: "Outgoing",
-        v: Number(parsed.p2.v) || 0,
-        i: Number(parsed.p2.i) || 0,
-        p: Number(parsed.p2.p) || 0,
-        pf: Number(parsed.p2.pf) || 0.96,
-        freq: 50.0,
-        rssi: parsed.p2.rssi || -28,
-        snr: parsed.p2.snr || 16,
-        relay: parsed.p2.relay || 2,
-        hops: parsed.p2.hops || 0,
-        age_ms: parsed.p2.age_ms || 0,
-        isOnline: parsed.p2.age_ms !== 99999 && (Number(parsed.p2.age_ms) || 0) < 15000,
+        v: p2V,
+        i: p2I,
+        p: p2P,
+        pf: p2Pf,
+        freq: p2Freq,
+        rssi: finiteNum(parsed.p2.rssi, -28),
+        snr: finiteNum(parsed.p2.snr, 16),
+        relay: finiteNum(parsed.p2.relay, 2),
+        hops: finiteNum(parsed.p2.hops, 0),
+        age_ms: p2Age,
+        isOnline: p2Age < 15000,
         lastSeen: timestamp,
         lat: 10.2325,
         lng: 76.4095,
         feederId: "FEEDER_04_SECTOR4",
         dtrId: "DTR_SECTOR4_01",
-        phases: parsed.p2.phases || {
-          r: { v: Number(parsed.p2.v) || 0, i: Number(parsed.p2.i) || 0, p: Number(parsed.p2.p) || 0, pf: Number(parsed.p2.pf) || 0.96, src: "LIVE" },
-          y: { v: 0, i: 0, p: 0, pf: 0, src: "NOT_INSTRUMENTED" },
-          b: { v: 0, i: 0, p: 0, pf: 0, src: "NOT_INSTRUMENTED" },
-        },
-        neutralCurrent: Number(parsed.p2.in) || Number(parsed.p2.i) || 0,
-        voltageUnbalancePct: Number(parsed.p2.unb) || 0,
-        phaseMask: Number(parsed.p2.mask) || 1,
+        phases: enforcePhaseMask(parsed.p2.phases, p2Mask, p2V, p2I, p2P, p2Pf),
+        neutralCurrent: finiteNum(parsed.p2.in, p2I),
+        voltageUnbalancePct: finiteNum(parsed.p2.unb, 0),
+        phaseMask: p2Mask,
       };
 
-      // 1. Guard against uninitialized node startup race-conditions:
-      const bothNodesActive = (p1.v > 50 && p1.i > 0.05) && (p2.v > 50 && p2.i > 0.05);
+      // Execute deterministic protection state machine
+      const r = this.protection.step(
+        { v: p1.v, i: p1.i, ageMs: p1.age_ms ?? 99999 },
+        { v: p2.v, i: p2.i, ageMs: p2.age_ms ?? 99999, lastGasp: this.p2LastGasp }
+      );
 
-      // Enforce ΔI strictly equals |I1 - I2| on every tick
-      const idiff = Number(Math.abs(p1.i - p2.i).toFixed(3));
-      const tripLimit = Number(parsed.trip_limit ?? 0.35);
-
-      // Comprehensive Fault Classification aligned with Central Gateway Polyphase FDIR
-      const isDiffTrip = bothNodesActive && (parsed.fault === "DIFF_LEAKAGE" || idiff >= tripLimit);
-      const isBrokenConductor = parsed.fault === "BROKEN_CONDUCTOR" || parsed.fault === "LINE_BREAK";
-      const isPowerCut = parsed.fault === "POWERCUT" || (p1.v < 50 && p2.v < 50);
-      const isBrokenNeutral = parsed.fault === "BROKEN_NEUTRAL";
-      const isOtherTrip =
-        parsed.fault === "OVERCURRENT" ||
-        parsed.fault === "UNDERVOLTAGE" ||
-        parsed.fault === "OVERVOLTAGE" ||
-        isBrokenConductor ||
-        isBrokenNeutral ||
-        (bothNodesActive && (parsed.status === "ALERT" || parsed.status === "TRIP"));
-
-      const isElectricalTrip = isDiffTrip || isOtherTrip;
-      const isSystemAlert = isElectricalTrip || isPowerCut || parsed.status === "ALERT";
-      const isWarn = parsed.status === "WARN" || parsed.fault === "POLE_OFFLINE";
-
-      // 2. Strict Radial Voltage Drop: Upstream Substation V1 >= Downstream Load End V2
-      // Under healthy radial flow, power flows from Incomer (Pole 1) to Load (Pole 2).
-      // Compensate for sensor calibration tolerance so V1 >= V2 and P1 >= P2 are always physically respected.
-      if (p1.v > 10 && !isElectricalTrip) {
-        if (p2.v > p1.v) {
-          p2.v = p1.v;
-        }
-        const p1p = p1.p ?? 0;
-        const p2p = p2.p ?? 0;
-        if (p2p > p1p && p1p > 0) {
-          p2.p = p1p;
-        }
-      }
-
-      const faultCode = isPowerCut
-        ? "POWERCUT"
-        : isElectricalTrip
-        ? (parsed.fault && parsed.fault !== "NORMAL" ? parsed.fault : "DIFF_CURRENT_FAULT")
-        : isWarn
-        ? (parsed.fault || "POLE_OFFLINE")
-        : "NORMAL";
-
-      const statusVerdict: GridTelemetry["status"] = isElectricalTrip
-        ? "TRIP"
-        : isPowerCut
-        ? "ALERT"
-        : isWarn
-        ? "WARN"
-        : "OK";
+      const code: Record<string, string> = {
+        TRIP_LEAKAGE: "DIFF_CURRENT_FAULT",
+        TRIP_UNCLASSIFIED: "DIFF_UNCLASSIFIED",
+        OPEN_CONDUCTOR: "BROKEN_CONDUCTOR",
+      };
+      const faultCode = code[r.state] ?? (r.blind ? "PROTECTION_BLIND" : "NORMAL");
+      const statusVerdict: GridTelemetry["status"] = r.trip ? "TRIP" : r.blind ? "WARN" : "OK";
 
       this.updateTelemetry({
         timestamp,
         gw_ms: parsed.gw_ms,
         sec: parsed.sec || "AES128",
         status: statusVerdict,
-        fault: isSystemAlert,
+        fault: r.trip,
         fault_code: faultCode,
         fault_phase: parsed.phase || parsed.fault_phase || "NONE",
-        idiff,
-        trip_limit: tripLimit,
+        idiff: r.idiff,
+        trip_limit: r.thresholdA,
+        protectionState: r.state,
+        protectionMsg: r.message,
         nodes: [p1, p2],
         p1,
         p2,
         rawPayload: parsed,
-        lastGasp: null,
+        lastGasp: this.p2LastGasp ? this.currentTelemetry.lastGasp : null,
       });
     }
   }
@@ -639,41 +591,21 @@ class TelemetryStore extends EventEmitter {
     freq2?: number;
   }) {
     const v1Val = Number(params.v1.toFixed(1));
-    let v2Val = Number(params.v2.toFixed(1));
+    const v2Val = Number(params.v2.toFixed(1));
     const i1Val = Number(params.i1.toFixed(3));
-    let i2Val = Number(params.i2.toFixed(3));
+    const i2Val = Number(params.i2.toFixed(3));
 
-    // Prevent Pole 2 from initializing at 0.00A before its first LoRa packet arrives (eliminates diagonal chart spike)
-    if (i2Val === 0 && i1Val > 0) {
-      const prev = this.telemetryHistory[this.telemetryHistory.length - 1];
-      if (prev && prev.i2 > 0) {
-        i2Val = prev.i2;
-        v2Val = prev.v2;
-      } else {
-        i2Val = i1Val;
-        v2Val = Math.max(0, Number((v1Val - 0.3).toFixed(1)));
-      }
-    }
-
-    // 1. Enforce Radial Feeder Physics: Upstream V1 >= Downstream V2
-    if (v1Val > 10 && v2Val > v1Val) {
-      v2Val = v1Val;
-    }
-
-    // 2. Enforce ΔI strictly equals |I1 - I2| on every tick
+    // Raw physical ΔI without rewriting measurements
     const idiffVal = Number(Math.abs(i1Val - i2Val).toFixed(3));
 
-    const pf1Val = params.pf1 !== undefined && params.pf1 > 0 ? params.pf1 : 0.96;
-    const pf2Val = params.pf2 !== undefined && params.pf2 > 0 ? params.pf2 : 0.96;
-    const freq1Val = params.freq1 !== undefined && params.freq1 > 0 ? params.freq1 : 50.0;
-    const freq2Val = params.freq2 !== undefined && params.freq2 > 0 ? params.freq2 : 50.0;
+    const pf1Val = params.pf1 !== undefined ? params.pf1 : 0.0;
+    const pf2Val = params.pf2 !== undefined ? params.pf2 : 0.0;
+    const freq1Val = params.freq1 !== undefined ? params.freq1 : 0.0;
+    const freq2Val = params.freq2 !== undefined ? params.freq2 : 0.0;
 
-    // Active power (W): direct calculation from stable V and I lines
-    const p1Val = Number((v1Val * i1Val * pf1Val).toFixed(1));
-    let p2Val = Number((v2Val * i2Val * pf2Val).toFixed(1));
-    if (p1Val > 0 && p2Val > p1Val) {
-      p2Val = p1Val;
-    }
+    // Active power (W): computed from raw values
+    const p1Val = params.p1 !== undefined ? Number(params.p1.toFixed(1)) : Number((v1Val * i1Val * pf1Val).toFixed(1));
+    const p2Val = params.p2 !== undefined ? Number(params.p2.toFixed(1)) : Number((v2Val * i2Val * pf2Val).toFixed(1));
 
     // Apparent power (VA): V * I
     const s1Val = Number((v1Val * i1Val).toFixed(1));
@@ -683,9 +615,9 @@ class TelemetryStore extends EventEmitter {
     const q1Val = Number(Math.sqrt(Math.max(0, s1Val * s1Val - p1Val * p1Val)).toFixed(1));
     const q2Val = Number(Math.sqrt(Math.max(0, s2Val * s2Val - p2Val * p2Val)).toFixed(1));
 
-    // Direct Data Passthrough: exact variables Math.max(0, P1 - P2) and Math.max(0, V1 - V2)
+    // Direct Data Passthrough: exact physical values
     const pLossVal = Number(Math.max(0, p1Val - p2Val).toFixed(1));
-    const vDropVal = Number(Math.max(0, v1Val - v2Val).toFixed(1));
+    const vDropVal = Number((v1Val - v2Val).toFixed(1));
 
     const timeLabel = new Date(params.timestamp).toLocaleTimeString([], {
       hour: "2-digit",
@@ -720,7 +652,6 @@ class TelemetryStore extends EventEmitter {
     if (this.telemetryHistory.length > 40) {
       this.telemetryHistory.shift();
     }
-    this.sanitizeHistoryBuffer();
     this.currentTelemetry.history = this.telemetryHistory;
   }
 
@@ -755,20 +686,18 @@ class TelemetryStore extends EventEmitter {
       freq2: next.p2.freq,
     });
 
-    // Check fault condition for operator alarm
+    // 3b. Alarm episode tracking - prevents infinite re-raise loop after operator Acknowledge
     if (next.fault) {
-      const faultDesc = `Differential Fault: |IA - IB| = ${next.idiff.toFixed(3)}A exceeds threshold (${next.trip_limit.toFixed(3)}A). Central FDIR: ${next.fault_code}`;
-
-      if (
-        !this.systemStatus.activeAlarm ||
-        !this.systemStatus.activeAlarm.active ||
-        this.systemStatus.activeAlarm.faultCode !== next.fault_code
-      ) {
+      const isNew = !this.alarmOpen || this.systemStatus.activeAlarm?.faultCode !== next.fault_code;
+      if (isNew) {
+        this.alarmOpen = true;
         this.systemStatus.operatorAck = false;
+        const msg = next.protectionMsg || `Differential Fault: |IA - IB| = ${next.idiff.toFixed(3)}A exceeds threshold (${next.trip_limit.toFixed(3)}A). Central FDIR: ${next.fault_code}`;
+
         this.systemStatus.activeAlarm = {
           active: true,
           title: "CRITICAL: FDIR DIFFERENTIAL FAULT",
-          description: faultDesc,
+          description: msg,
           timestamp: next.timestamp,
           faultCode: next.fault_code,
         };
@@ -779,15 +708,23 @@ class TelemetryStore extends EventEmitter {
           affectedPole: "Feeder LT-1: Span F1-P01 ↔ F1-P02",
           gps: { lat: 10.2325, lng: 76.4095 },
           idiff: next.idiff,
+          source: "LIVE",
         });
 
         this.addEventLog({
           level: "CRITICAL",
           source: "FDIR_CORE",
-          message: `FEEDER TRIP: ${faultDesc}`,
+          message: `FEEDER TRIP: ${msg}`,
           details: `F1-P01=${next.p1.i.toFixed(2)}A, F1-P02=${next.p2.i.toFixed(2)}A`,
         });
       }
+    } else if (this.alarmOpen) {
+      this.alarmOpen = false;
+      this.addEventLog({
+        level: "INFO",
+        source: "FDIR_CORE",
+        message: `Fault cleared: ${this.systemStatus.activeAlarm?.faultCode || "NORMAL"}`,
+      });
     }
 
     saveTelemetryRecord(next).catch(() => {});

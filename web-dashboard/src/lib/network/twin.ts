@@ -18,6 +18,7 @@ import { liveCalibration } from "../calibration";
 import { omsManager } from "../oms-state";
 import { computeSections, round, runFdir } from "./fdir";
 import { CHILDREN, NETWORK_TOPOLOGY, NODE_BY_ID, TOPO_ORDER, mulberry32, subtree } from "./topology";
+import { DEFAULT_CONFIG } from "./protection";
 import {
   Detection,
   FeederSummary,
@@ -57,7 +58,9 @@ class NetworkTwin extends EventEmitter {
   private tickN = 0;
   private activeKeys = new Map<string, Detection>();
   private last: NetworkSnapshot | null = null;
-  private noise = mulberry32(Date.now() & 0xffffffff);
+  private seed = (Date.now() & 0xffffffff) >>> 0;
+  private noise = mulberry32(this.seed);
+  private wasSeenHealthy: Record<string, boolean> = {};
   private timer: NodeJS.Timeout | null = null;
 
   constructor() {
@@ -68,8 +71,8 @@ class NetworkTwin extends EventEmitter {
 
   public start() {
     if (this.timer) return;
-    this.step();
-    this.timer = setInterval(() => this.step(), TICK_MS);
+    this.step(true);
+    this.timer = setInterval(() => this.step(true), TICK_MS);
   }
 
   public stop() {
@@ -78,7 +81,7 @@ class NetworkTwin extends EventEmitter {
   }
 
   public getSnapshot(): NetworkSnapshot {
-    return this.last ?? this.step();
+    return this.last ?? this.step(false);
   }
 
   public setMode(mode: UninstrumentedPhaseMode) {
@@ -88,7 +91,7 @@ class NetworkTwin extends EventEmitter {
       source: "NETWORK_TWIN",
       message: `Live-pole phases Y/B now shown as ${mode === "SIM" ? "SIMULATED" : "NOT INSTRUMENTED"}`,
     });
-    this.step();
+    this.step(false);
   }
 
   public injectFault(f: {
@@ -130,7 +133,7 @@ class NetworkTwin extends EventEmitter {
       source: "NETWORK_TWIN",
       message: `[SIM] Fault injected: ${describeFault(fault)}`,
     });
-    this.step();
+    this.step(false);
     return { ok: true, message: `Injected ${describeFault(fault)}` };
   }
 
@@ -141,7 +144,7 @@ class NetworkTwin extends EventEmitter {
       source: "NETWORK_TWIN",
       message: id ? `[SIM] Fault ${id} cleared` : "[SIM] All simulated faults cleared",
     });
-    this.step();
+    this.step(false);
   }
 
   // ------------------------------------------------------------------------
@@ -207,7 +210,7 @@ class NetworkTwin extends EventEmitter {
         B: { v: ph?.b?.v ?? 0, i: ph?.b?.i ?? 0, p: ph?.b?.p ?? 0, pf: ph?.b?.pf ?? 0.96, src: ph?.b?.src ?? "NOT_INSTRUMENTED" },
       };
       return {
-        online: linkUp && !!pd?.isOnline && (pd?.age_ms ?? 99999) < 20000,
+        online: linkUp && !!pd?.isOnline && (pd?.age_ms ?? 99999) < DEFAULT_CONFIG.freshMs,
         v: pd?.v ?? 0,
         i: pd?.i ?? 0,
         p: pd?.p ?? 0,
@@ -228,12 +231,18 @@ class NetworkTwin extends EventEmitter {
     return f;
   }
 
-  public step(): NetworkSnapshot {
+  public step(drift = true): NetworkSnapshot {
     this.tickN++;
-    this.driftLoads();
+    if (drift) this.driftLoads();
     const topo = NETWORK_TOPOLOGY;
     const live = this.liveInput();
-    const ohm = (id: string) => (NODE_BY_ID[id].spanM / 1000) * topo.conductorOhmPerKm;
+
+    const BOUNDARY = "F1-P02";
+    const benchSub = new Set(subtree(BOUNDARY).filter((id) => id !== BOUNDARY));
+    let benchK = 1;
+    const ohm = (id: string) =>
+      ((NODE_BY_ID[id].spanM / 1000) * topo.conductorOhmPerKm) /
+      (benchSub.has(id) ? Math.max(benchK, 0.05) : 1);
 
     // Fault lookups
     const leakOnSpan = (childId: string, p: Phase) =>
@@ -256,6 +265,14 @@ class NetworkTwin extends EventEmitter {
     };
     const liveSide = (id: string) => (NODE_BY_ID[id].liveBinding === "Pole-A" ? live.a : live.b);
 
+    // Track healthy seen state for live nodes
+    for (const id of ["F1-P01", "F1-P02"]) {
+      const side = liveSide(id);
+      if (side.online && side.v >= 180) {
+        this.wasSeenHealthy[id] = true;
+      }
+    }
+
     // Local load (A) at each node
     const localLoad: Record<string, PhaseNums> = {};
     for (const id of TOPO_ORDER) {
@@ -274,6 +291,19 @@ class NetworkTwin extends EventEmitter {
         }
       }
       localLoad[id] = l;
+    }
+
+    // 2a. Bench-scale KCL reconciliation at the hardware/twin boundary
+    if (live.b.online) {
+      const iMeas = live.b.phases?.R.i ?? live.b.i;
+      const sumR = [...benchSub].reduce((a, id) => a + localLoad[id].R, 0);
+      const leakR = [...benchSub].reduce((a, id) => a + leakOnSpan(id, "R"), 0);
+      if (sumR > 1e-6) benchK = Math.max(0, iMeas - leakR) / sumR;
+      for (const id of benchSub) {
+        for (const p of PHASES) {
+          localLoad[id][p] *= benchK;
+        }
+      }
     }
 
     // 1. Currents bottom-up. iIn = current entering the pole; iSpan = current on the span
@@ -378,6 +408,15 @@ class NetworkTwin extends EventEmitter {
       }
       const instrumented = PHASES.filter((p) => phases[p].source === "LIVE" || phases[p].source === "SIM");
       const energized = instrumented.some((p) => phases[p].v >= 50);
+
+      const t = telemetryStore.getTelemetry();
+      const isLiveNode = !!n.liveBinding;
+      const isPoleA = n.liveBinding === "Pole-A";
+      const pd = isPoleA ? t.p1 : t.p2;
+      const silentMs = isLiveNode ? (pd?.age_ms ?? 99999) : undefined;
+      const lastGasp = isLiveNode ? (!isPoleA && (t.lastGasp?.pole === 2 || (t as any).p2LastGasp)) : undefined;
+      const wasSeenHealthy = isLiveNode ? !!this.wasSeenHealthy[id] : undefined;
+
       nodes[id] = {
         id,
         label: n.label,
@@ -393,6 +432,9 @@ class NetworkTwin extends EventEmitter {
           B: round(localLoad[id].B, 3),
         },
         status: !energized && instrumented.length > 0 ? "DEENERGIZED" : "NORMAL",
+        silentMs,
+        lastGasp,
+        wasSeenHealthy,
       };
     }
 
@@ -470,6 +512,7 @@ class NetworkTwin extends EventEmitter {
       injectedFaults: [...this.faults],
       liveLinkUp: live.linkUp,
       calibration: liveCalibration.state(),
+      benchScale: round(benchK, 3),
     };
     this.last = snap;
     this.emit("snapshot", snap);
@@ -489,8 +532,12 @@ class NetworkTwin extends EventEmitter {
           : undefined,
       });
 
-      // Automatically dispatch Trouble Ticket in OMS for serious electrical faults
-      if ((d.severity === "CRITICAL" || d.severity === "HIGH") && d.type !== "NODE_OFFLINE") {
+      // 2c. Tickets: live hardware only; simulation never silently creates real tickets
+      const kind =
+        d.source === "LIVE" ? "LIVE"
+        : this.faults.length > 0 ? "TRAINING"
+        : null; // natural SIM condition: advisory only
+      if (kind && (d.severity === "CRITICAL" || d.severity === "HIGH") && d.type !== "NODE_OFFLINE") {
         const targetNode = d.nodeId ? NODE_BY_ID[d.nodeId] : undefined;
         omsManager.autoCreateTicketForFault({
           faultCode: `${d.ansi} // ${d.type}`,
@@ -501,6 +548,7 @@ class NetworkTwin extends EventEmitter {
           feederId: d.feederId || targetNode?.feederId || "FEEDER_04_SECTOR4",
           feederName: d.feederId ? `Feeder ${d.feederId}` : undefined,
           estimatedCustomers: d.customersAffected ?? 45,
+          source: kind,
         });
       }
     }

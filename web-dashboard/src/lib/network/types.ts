@@ -71,6 +71,9 @@ export interface NodeState {
   /** Local service-drop load at this pole (A per phase), known via AMI/SIM. */
   localLoadA: Record<Phase, number>;
   status: "NORMAL" | "WARN" | "ALARM" | "DEENERGIZED";
+  silentMs?: number;
+  lastGasp?: boolean;
+  wasSeenHealthy?: boolean;
 }
 
 export interface SectionResult {
@@ -173,4 +176,5 @@ export interface NetworkSnapshot {
   injectedFaults: InjectedFault[];
   liveLinkUp: boolean;
   calibration: CalibrationState;
+  benchScale?: number;
 }

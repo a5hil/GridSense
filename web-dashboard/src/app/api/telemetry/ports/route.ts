@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
 
     if (action === "command") {
       const cmdStr = (command || "").toString();
+      if (cmdStr.toLowerCase().trim() === "n" || cmdStr.toLowerCase().trim() === "reset") {
+        telemetryStore.resetProtection();
+      }
       const success = await sendSerialCommand(cmdStr);
       return NextResponse.json({
         success,

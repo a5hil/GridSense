@@ -59,6 +59,7 @@ export function computeSections(nodes: Record<string, NodeState>): SectionResult
     if (childIds.length === 0 || parent.id === "DTR-01") continue;
     if (parent.isLive && !parent.online) continue;
     const children = childIds.map((c) => nodes[c]);
+    if (sourceOf([parent, ...children]) === "MIXED") continue;
     if (children.some((c) => c.isLive && !c.online)) continue;
 
     for (const phase of PHASES) {
@@ -134,6 +135,7 @@ export function runFdir(params: {
   for (const n of Object.values(nodes)) {
     if (!n.parentId || (n.isLive && !n.online)) continue;
     const parent = nodes[n.parentId];
+    if (sourceOf([parent, n]) === "MIXED") continue;
     for (const phase of PHASES) {
       const pr = parent.phases[phase];
       const r = n.phases[phase];
@@ -174,6 +176,7 @@ export function runFdir(params: {
     const sp = spread(n);
     const psp = spread(nodes[n.parentId]);
     if (sp === null || psp === null) continue;
+    if (sourceOf([nodes[n.parentId], n]) === "MIXED") continue;
     if (sp >= L.brokenNeutralSpreadV && psp < L.brokenNeutralSpreadV / 2) {
       const affected = subtree(n.id);
       affected.forEach((id) => neutralFaultSubtrees.add(id));
@@ -287,8 +290,40 @@ export function runFdir(params: {
     });
   }
 
+  // 7a. Live node dead or silent while its LIVE parent is healthy: open conductor
+  const OPEN_CONDUCTOR_SILENCE_MS = 4000;
+  for (const n of Object.values(nodes)) {
+    if (!n.isLive || !n.parentId) continue;
+    const parent = nodes[n.parentId];
+    if (!parent.isLive || !parent.online) continue; // need a fresh measured reference
+    if (parent.phases.R.v < L.healthyV) continue;
+    const deadV = n.online && n.phases.R.v < L.energizedV;
+    const silent = !n.online && (n.silentMs ?? 0) >= OPEN_CONDUCTOR_SILENCE_MS && n.wasSeenHealthy;
+    if (!deadV && !silent && !n.lastGasp) continue;
+    det.push({
+      key: `BC:${n.id}:R`,
+      type: "BROKEN_CONDUCTOR",
+      ansi: "ANSI 46BC",
+      severity: "CRITICAL",
+      phase: "R",
+      nodeId: n.id,
+      sectionId: parent.id,
+      feederId: n.feederId ?? undefined,
+      message: n.lastGasp
+        ? `Loss of supply at ${n.id} confirmed by last-gasp while ${parent.id} is live`
+        : `${n.id} ${deadV ? "reads 0 V" : "silent"} while ${parent.id} is live: suspected open conductor`,
+      value: n.phases.R.v,
+      threshold: L.energizedV,
+      unit: "V",
+      source: "LIVE",
+      isolate: { upstream: parent.id, downstream: [n.id] },
+      customersAffected: customersIn(subtree(n.id)),
+    });
+  }
+
   // 7. Live node comms
   for (const n of Object.values(nodes).filter((x) => x.isLive && !x.online)) {
+    if (det.some((d) => d.key === `BC:${n.id}:R`)) continue;
     det.push({
       key: `OFF:${n.id}`,
       type: "NODE_OFFLINE",

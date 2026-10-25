@@ -92,6 +92,7 @@ export interface TroubleTicket {
   estimatedCustomers: number;
   ptw: PermitToWork | null;
   workLog: string[];
+  source?: "LIVE" | "TRAINING";
 }
 
 export interface GridTelemetry {
@@ -107,6 +108,8 @@ export interface GridTelemetry {
   nodes: PoleData[]; // Nodes array as required by prompt
   p1: PoleData;
   p2: PoleData;
+  protectionState?: string;
+  protectionMsg?: string;
   rawPayload?: any;
   lastGasp?: {
     pole: number;
