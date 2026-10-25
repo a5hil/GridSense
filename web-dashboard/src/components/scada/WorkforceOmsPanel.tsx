@@ -340,20 +340,20 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
         <div className="flex items-center gap-2">
           <Wrench className="h-4 w-4 text-amber-500 dark:text-amber-400" />
           <span className="font-semibold uppercase tracking-wider text-slate-800 dark:text-zinc-100">
-            OUTAGE MANAGEMENT SYSTEM (OMS) // FLISR &amp; LINEMAN DISPATCH
+            OUTAGE MANAGEMENT SYSTEM (OMS) // FLISR AUTOMATION &amp; FIELD DISPATCH CONSOLE
           </span>
           <Badge
             variant={hasActiveIncidents ? "destructive" : "healthy"}
             className="text-[10px]"
           >
             {hasActiveIncidents
-              ? `ACTIVE INCIDENTS: ${tickets.filter((t) => t.status !== "CLOSED").length + activeDetections.length}`
-              : "ALL FEEDERS HEALTHY"}
+              ? `ACTIVE DISTRIBUTION OUTAGES: ${tickets.filter((t) => t.status !== "CLOSED").length + activeDetections.length}`
+              : "FEEDER TOPOLOGY NORMAL // NO OUTAGES"}
           </Badge>
           {activeDetections.length > 0 && (
             <Badge variant="warning" className="text-[10px] animate-pulse flex items-center gap-1">
               <Activity className="h-3 w-3" />
-              <span>{activeDetections.length} FDIR FAULT(S) DETECTED</span>
+              <span>{activeDetections.length} FDIR FAULT(S) ACTIVE</span>
             </Badge>
           )}
         </div>
@@ -361,12 +361,12 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
         {isPtwActive ? (
           <Badge variant="destructive" className="flex items-center gap-1 text-[10px] animate-pulse">
             <Lock className="h-3 w-3" />
-            SAFETY INTERLOCK ACTIVE (RECLOSING LOCKED // IEEE 1686)
+            PTW SAFETY INTERLOCK ENGAGED // REMOTE RECLOSING INHIBITED (IEEE 1686 / CEA 44)
           </Badge>
         ) : (
           <div className="flex items-center gap-2 text-[10px] text-slate-500 dark:text-zinc-400">
             <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-            <span>SCADA RECLOSER READY // NO LOCKOUT</span>
+            <span>SCADA SUPERVISORY CONTROL READY // RECLOSING PERMITTED</span>
           </div>
         )}
       </div>
@@ -377,7 +377,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-rose-500 animate-bounce" />
             <span className="font-bold text-rose-700 dark:text-rose-400">
-              FLISR AUTOMATED ISOLATION MATRIX:
+              FLISR AUTOMATED FAULT ISOLATION MATRIX (FDIR):
             </span>
             <span className="text-slate-700 dark:text-zinc-300">
               Fault at <strong className="text-rose-600 dark:text-rose-400">{activeDetection?.nodeId || activeDetection?.sectionId}</strong> on Feeder <strong className="text-cyan-600 dark:text-cyan-400">{activeDetection?.feederId}</strong>
@@ -386,7 +386,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
 
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-zinc-400">
-              <span>UPSTREAM CUT:</span>
+              <span>UPSTREAM SECTIONALIZER:</span>
               <span className="bg-rose-500/20 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded-xs font-bold border border-rose-500/40">
                 {activeDetection?.isolate?.upstream || "DTR-01 ACB"}
               </span>
@@ -407,7 +407,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                 disabled={isSubmitting}
                 onClick={() => handleAutoDispatch(activeDetection)}
               >
-                DISPATCH LINEMAN CREW
+                DISPATCH FIELD CREW (OMS)
               </Button>
             )}
 
@@ -418,7 +418,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                 className="h-6 text-[10px] px-2.5 border-slate-300 dark:border-zinc-700 font-bold"
                 onClick={() => onSelectPole?.(activeDetection.nodeId || activeDetection.sectionId || "F1-P01")}
               >
-                INSPECT POLE
+                INSPECT POLE (SLD)
               </Button>
             )}
           </div>
@@ -433,11 +433,11 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
         <div className="col-span-12 lg:col-span-4 border-r border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-950/40 p-3 flex flex-col gap-2">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800/80 pb-1.5">
             <div className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
-              {hasActiveIncidents ? "DISTRIBUTION TROUBLE INCIDENTS" : "RECENT RESOLVED INCIDENTS"}
+              {hasActiveIncidents ? "ACTIVE DISTRIBUTION OUTAGE INCIDENTS" : "HISTORICAL RESOLVED INCIDENTS (ARCHIVE)"}
             </div>
             <Badge variant="outline" className="text-[9px]">
               {hasActiveIncidents
-                ? `${tickets.length + primaryDetections.length} ROOT${cascadeDetections.length > 0 ? ` (+${cascadeDetections.length} SAGS)` : ""}`
+                ? `${tickets.length + primaryDetections.length} ROOT CAUSE${cascadeDetections.length > 0 ? ` (+${cascadeDetections.length} SAGS)` : ""}`
                 : "ARCHIVE LOG"}
             </Badge>
           </div>
@@ -484,7 +484,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                       ISOLATE: {d.isolate?.upstream || "DTR-01"}
                     </span>
                     <span className="text-rose-600 dark:text-rose-400 font-bold">
-                      [ACTION REQUIRED]
+                      [DISPATCH PENDING]
                     </span>
                   </div>
                 </div>
@@ -500,7 +500,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                 >
                   <div className="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-400 text-[11px]">
                     <ChevronRight className={`h-3.5 w-3.5 transition-transform duration-200 ${showCascade ? "rotate-90" : ""}`} />
-                    <span>SYMPATHETIC VOLTAGE SAGS ({cascadeDetections.length})</span>
+                    <span>SYMPATHETIC VOLTAGE TRANSIENTS / SAGS ({cascadeDetections.length})</span>
                   </div>
                   <Badge variant="outline" className="text-[9px] border-amber-500/50 text-amber-500 py-0">
                     CASCADE SYMPTOMS
@@ -896,10 +896,10 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                     <Smartphone className="h-4 w-4 text-emerald-400" />
                     <div>
                       <div className="text-[11px] font-bold uppercase text-white tracking-wider">
-                        KSEB SMART LINEMAN
+                        KSEB DISCOM FIELD CREW MOBILE // ADMS LINK
                       </div>
                       <div className="text-[8px] text-zinc-400 uppercase">
-                        FIELD CREW AUTOMATION // CREW #4
+                        FIELD AUTOMATION &amp; PERMIT-TO-WORK (PTW) // UNIT #4
                       </div>
                     </div>
                   </div>
@@ -915,7 +915,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                   <div className="mb-2.5 p-2 bg-emerald-950/40 border border-emerald-800/60 rounded-sm text-[10px] text-emerald-300 space-y-1">
                     <div className="flex items-center gap-1.5 font-bold text-emerald-200">
                       <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                      <span>ALL DISTRIBUTION FEEDERS HEALTHY</span>
+                      <span>ALL DISTRIBUTION FEEDERS HEALTHY &amp; SUPERVISED</span>
                     </div>
                     <p className="text-[9px] text-zinc-400">
                       No active trouble tickets dispatched. Safety action buttons remain locked until an outage incident is reported.
@@ -938,7 +938,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                   {/* STEP 1: Confirm Arrival */}
                   <div className="border border-zinc-800 bg-zinc-950/70 p-2 rounded-sm space-y-1.5">
                     <div className="text-[10px] font-bold text-zinc-200 uppercase flex items-center justify-between">
-                      <span>STEP 1: FIELD CREW ARRIVAL</span>
+                      <span>STEP 1: DISPATCH ARRIVAL &amp; LINE VERIFICATION</span>
                       {hasActiveIncidents && effectiveTicket?.status !== "DISPATCHED" ? (
                         <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
                       ) : null}
@@ -967,7 +967,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                         )
                       }
                     >
-                      CONFIRM ON-SITE ARRIVAL
+                      LOG ON-SITE ARRIVAL (GPS VERIFIED)
                     </Button>
                   </div>
 
@@ -982,7 +982,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                     <div className="text-[10px] font-bold text-zinc-200 uppercase flex items-center justify-between">
                       <span className="flex items-center gap-1">
                         <Shield className="h-3 w-3 text-amber-400" />
-                        STEP 2: ISSUE DIGITAL PTW &amp; LOTO
+                        STEP 2: ISSUE DIGITAL PTW &amp; LOTO LOCKOUT
                       </span>
                       {isPtwActive ? (
                         <Badge variant="destructive" className="text-[8px] py-0 px-1 animate-pulse">
@@ -991,7 +991,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                       ) : null}
                     </div>
                     <p className="text-[9px] text-zinc-400">
-                      Engages remote SCADA lockout at upstream sectionalizer {activeDetection?.isolate?.upstream || "switch"}. Remote reclose is strictly blocked.
+                      Engages remote SCADA lockout at upstream sectionalizer {activeDetection?.isolate?.upstream || "switch"}. Remote and local reclose is strictly inhibited under CEA Sec 44.
                     </p>
 
                     <Button
@@ -1007,14 +1007,14 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                       onClick={handleIssuePtw}
                     >
                       <Lock className="h-3 w-3 mr-1" />
-                      ISSUE PTW &amp; ENGAGE LOCKOUT
+                      AUTHORIZE PTW &amp; ENGAGE SCADA LOCKOUT
                     </Button>
                   </div>
 
                   {/* STEP 3: Repair Clearance & PTW Sign-Off */}
                   <div className="border border-zinc-800 bg-zinc-950/70 p-2 rounded-sm space-y-1.5">
                     <div className="text-[10px] font-bold text-zinc-200 uppercase flex items-center justify-between">
-                      <span>STEP 3: REPAIR CLEARANCE &amp; UNLOCK</span>
+                      <span>STEP 3: REPAIR COMPLETION, LINE CLEARANCE &amp; RE-ARM</span>
                     </div>
                     <input
                       type="text"
@@ -1033,7 +1033,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                       onClick={handleClearPtw}
                     >
                       <Unlock className="h-3 w-3 mr-1" />
-                      SIGN-OFF CLEARANCE &amp; RESTORE SERVICE
+                      SURRENDER PTW &amp; RESTORE FEEDER RECLOSE
                     </Button>
                   </div>
                 </div>
@@ -1043,7 +1043,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
               <div className="pt-2 border-t border-zinc-800 text-center">
                 <div className="h-1 w-24 bg-zinc-600 rounded-full mx-auto" />
                 <span className="text-[8px] text-zinc-500 mt-1 block">
-                  KSEB FIELD WORKFORCE MOBILE v2.4.1 // IEEE 1686
+                  KSEB FIELD WORKFORCE MOBILE CLIENT v2.4.1 // IEEE 1686 &amp; CEA 44 COMPLIANT
                 </span>
               </div>
             </div>

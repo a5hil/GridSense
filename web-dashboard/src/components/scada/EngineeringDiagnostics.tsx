@@ -45,13 +45,13 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
         <div className="flex items-center gap-2">
           <Cpu className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
           <span className="text-slate-900 dark:text-zinc-200 font-semibold">
-            ENGINEERING &amp; FIRMWARE DIAGNOSTICS CONSOLE
+            SCADA RTU COMMUNICATIONS &amp; CIPHER DIAGNOSTICS CONSOLE
           </span>
           <span>•</span>
-          <span>SCADA Telemetry Bus, AES-128 Security &amp; Gateway Port Ingestion</span>
+          <span>Sub-GHz Utility Mesh (IN865), AES-128 Supervisory Bus &amp; IEC 60870-5 Ingestion</span>
         </div>
         <Badge variant="crypto" className="text-[10px]">
-          FIRMWARE BUILD: v2.4-AES128
+          PROTOCOL: IEC 60870-5-104 / AES-128-CTR
         </Badge>
       </div>
 
@@ -61,16 +61,16 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
           <CardHeader>
             <div className="flex items-center gap-2">
               <Radio className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-              <CardTitle>Sub-GHz SCADA RF Link Metrics</CardTitle>
+              <CardTitle>Sub-GHz Utility Mesh Telemetry (IN865 / 866.3 MHz)</CardTitle>
             </div>
-            <Badge variant="outline">SUB-GHZ SCADA MESH</Badge>
+            <Badge variant="outline">RF PHY: IN865 BAND</Badge>
           </CardHeader>
 
           <CardContent className="space-y-3 text-xs">
             {/* Pole 1 RF */}
             <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/60 p-2.5 rounded-sm space-y-1">
               <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold uppercase flex justify-between">
-                <span>Section 1 Incomer (F1-P01) RF</span>
+                <span>Substation Incomer (F1-P01) RTU</span>
                 <span className="text-emerald-600 dark:text-emerald-400">
                   {telemetry?.p1 ? `Hop ${telemetry.p1.hops} (Direct)` : "---"}
                 </span>
@@ -98,7 +98,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
             {/* Pole 2 RF */}
             <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/60 p-2.5 rounded-sm space-y-1">
               <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold uppercase flex justify-between">
-                <span>Section 1 Terminal (F1-P02) RF</span>
+                <span>Section 1 Boundary (F1-P02) RTU</span>
                 <span className="text-emerald-600 dark:text-emerald-400">
                   {telemetry?.p2 ? (telemetry.p2.hops === 1 ? "Hop 1 (Relayed)" : "Hop 0 (Direct)") : "---"}
                 </span>
@@ -125,7 +125,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
           </CardContent>
 
           <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-1.5 text-[11px] flex items-center justify-between text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-950/40">
-            <span>RF CHANNEL: SUB-GHZ UTILITY MESH • 866.3 MHz</span>
+            <span>RF CHANNEL: SUB-GHZ UTILITY MESH • 866.3 MHz (IN865)</span>
             <span className="text-cyan-600 dark:text-cyan-400">SF9 / BW 125kHz</span>
           </div>
         </Card>
@@ -135,7 +135,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
           <CardHeader>
             <div className="flex items-center gap-2">
               <Power className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <CardTitle>Substation SCADA Gateway / Serial Ingestion</CardTitle>
+              <CardTitle>RTU Serial Communications Interface (IEC 60870-5-101/104)</CardTitle>
             </div>
             <Badge variant={systemStatus?.gatewayConnected ? "healthy" : "warning"}>
               {systemStatus?.gatewayConnected ? "ONLINE" : "OFFLINE"}
@@ -145,7 +145,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
           <CardContent className="space-y-3 text-xs">
             <div className="space-y-1.5">
               <label className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase font-semibold">
-                DETECTED SERIAL PORTS:
+                DETECTED HARDWARE RTU / COM PORTS:
               </label>
               <select
                 className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-sm px-2.5 py-1.5 text-xs text-slate-800 dark:text-zinc-200 focus:outline-hidden focus:border-slate-400 dark:focus:border-zinc-600 font-mono transition-colors"
@@ -171,14 +171,14 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
                 className="w-full text-xs font-bold"
                 onClick={onConnectPort}
               >
-                {systemStatus?.gatewayConnected ? "DISCONNECT PORT" : "CONNECT 115200 BAUD"}
+                {systemStatus?.gatewayConnected ? "DISCONNECT SERIAL PORT" : "CONNECT SERIAL PORT (115200 BAUD)"}
               </Button>
             </div>
 
             {/* Direct Hardware Commands & Gateway Info */}
             <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/60 p-2.5 rounded-sm space-y-2 mt-2">
               <div className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase font-semibold flex justify-between items-center">
-                <span>TELEMETRY INGESTION</span>
+                <span>TELEMETRY INGESTION (IEC 60870-5-104)</span>
                 <span className="text-emerald-500 font-bold">
                   ACTIVE SCADA BUS
                 </span>
@@ -189,7 +189,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
               </div>
 
               <div className="pt-2 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between">
-                <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-semibold">CONTROL CMD:</span>
+                <span className="text-[10px] text-slate-500 dark:text-zinc-400 font-semibold">SUPERVISORY CMD:</span>
                 <Button
                   variant="outline"
                   size="sm"
@@ -205,7 +205,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
                   className="text-[10px] h-7 px-2.5 bg-slate-200 dark:bg-zinc-800 hover:bg-emerald-600 hover:text-white rounded text-slate-700 dark:text-zinc-200 font-mono transition-colors font-bold"
                   title="Send remote command over SCADA link to clear trips and re-arm line protection relays"
                 >
-                  RESET PROTECTION / RE-ARM ('n')
+                  RESET PROTECTION LATCH / RE-ARM ('n')
                 </Button>
               </div>
             </div>
@@ -222,7 +222,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
           <CardHeader>
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-              <CardTitle>AES-128 Cipher &amp; Raw Frame</CardTitle>
+              <CardTitle>SCADA Cybersecurity Suite (AES-128-CTR &amp; CRC-32)</CardTitle>
             </div>
             <Badge variant="crypto">SECURE</Badge>
           </CardHeader>
@@ -255,7 +255,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
 
             <div className="mt-2">
               <div className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase font-semibold mb-1">
-                LIVE JSON TELEMETRY INGESTION FRAME:
+                IEC 60870-5-104 PROTOCOL INGESTION BUFFER:
               </div>
               <pre className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 p-2 rounded-sm text-[10px] text-slate-800 dark:text-zinc-300 overflow-x-auto max-h-36 font-mono leading-tight">
                 {telemetry?.rawPayload
@@ -285,7 +285,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
           <CardHeader>
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <CardTitle>3-Phase Distribution Grid Model &amp; Continuous Line Calibration</CardTitle>
+              <CardTitle>Distribution State Estimation &amp; Instrument Transformer Calibration</CardTitle>
             </div>
             <Badge variant="healthy">
               {networkSnapshot ? "GRID MODEL ACTIVE (28 POLES)" : "IDLE"}
@@ -367,7 +367,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
             {/* Column 3: FDIR & FLISR Cycle */}
             <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/60 p-3 rounded-sm space-y-2">
               <div className="text-[10px] text-slate-500 dark:text-zinc-400 font-bold uppercase flex justify-between items-center border-b border-slate-200 dark:border-zinc-800/60 pb-1.5">
-                <span>FDIR SUPERVISION ENGINE</span>
+                <span>FDIR SUPERVISORY AUTOMATION ENGINE</span>
                 <span className="text-amber-500 font-bold">ANSI SUITE</span>
               </div>
               <div className="space-y-1.5 text-[11px]">
@@ -400,7 +400,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
           </CardContent>
 
           <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-1.5 text-[11px] flex items-center justify-between text-slate-500 dark:text-zinc-400 bg-slate-50 dark:bg-zinc-950/40">
-            <span>SOLVER: FORWARD-BACKWARD RADIAL LOAD FLOW (2000ms TICK)</span>
+            <span>STATE ESTIMATION: WEIGHTED LEAST-SQUARES (WLS) FORWARD-BACKWARD SWEEP</span>
             <span className="text-emerald-600 dark:text-emerald-400">ZERO RESIDUAL DRIFT</span>
           </div>
         </Card>

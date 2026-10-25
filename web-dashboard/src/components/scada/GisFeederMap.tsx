@@ -805,7 +805,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         <div className="flex items-center gap-2">
           <Layers className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           <span className="font-semibold uppercase tracking-wider text-slate-800 dark:text-zinc-200">
-            GIS GEOSPATIAL VECTOR MAP // FEEDER TOPOLOGY
+            GEOGRAPHIC ADMS // ASSET &amp; FEEDER TOPOLOGY GIS
           </span>
           <Badge variant="outline" className="text-[10px] hidden sm:inline-flex">
             WGS84: 10.2319° N, 76.4089° E
@@ -823,7 +823,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
                   : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
               }`}
             >
-              SCADA DARK
+              SCADA NIGHT
             </button>
             <button
               onClick={() => handleStyleChange("STREETS")}
@@ -833,7 +833,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
                   : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
               }`}
             >
-              DAY VECTOR
+              SUBSTATION DAY
             </button>
             <button
               onClick={() => handleStyleChange("SATELLITE")}
@@ -843,7 +843,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
                   : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
               }`}
             >
-              SATELLITE
+              HIGH-RES SATELLITE
             </button>
           </div>
 
@@ -851,28 +851,29 @@ export const GisFeederMap = React.memo(function GisFeederMap({
           <Button
             variant="outline"
             size="sm"
-            className={`h-6 px-2 text-[10px] ${
+            className={`h-6 px-2 text-[10px] font-mono ${
               tokenAuthError ? "border-amber-500 text-amber-400" : isCustomToken ? "border-sky-500 text-sky-400" : ""
             }`}
             onClick={() => {
               setTempTokenInput(mapboxToken);
               setShowTokenModal(true);
             }}
-            title="Configure Mapbox Access Token"
+            title="Configure Geospatial Vector Tile Server API Credentials"
           >
             <Key className="h-3 w-3 mr-1" />
-            TOKEN
+            GIS SERVER
           </Button>
 
           {/* Reset Camera */}
           <Button
             variant="outline"
             size="sm"
-            className="h-6 px-2 text-[10px]"
+            className="h-6 px-2 text-[10px] font-mono"
             onClick={handleResetCamera}
+            title="Recenter Camera on Angamaly Substation Bus"
           >
             <RotateCcw className="h-3 w-3 mr-1" />
-            CENTER
+            RECENTER
           </Button>
         </div>
       </div>
@@ -887,9 +888,9 @@ export const GisFeederMap = React.memo(function GisFeederMap({
             <div className="flex items-center gap-2">
               <Key className="h-4 w-4 text-amber-400 shrink-0" />
               <div>
-                <span className="font-bold uppercase tracking-wider block">MAPBOX TOKEN REQUIRED</span>
+                <span className="font-bold uppercase tracking-wider block">VECTOR TILE CREDENTIALS REQUIRED</span>
                 <span className="text-[10px] text-amber-300">
-                  Using fallback basemap. Enter your Mapbox public token (`pk.xxx`) to enable vector tiles.
+                  Using fallback Carto raster tiles. Enter Mapbox API token (`pk.xxx`) to enable sub-meter vector tiles.
                 </span>
               </div>
             </div>
@@ -902,7 +903,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
                 setShowTokenModal(true);
               }}
             >
-              SET TOKEN
+              CONFIG TILE API
             </Button>
           </div>
         )}
@@ -914,10 +915,10 @@ export const GisFeederMap = React.memo(function GisFeederMap({
               <ShieldAlert className="h-4 w-4 text-rose-500 animate-bounce shrink-0" />
               <div>
                 <span className="font-bold uppercase tracking-wider block">
-                  DIFFERENTIAL FAULT PINPOINTED ON REAL MAP
+                  ANSI 87L FAULT LOCALIZED // SPAN F1-P01 ↔ F1-P02
                 </span>
                 <span className="text-[10px] text-rose-300">
-                  Between Pole 1 (10.2318°N) and Pole 2 (10.2325°N) // ΔI = {telemetry?.idiff.toFixed(3)}A
+                  Sectionalizer Span (10.2318°N ↔ 10.2325°N) // I_diff = {telemetry?.idiff.toFixed(3)}A
                 </span>
               </div>
             </div>
@@ -936,7 +937,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
               title="Smooth zoom camera to faulted differential span"
             >
               <Crosshair className="h-3 w-3" />
-              <span>FLY TO FAULT</span>
+              <span>LOCATE FAULT (GIS)</span>
             </button>
           </div>
         )}
@@ -961,7 +962,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
                 <div className="flex items-center justify-between pb-1 border-b border-zinc-800 text-[10px]">
                   <span className="text-zinc-400">FEEDER: {selectedAsset.feederId}</span>
                   <Badge variant={selectedAsset.isLive ? "healthy" : "outline"} className="text-[9px] py-0">
-                    {selectedAsset.isLive ? "LIVE HARDWARE" : "SIMULATED POLE"}
+                    {selectedAsset.isLive ? "CLASS 0.5S RTU" : "WLS ESTIMATED NODE"}
                   </Badge>
                 </div>
                 {/* Phase R */}
@@ -975,7 +976,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
                 <div className="flex items-center justify-between font-mono">
                   <span className="text-amber-400 font-bold">[Y]</span>
                   {selectedAsset.phases.Y.source === "NOT_INSTRUMENTED" ? (
-                    <span className="text-[9px] text-amber-500 italic">NOT INSTRUMENTED</span>
+                    <span className="text-[9px] text-amber-500 italic">UNINSTRUMENTED</span>
                   ) : (
                     <>
                       <span>{selectedAsset.phases.Y.v.toFixed(1)}V</span>
@@ -988,7 +989,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
                 <div className="flex items-center justify-between font-mono">
                   <span className="text-cyan-400 font-bold">[B]</span>
                   {selectedAsset.phases.B.source === "NOT_INSTRUMENTED" ? (
-                    <span className="text-[9px] text-cyan-500 italic">NOT INSTRUMENTED</span>
+                    <span className="text-[9px] text-cyan-500 italic">UNINSTRUMENTED</span>
                   ) : (
                     <>
                       <span>{selectedAsset.phases.B.v.toFixed(1)}V</span>
@@ -1046,38 +1047,42 @@ export const GisFeederMap = React.memo(function GisFeederMap({
           </div>
         )}
 
-        {/* Collapsible Map Legend */}
+        {/* Collapsible Formal IEEE/IEC Map Legend */}
         <div className="absolute bottom-3 right-3 z-10 font-mono">
           {isLegendOpen ? (
-            <div className="border border-zinc-800 bg-zinc-950/95 p-3 rounded-sm text-[10px] space-y-1.5 shadow-xl backdrop-blur-xs max-w-xs">
+            <div className="border border-zinc-800 bg-zinc-950/95 p-3 rounded-sm text-[10px] space-y-2 shadow-xl backdrop-blur-xs max-w-xs">
               <div className="text-[9px] uppercase tracking-wider text-zinc-400 font-bold border-b border-zinc-800 pb-1.5 flex items-center justify-between gap-4">
-                <span>FEEDER MAP SYMBOLS</span>
+                <span>IEEE / IEC ELECTRICAL SYMBOLS</span>
                 <button
                   onClick={() => setIsLegendOpen(false)}
-                  className="text-zinc-400 hover:text-white px-1 py-0.5 rounded border border-zinc-800 hover:border-zinc-700 text-[9px]"
+                  className="text-zinc-400 hover:text-white px-1.5 py-0.5 rounded border border-zinc-800 hover:border-zinc-700 text-[9px]"
                 >
                   ✕ Close
                 </button>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-3.5 w-3.5 rounded-full border-2 border-sky-400 bg-[#090a0f] flex items-center justify-center text-[7px] text-sky-400">⚡</span>
-                <span className="text-zinc-300">33/11kV Primary Substation</span>
+                <span className="h-3.5 w-3.5 rounded-xs border border-sky-400 bg-sky-950/60 flex items-center justify-center text-[8px] font-bold text-sky-400">⌁</span>
+                <span className="text-zinc-200">33/11 kV Grid Substation (GSS Incomer)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-3.5 w-3.5 rounded-full border-2 border-emerald-400 bg-[#090a0f] flex items-center justify-center text-[7px] text-emerald-400">◎</span>
-                <span className="text-zinc-300">250 kVA Transformer (DTR-01)</span>
+                <span className="h-3.5 w-3.5 rounded-xs border border-emerald-400 bg-emerald-950/60 flex items-center justify-center text-[8px] font-bold text-emerald-400">⧇</span>
+                <span className="text-zinc-200">250 kVA Pad-Mounted Transformer (DTR-01)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-3.5 w-3.5 rounded-full border-2 border-emerald-400 bg-[#090a0f] ring-2 ring-emerald-500/50 animate-pulse flex items-center justify-center text-[7px] text-white font-bold">P1</span>
-                <span className="text-emerald-400 font-bold">ANSI 87L Differential Unit</span>
+                <span className="h-3.5 w-3.5 rounded-full border-2 border-emerald-400 bg-emerald-950/80 ring-2 ring-emerald-500/50 animate-pulse flex items-center justify-center text-[7px] text-emerald-300 font-bold">◉</span>
+                <span className="text-emerald-400 font-bold">ANSI 87L RTU Unit (P01 / P02)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full border-2 border-purple-400 bg-[#090a0f]" />
-                <span className="text-zinc-300">Distribution Pole (LT Span)</span>
+                <span className="h-3 w-3 rounded-full border border-purple-400 bg-purple-950/60 flex items-center justify-center text-[7px] text-purple-300">●</span>
+                <span className="text-zinc-300">Tangent &amp; Radial Poles (P03–P28)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full border-2 border-rose-500 bg-[#090a0f] animate-ping" />
-                <span className="text-rose-400 font-bold">Trip / Ground Fault</span>
+                <span className="h-3 w-3 rounded-full border border-rose-500 bg-rose-950/80 animate-ping flex items-center justify-center text-[7px] text-rose-300">✖</span>
+                <span className="text-rose-400 font-bold">Tripped Section / Circuit Lockout</span>
+              </div>
+              <div className="flex items-center gap-2 pt-1 border-t border-zinc-800/80 text-[9px] text-zinc-400">
+                <span className="h-1 w-5 bg-emerald-500 rounded-full inline-block" />
+                <span>415/240 V Overhead Aerial Bunched Cable</span>
               </div>
             </div>
           ) : (
@@ -1086,15 +1091,13 @@ export const GisFeederMap = React.memo(function GisFeederMap({
               className="bg-zinc-950/85 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded-sm text-[10px] shadow-lg backdrop-blur-xs flex items-center gap-1.5 transition-colors"
             >
               <Info className="h-3 w-3 text-emerald-400" />
-              <span>Map Legend</span>
+              <span>IEEE / IEC Legend</span>
             </button>
           )}
         </div>
       </div>
 
-
-
-      {/* Mapbox Token Modal */}
+      {/* Enterprise GIS Vector Tile API Modal */}
       {showTokenModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4">
           <div className="border border-zinc-700 bg-zinc-900 text-zinc-100 rounded-md max-w-md w-full p-5 font-mono shadow-2xl">
@@ -1102,7 +1105,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
               <div className="flex items-center gap-2">
                 <Key className="h-4 w-4 text-emerald-400" />
                 <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-100">
-                  MAPBOX ACCESS TOKEN CONFIG
+                  GEOSPATIAL VECTOR TILE SERVER CONFIGURATION
                 </h3>
               </div>
               <button
@@ -1114,7 +1117,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
             </div>
 
             <p className="text-xs text-zinc-400 mb-3 leading-relaxed">
-              Enter your official Mapbox Public Key (<code className="text-emerald-400">pk.eyJ1...</code>). You can also configure it globally via <code className="text-sky-400">NEXT_PUBLIC_MAPBOX_TOKEN</code> in <code className="text-zinc-300">.env.local</code>.
+              Configure official Mapbox API credentials (<code className="text-emerald-400">pk.eyJ1...</code>) or custom utility GIS vector tile endpoints. The access token is securely cached in local storage for continuous SCADA operation.
             </p>
 
             <div className="space-y-3">
@@ -1138,7 +1141,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
                   rel="noopener noreferrer"
                   className="text-sky-400 hover:text-sky-300 flex items-center gap-1 underline"
                 >
-                  Get free Mapbox token <ExternalLink className="h-3 w-3" />
+                  Mapbox Vector Tile API Documentation <ExternalLink className="h-3 w-3" />
                 </a>
 
                 <button
@@ -1164,7 +1167,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
                   className="text-xs h-8 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
                   onClick={handleSaveToken}
                 >
-                  Save & Initialize
+                  Save &amp; Load Tiles
                 </Button>
               </div>
             </div>

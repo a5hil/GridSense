@@ -1,5 +1,5 @@
 /**
- * GridSense demo distribution network (LT side of DTR-01).
+ * GridSense 11kV/415V distribution network model (LT side of DTR-01).
  *
  *   ANGAMALY 33/11kV SS ─ 11kV Feeder 04 ─ DTR-01 (250 kVA, 11kV/415V)
  *        ├─ LT-1 (East)  : F1-P01 … F1-P08
@@ -9,7 +9,7 @@
  *        └─ LT-3 (West)  : F3-P01 … F3-P07
  *
  * The two physical GridSense nodes keep their real GPS coordinates and are bound
- * to POLE-A / POLE-B. All other poles are simulated.
+ * to POLE-A / POLE-B. All other poles are estimated via Load Flow.
  */
 import { ENTERPRISE_CONFIG } from "../constants";
 import { FeederDef, NetworkTopology, TopologyNode } from "./types";

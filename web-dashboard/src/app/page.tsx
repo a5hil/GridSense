@@ -647,7 +647,7 @@ export default function SCADADashboard() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-zinc-100">
-                GRIDSENSE // DISTRIBUTION CONTROL DESK
+                GRIDSENSE ADMS // 11kV DISTRIBUTION DISPATCH CONSOLE
               </h1>
               <Badge
                 variant={isFault ? "destructive" : "healthy"}
@@ -667,7 +667,7 @@ export default function SCADADashboard() {
           </div>
         </div>
 
-        {/* Center: Clean Human-Friendly View Tabs */}
+        {/* Center: Clean Industrial Enterprise SCADA View Tabs */}
         <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5 text-xs">
           <button
             onClick={() => setActiveView("OPERATOR")}
@@ -677,7 +677,7 @@ export default function SCADADashboard() {
                 : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
             }`}
           >
-            OPERATOR DESK
+            OPERATIONS DESK
           </button>
           <button
             onClick={() => setActiveView("GIS")}
@@ -687,7 +687,7 @@ export default function SCADADashboard() {
                 : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
             }`}
           >
-            GIS MAP
+            GEOSPATIAL GIS
           </button>
           <button
             onClick={() => setActiveView("NETWORK")}
@@ -698,7 +698,7 @@ export default function SCADADashboard() {
             }`}
           >
             <Activity className="h-3 w-3" />
-            <span>NETWORK MATRIX</span>
+            <span>NETWORK MODEL (3Φ)</span>
             {networkSnapshot && networkSnapshot.detections.length > 0 && (
               <span className="bg-rose-500/20 text-rose-500 border border-rose-500/50 px-1 py-0.2 text-[9px] rounded-sm font-bold animate-pulse">
                 {networkSnapshot.detections.length}
@@ -713,7 +713,7 @@ export default function SCADADashboard() {
                 : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
             }`}
           >
-            WAVEFORMS
+            POWER QUALITY &amp; WAVEFORMS
           </button>
           <button
             onClick={() => setActiveView("OMS")}
@@ -724,7 +724,7 @@ export default function SCADADashboard() {
             }`}
           >
             <Wrench className="h-3 w-3" />
-            <span>OUTAGE &amp; WORKFORCE</span>
+            <span>OMS &amp; FIELD DISPATCH</span>
             {openTicketsCount > 0 && (
               <span className="bg-amber-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/50 px-1 py-0.2 text-[9px] rounded-sm font-bold">
                 {openTicketsCount}
@@ -740,7 +740,7 @@ export default function SCADADashboard() {
             }`}
           >
             <Cpu className="h-3 w-3" />
-            <span>DIAGNOSTICS</span>
+            <span>COMMUNICATIONS &amp; RTU</span>
           </button>
           <button
             onClick={() => setActiveView("LOGS")}
@@ -750,7 +750,7 @@ export default function SCADADashboard() {
                 : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
             }`}
           >
-            EVENT LOG
+            SEQUENCE OF EVENTS (SOE)
           </button>
         </div>
 
@@ -775,18 +775,18 @@ export default function SCADADashboard() {
                 connectedSSE ? "bg-emerald-500 dark:bg-emerald-400 animate-ping" : "bg-rose-500"
               }`}
             />
-            <span>{connectedSSE ? "SYSTEM LIVE" : "DISCONNECTED"}</span>
+            <span>{connectedSSE ? "SCADA LINK ACTIVE" : "LINK OFFLINE"}</span>
           </Badge>
 
           {/* Theme Toggle Button */}
           <ThemeToggle />
 
-          {/* Dual-Tone Audio Alarm Mute Toggle */}
+          {/* Dual-Tone Audio Alarm Horn Mute Toggle */}
           <Button
             variant="outline"
             size="sm"
             onClick={() => setIsAudioMuted(!isAudioMuted)}
-            title={isAudioMuted ? "Alarm Audio Muted (Click to Unmute)" : "Alarm Audio Active (Click to Mute)"}
+            title={isAudioMuted ? "Alarm Horn Silenced (Click to Activate)" : "Alarm Horn Active (Click to Silence)"}
             className={`h-7 px-2 font-mono text-[11px] flex items-center gap-1.5 ${
               isAudioMuted
                 ? "bg-amber-950/40 border-amber-600/70 text-amber-300"
@@ -796,18 +796,18 @@ export default function SCADADashboard() {
             {isAudioMuted ? (
               <>
                 <VolumeX className="h-3.5 w-3.5 text-amber-400" />
-                <span className="hidden sm:inline">MUTED</span>
+                <span className="hidden sm:inline">ALARM HORN: SILENCED</span>
               </>
             ) : (
               <>
                 <Volume2 className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="hidden sm:inline">AUDIO ON</span>
+                <span className="hidden sm:inline">ALARM HORN: ACTIVE</span>
               </>
             )}
           </Button>
 
           <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-2.5 py-1 rounded-sm text-[11px] text-slate-600 dark:text-zinc-400 tabular-nums">
-            TIME: <span className="text-slate-900 dark:text-zinc-200">{lastHeartbeat}</span>
+            CLOCK (IST): <span className="text-slate-900 dark:text-zinc-200">{lastHeartbeat}</span>
           </div>
         </div>
       </header>
@@ -848,7 +848,7 @@ export default function SCADADashboard() {
                   </span>
                 ) : isAlarmUnacked && (
                   <span className="bg-rose-900 border border-rose-500 text-rose-100 text-[10px] px-2 py-0.5 rounded-sm animate-pulse">
-                    UNACKNOWLEDGED ALARM
+                    UNACKNOWLEDGED RELAY TRIP
                   </span>
                 )}
               </div>
@@ -869,7 +869,7 @@ export default function SCADADashboard() {
               onClick={() => setActiveView("OMS")}
             >
               <Wrench className="h-3.5 w-3.5 text-amber-400" />
-              <span>JUMP TO OMS DISPATCH</span>
+              <span>DISPATCH FIELD CREW (OMS)</span>
             </Button>
 
             <Button
@@ -884,7 +884,7 @@ export default function SCADADashboard() {
               disabled={isAcking}
             >
               <Check className="h-3.5 w-3.5 mr-1" />
-              {isAcking ? "CLEARING..." : isAlarmUnacked ? "ACKNOWLEDGE ALARM" : "RESET ALARM / RE-ARM"}
+              {isAcking ? "CLEARING..." : isAlarmUnacked ? "ACKNOWLEDGE TRIP ALARM" : "CLEAR LATCH / RE-ARM PROTECTION"}
             </Button>
           </div>
         </div>
@@ -907,7 +907,7 @@ export default function SCADADashboard() {
                 <CardHeader className="pb-1">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
-                      FEEDER PROTECTION &amp; FLISR
+                      FEEDER PROTECTION &amp; AUTOMATION (FDIR)
                     </span>
                     {isGatewayOffline ? (
                       <Badge variant="outline" className="text-[10px] border-amber-500/80 text-amber-500 font-bold">
@@ -915,11 +915,11 @@ export default function SCADADashboard() {
                       </Badge>
                     ) : isFault || (gridMetrics?.totalDetections ?? 0) > 0 ? (
                       <Badge variant="destructive" className="text-[10px]">
-                        {isFault ? "TRIP ALERT" : `${gridMetrics?.totalDetections} ALERTS`}
+                        {isFault ? "RELAY TRIP" : `${gridMetrics?.totalDetections} ANOMALIES`}
                       </Badge>
                     ) : (
                       <Badge variant="healthy" className="text-[10px]">
-                        SUPERVISED
+                        ARMED &amp; SUPERVISED
                       </Badge>
                     )}
                   </div>
@@ -953,7 +953,7 @@ export default function SCADADashboard() {
                           ? telemetry?.fault_code || "ANOMALY / TRIP"
                           : (gridMetrics?.totalDetections ?? 0) > 0
                           ? `${gridMetrics?.totalDetections} ACTIVE ALERTS`
-                          : "ALL FEEDERS BALANCED"}
+                          : "FEEDER OPERATION: BALANCED & NORMAL"}
                       </div>
                       <div className="text-[11px] text-zinc-400 font-mono">
                         {isFault
@@ -966,8 +966,8 @@ export default function SCADADashboard() {
                   </div>
                 </CardContent>
                 <div className="border-t border-slate-100 dark:border-zinc-800/60 px-3 py-1 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between">
-                  <span>Trip: {tripLimit.toFixed(3)}A</span>
-                  <span className="text-emerald-500 font-semibold">FLISR ARMED</span>
+                  <span>PICKUP: {tripLimit.toFixed(3)}A</span>
+                  <span className="text-emerald-500 font-semibold">FLISR AUTOMATION: ARMED</span>
                 </div>
               </Card>
 
@@ -978,7 +978,7 @@ export default function SCADADashboard() {
                 <CardHeader className="pb-1">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
-                      DTR-01 ACTIVE POWER FLOW
+                      DISTRIBUTION TRANSFORMER DEMAND (DTR-01)
                     </span>
                     <Badge
                       variant={
@@ -1006,15 +1006,15 @@ export default function SCADADashboard() {
                         </span>
                       </div>
                       <div className="text-[11px] text-zinc-400 font-mono">
-                        LT-1 Incomer: <span className="text-zinc-200 tabular-nums">{feederLoadKW} kW</span>
-                        <span className="ml-1 text-zinc-400">• Loss: {gridMetrics ? gridMetrics.technicalLossKw.toFixed(2) : lineLossW.toFixed(1)} kW</span>
+                        LT-1 HEAD LOAD: <span className="text-zinc-200 tabular-nums">{feederLoadKW} kW</span>
+                        <span className="ml-1 text-zinc-400">• I²R COPPER LOSS: {gridMetrics ? gridMetrics.technicalLossKw.toFixed(2) : lineLossW.toFixed(1)} kW</span>
                       </div>
                     </div>
                   </div>
                 </CardContent>
                 <div className="border-t border-slate-100 dark:border-zinc-800/60 px-3 py-1 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between">
-                  <span>LT-1: {gridMetrics?.f1Kw.toFixed(0) ?? feederLoadKW}k • LT-2: {gridMetrics?.f2Kw.toFixed(0) ?? 0}k • LT-3: {gridMetrics?.f3Kw.toFixed(0) ?? 0}k</span>
-                  <span className="text-cyan-500 font-semibold">250 kVA</span>
+                  <span>RADIAL POWER: F1: {gridMetrics?.f1Kw.toFixed(0) ?? feederLoadKW}k • F2: {gridMetrics?.f2Kw.toFixed(0) ?? 0}k • F3: {gridMetrics?.f3Kw.toFixed(0) ?? 0}k</span>
+                  <span className="text-cyan-500 font-semibold">250 kVA BASE</span>
                 </div>
               </Card>
 
@@ -1038,7 +1038,7 @@ export default function SCADADashboard() {
                       <CardHeader className="pb-1">
                         <div className="flex items-center justify-between">
                           <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
-                            3-PHASE BUS VOLTAGE (DTR)
+                            LV BUS VOLTAGE &amp; POWER QUALITY (IEC 61000)
                           </span>
                           <Badge
                             variant={
@@ -1054,7 +1054,7 @@ export default function SCADADashboard() {
                               ? `OVERVOLTAGE (${maxV.toFixed(0)}V)`
                               : isUnbalanced
                               ? "UNBALANCED"
-                              : "BALANCED ±0.4%"}
+                              : "VOLTAGE BALANCE: NORMAL"}
                           </Badge>
                         </div>
                       </CardHeader>
@@ -1094,9 +1094,9 @@ export default function SCADADashboard() {
                             ANSI 59 EXCURSION (+{(((maxV - 230) / 230) * 100).toFixed(0)}%)
                           </span>
                         ) : isUnbalanced ? (
-                          <span className="text-amber-500 font-semibold">IEEE 1159 WARN</span>
+                          <span className="text-amber-500 font-semibold">IEEE 1159 UNBALANCE ADVISORY</span>
                         ) : (
-                          <span className="text-emerald-500 font-semibold">IEEE 1159 OK</span>
+                          <span className="text-emerald-500 font-semibold">ANSI C84.1 RANGE A COMPLIANT</span>
                         )}
                       </div>
                     </>
@@ -1112,13 +1112,13 @@ export default function SCADADashboard() {
                 <CardHeader className="pb-1">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-zinc-400 font-mono uppercase tracking-wider font-semibold">
-                      GRID INCOMER &amp; INTEGRITY
+                      PHASE CONDUCTOR &amp; DIFFERENTIAL INTEGRITY
                     </span>
                     <Badge
                       variant={isGatewayOffline ? "outline" : isFault || (gridMetrics?.trippedSections ?? 0) > 0 ? "destructive" : "healthy"}
                       className="text-[10px]"
                     >
-                      {isGatewayOffline ? "OFFLINE" : isFault ? "LEAK ALERT" : (gridMetrics?.trippedSections ?? 0) > 0 ? "SPAN TRIP" : "ALL CONDUCTORS INTACT"}
+                      {isGatewayOffline ? "OFFLINE" : isFault ? "DIFFERENTIAL ALARM" : (gridMetrics?.trippedSections ?? 0) > 0 ? "SPAN TRIP" : "CONDUCTORS INTACT (NORMAL)"}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -1147,9 +1147,9 @@ export default function SCADADashboard() {
                   </div>
                 </CardContent>
                 <div className="border-t border-slate-100 dark:border-zinc-800/60 px-3 py-1 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between">
-                  <span>Span F1-P01 ↔ F1-P02</span>
+                  <span>SUPERVISED CORRIDOR: SPAN F1-P01 ↔ F1-P02</span>
                   <span className={isFault ? "text-rose-500 font-bold" : "text-emerald-500 font-semibold"}>
-                    {isFault ? "DIFF TRIP" : "28 POLES INTACT"}
+                    {isFault ? "DIFF TRIP" : "28 DISTRIBUTION NODES ENERGIZED"}
                   </span>
                 </div>
               </Card>
@@ -1284,13 +1284,13 @@ export default function SCADADashboard() {
                     <div className="flex items-center justify-between p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm font-mono text-[11px]">
                       <div className="flex items-center gap-2">
                         <Radio className={`h-3.5 w-3.5 ${isGatewayOffline ? "text-amber-500 animate-pulse" : "text-emerald-500 dark:text-emerald-400"}`} />
-                        <span className="text-slate-800 dark:text-zinc-200">RF TELEMETRY BUS:</span>
+                        <span className="text-slate-800 dark:text-zinc-200">SCADA WIRELESS FIELD BUS:</span>
                       </div>
                       <Badge
                         variant={isGatewayOffline ? "warning" : "healthy"}
                         className={`text-[9px] py-0.5 ${isGatewayOffline ? "border-amber-500 text-amber-500 font-bold" : ""}`}
                       >
-                        {isGatewayOffline ? "GATEWAY DISCONNECTED" : "866.3 MHz IN865 (OK)"}
+                        {isGatewayOffline ? "GATEWAY OFFLINE" : "866.3 MHz IN865 (MESH OK)"}
                       </Badge>
                     </div>
 
@@ -1298,13 +1298,13 @@ export default function SCADADashboard() {
                     <div className="flex items-center justify-between p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm font-mono text-[11px]">
                       <div className="flex items-center gap-2">
                         <Activity className={`h-3.5 w-3.5 ${isFault ? "text-rose-500 animate-pulse" : "text-emerald-500 dark:text-emerald-400"}`} />
-                        <span className="text-slate-800 dark:text-zinc-200">DIFFERENTIAL SPAN:</span>
+                        <span className="text-slate-800 dark:text-zinc-200">ZONE 1 DIFFERENTIAL SPAN:</span>
                       </div>
                       <Badge
                         variant={isFault ? "destructive" : "outline"}
                         className={`text-[9px] py-0.5 ${!isFault ? "text-emerald-600 dark:text-emerald-400 border-emerald-500/30" : ""}`}
                       >
-                        {isFault ? `TRIP: ΔI = ${(telemetry?.idiff ?? 0).toFixed(3)}A` : `120m • INTACT (ΔI ${(telemetry?.idiff ?? 0).toFixed(3)}A)`}
+                        {isFault ? `TRIP: I_diff = ${(telemetry?.idiff ?? 0).toFixed(3)}A` : `120m • INTACT (I_diff ${(telemetry?.idiff ?? 0).toFixed(3)}A)`}
                       </Badge>
                     </div>
                   </div>
@@ -1316,13 +1316,13 @@ export default function SCADADashboard() {
                     <div className="flex items-center justify-between text-xs text-slate-800 dark:text-zinc-300 font-bold border-b border-slate-200 dark:border-zinc-800/80 pb-2">
                       <div className="flex items-center gap-2">
                         <ShieldCheck className="h-4 w-4 text-emerald-500" />
-                        <span>SECTION 1 SUPERVISORY CONTROL</span>
+                        <span>SECTION 1 SUPERVISORY CONTROL (FDIR)</span>
                       </div>
                       <Badge
                         variant={isFault ? "destructive" : "healthy"}
                         className="text-[10px]"
                       >
-                        {isFault ? "TRIP ISOLATED" : "ENERGIZED"}
+                        {isFault ? "TRIPPED & ISOLATED (OPEN)" : "ENERGIZED (CLOSED)"}
                       </Badge>
                     </div>
 
@@ -1330,10 +1330,10 @@ export default function SCADADashboard() {
                     <div className="p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm text-xs space-y-1">
                       <div className="flex items-center justify-between font-semibold">
                         <span className="text-slate-600 dark:text-zinc-400">Protection Zone:</span>
-                        <span className="text-slate-900 dark:text-zinc-200">ANSI 87L Differential</span>
+                        <span className="text-slate-900 dark:text-zinc-200">ANSI 87L Unit Differential</span>
                       </div>
                       <div className="flex items-center justify-between text-[11px] tabular-nums">
-                        <span className="text-slate-500 dark:text-zinc-400">Differential Current (ΔI):</span>
+                        <span className="text-slate-500 dark:text-zinc-400">Differential Current (I_diff):</span>
                         <span className={`font-bold ${isFault ? "text-rose-500" : "text-emerald-500"}`}>
                           {(telemetry?.idiff ?? 0).toFixed(3)} A / {tripLimit.toFixed(3)} A
                         </span>
@@ -1346,9 +1346,9 @@ export default function SCADADashboard() {
                         <div>
                           <div className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
                             <Wrench className="h-3.5 w-3.5" />
-                            <span>{openTicketsCount} OPEN LINEMAN TICKET{openTicketsCount > 1 ? "S" : ""}</span>
+                            <span>{openTicketsCount} OPEN OUTAGE DISPATCH{openTicketsCount > 1 ? "ES" : ""}</span>
                           </div>
-                          <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">Crew dispatched for fault restoration</div>
+                          <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">Field crew dispatched for line restoration</div>
                         </div>
                         <Button
                           size="sm"
@@ -1365,7 +1365,7 @@ export default function SCADADashboard() {
                           <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                           <div>
                             <span className="font-bold text-emerald-700 dark:text-emerald-400">ALL SECTIONS NORMAL</span>
-                            <div className="text-[10px] text-slate-500 dark:text-zinc-400">0 Active Outages • Crews Standing By</div>
+                            <div className="text-[10px] text-slate-500 dark:text-zinc-400">0 Active Outages • Field Crew On Standby</div>
                           </div>
                         </div>
                         <Button
@@ -1391,15 +1391,15 @@ export default function SCADADashboard() {
                     >
                       <Check className="h-3.5 w-3.5 mr-1" />
                       {isAcking
-                        ? "CLEARING ALARM..."
+                        ? "CLEARING TRIP LATCH..."
                         : isAlarmUnacked
-                        ? "ACKNOWLEDGE ALARM (ESC)"
-                        : "LATCHED TRIP // RESET SECTION BREAKER"}
+                        ? "ACKNOWLEDGE TRIP ALARM (ESC)"
+                        : "RESET TRIP LATCH // RECLOSE SECTIONALIZER"}
                     </Button>
                   ) : (
                     <div className="border border-slate-200 dark:border-zinc-800/60 bg-slate-50 dark:bg-zinc-950/40 p-2 rounded-sm text-[10px] text-slate-600 dark:text-zinc-400 flex items-center justify-between font-mono">
-                      <span className="text-slate-700 dark:text-zinc-300">SCADA Supervision Mesh</span>
-                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">CONTINUOUS</span>
+                      <span className="text-slate-700 dark:text-zinc-300">SCADA Field Bus Telemetry</span>
+                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">ONLINE (POLL 250ms)</span>
                     </div>
                   )}
                 </div>

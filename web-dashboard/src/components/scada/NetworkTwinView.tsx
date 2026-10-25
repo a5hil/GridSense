@@ -189,7 +189,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-zinc-100">
-                DISTRIBUTION NETWORK MATRIX // 3-PHASE 415V/240V LT GRID
+                DISTRIBUTION NETWORK MODEL // 3-PHASE LOAD-FLOW MATRIX
               </h2>
               <Badge variant="outline" className="text-[10px] bg-slate-100 dark:bg-zinc-800 border-slate-300 dark:border-zinc-700">
                 28 POLES • 3 FEEDERS
@@ -202,7 +202,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
               ) : (
                 <Badge variant="warning" className="text-[10px] flex items-center gap-1">
                   <Radio className="h-3 w-3" />
-                  STANDALONE SIMULATION
+                  OFFLINE DIGITAL TWIN (SIMULATION)
                 </Badge>
               )}
             </div>
@@ -215,9 +215,9 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
         {/* Uninstrumented Phase Mode Toggle */}
         <div className="flex items-center gap-2">
           <div className="text-right hidden sm:block">
-            <div className="text-[10px] text-slate-400 dark:text-zinc-500">PHASE MONITORING</div>
+            <div className="text-[10px] text-slate-400 dark:text-zinc-500">LOAD-FLOW MODEL</div>
             <div className="text-xs font-bold text-slate-800 dark:text-zinc-200">
-              {uninstrumentedMode === "NOT_INSTRUMENTED" ? "SINGLE-PHASE CT/PT" : "FULL 3-PHASE ESTIMATION"}
+              {uninstrumentedMode === "NOT_INSTRUMENTED" ? "SINGLE-PHASE CT/PT ONLY" : "FULL 3-PHASE ESTIMATION"}
             </div>
           </div>
           <Button
@@ -229,7 +229,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
             title="Toggle between single-phase instrumented view and full 3-phase load-flow estimation"
           >
             <Sliders className="h-3 w-3 mr-1 text-emerald-500" />
-            <span>TOGGLE {uninstrumentedMode === "NOT_INSTRUMENTED" ? "3-PHASE ESTIMATION" : "DIRECT CT/PT ONLY"}</span>
+            <span>{uninstrumentedMode === "NOT_INSTRUMENTED" ? "SOLVE 3-PHASE LOAD FLOW" : "INSTRUMENTED CT/PT ONLY"}</span>
           </Button>
 
           <Button
@@ -243,7 +243,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
             }`}
           >
             <Flame className="h-3 w-3 mr-1 text-amber-500" />
-            <span>FAULT INJECTOR {injectedFaults.length > 0 ? `(${injectedFaults.length})` : ""}</span>
+            <span>CONTINGENCY SIMULATOR (OTS) {injectedFaults.length > 0 ? `(${injectedFaults.length})` : ""}</span>
           </Button>
         </div>
       </div>
@@ -348,28 +348,28 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
             <div className="flex items-center gap-2">
               <Flame className="h-4 w-4 text-amber-500 animate-pulse" />
               <span className="font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
-                SCADA CONTINGENCY &amp; FAULT SIMULATION CONSOLE
+                OPERATOR TRAINING SIMULATOR (OTS) // CONTINGENCY CONSOLE
               </span>
             </div>
             <span className="text-[11px] text-slate-500 dark:text-zinc-400">
-              Simulates feeder disturbances and insulation faults to verify automated FDIR and FLISR protection schemes.
+              Simulates asymmetric distribution network faults and conductor disturbances to validate automated FLISR and protective relay response.
             </span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-2.5">
             {/* Fault Type */}
             <div>
-              <label className="text-[10px] text-slate-400 block mb-1">FAULT SCENARIO</label>
+              <label className="text-[10px] text-slate-400 block mb-1">CONTINGENCY SCENARIO</label>
               <select
                 value={faultType}
                 onChange={(e) => setFaultType(e.target.value as InjectedFaultType)}
                 className="w-full bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 rounded-sm px-2 py-1 text-xs font-mono"
               >
-                <option value="LEAKAGE">⚡ Current Leakage / Theft (87L)</option>
-                <option value="BROKEN_CONDUCTOR">✂️ Broken Conductor / Open (46BC)</option>
-                <option value="BROKEN_NEUTRAL">⚠️ Broken Neutral (59N)</option>
-                <option value="OVERLOAD">📈 Feeder Overload (51)</option>
-                <option value="PHASE_UNBALANCE">⚖️ Phase Load Unbalance (46)</option>
+                <option value="LEAKAGE">ANSI 87L - High-Impedance Conductor Ground Leakage</option>
+                <option value="BROKEN_CONDUCTOR">ANSI 46BC - Series Phase Conductor Rupture (Broken Conductor)</option>
+                <option value="BROKEN_NEUTRAL">ANSI 59N - Neutral Discontinuity / Floating Neutral Displacement</option>
+                <option value="OVERLOAD">ANSI 51 - Feeder Time-Overcurrent (Thermal Overload)</option>
+                <option value="PHASE_UNBALANCE">ANSI 46 - Phase Load Asymmetry / Negative Sequence</option>
               </select>
             </div>
 
@@ -465,10 +465,10 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                 variant="destructive"
                 size="sm"
                 onClick={handleInjectFault}
-                className="w-full text-xs font-mono h-7 bg-amber-600 hover:bg-amber-700 text-white"
+                className="w-full text-xs font-mono h-7 bg-amber-600 hover:bg-amber-700 text-white font-bold"
               >
                 <Play className="h-3 w-3 mr-1 fill-white" />
-                <span>TRIGGER FAULT</span>
+                <span>EXECUTE CONTINGENCY</span>
               </Button>
             </div>
           </div>
@@ -489,7 +489,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
           {injectedFaults.length > 0 && (
             <div className="border-t border-amber-500/30 pt-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300">ACTIVE INJECTIONS:</span>
+                <span className="text-[11px] font-bold text-amber-700 dark:text-amber-300">ACTIVE CONTINGENCIES:</span>
                 {injectedFaults.map((f) => (
                   <Badge
                     key={f.id}
@@ -504,7 +504,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                       type="button"
                       onClick={() => handleClearFault(f.id)}
                       className="hover:text-rose-400 font-bold ml-1"
-                      title="Clear this fault"
+                      title="Clear this contingency"
                     >
                       ×
                     </button>
@@ -516,10 +516,10 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                 variant="outline"
                 size="sm"
                 onClick={() => handleClearFault()}
-                className="text-[11px] h-6 px-2 text-rose-500 border-rose-500/40 hover:bg-rose-500/10"
+                className="text-[11px] h-6 px-2 text-rose-500 border-rose-500/40 hover:bg-rose-500/10 font-bold"
               >
                 <Trash2 className="h-3 w-3 mr-1" />
-                <span>CLEAR ALL FAULTS</span>
+                <span>RESTORE ALL CONTINGENCIES (CLEAR)</span>
               </Button>
             </div>
           )}
@@ -533,8 +533,8 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
             <div className="flex items-center gap-2 text-rose-600 dark:text-rose-300 font-bold">
               <AlertOctagon className="h-4 w-4 animate-bounce" />
               <span>
-                CENTRAL FDIR ALARMS // {rootDetections.length} ROOT PROTECTION TRIP{rootDetections.length > 1 ? "S" : ""}
-                {cascadeDetections.length > 0 ? ` (+${cascadeDetections.length} CASCADE SAGS)` : ""}
+                CENTRAL FDIR &amp; AUTOMATION // {rootDetections.length} ROOT-CAUSE RELAY TRIP{rootDetections.length > 1 ? "S" : ""}
+                {cascadeDetections.length > 0 ? ` (+${cascadeDetections.length} SYMPATHETIC SAGS)` : ""}
               </span>
             </div>
             <span className="text-[11px] text-slate-400">ANSI Protection Suite &amp; Automated FLISR</span>
@@ -679,7 +679,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
               title="Filter pole matrix to only nodes with active alarms or tripped sections"
             >
               <AlertOctagon className="h-3.5 w-3.5 text-rose-500" />
-              <span>{showFaultsOnly ? "SHOWING FAULTS ONLY" : `SHOW FAULTS ONLY (${totalFaultedPoles})`}</span>
+              <span>{showFaultsOnly ? "SHOWING ALARMS ONLY" : `FILTER: ACTIVE ALARMS ONLY (${totalFaultedPoles})`}</span>
             </button>
           </div>
 
@@ -707,11 +707,11 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-slate-200 dark:border-zinc-800 text-[10px] text-slate-400 uppercase tracking-wider">
-                <th className="py-2 px-2.5">POLE / ASSET</th>
-                <th className="py-2 px-2.5">FEEDER SPAN</th>
-                <th className="py-2 px-2.5">SUPERVISION</th>
+                <th className="py-2 px-2.5">NODE / DISTRIBUTION POLE</th>
+                <th className="py-2 px-2.5">FEEDER CORRIDOR</th>
+                <th className="py-2 px-2.5">METERING CLASS</th>
                 <th className="py-2 px-2.5">
-                  <span className="text-rose-500">PHASE R (LIVE)</span>
+                  <span className="text-rose-500">PHASE R (LIVE CT/PT)</span>
                 </th>
                 <th className="py-2 px-2.5">
                   <span className="text-amber-500">PHASE Y</span>
@@ -719,7 +719,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                 <th className="py-2 px-2.5">
                   <span className="text-cyan-500">PHASE B</span>
                 </th>
-                <th className="py-2 px-2.5">SECTION DIFF (ΔI)</th>
+                <th className="py-2 px-2.5">DIFFERENTIAL CURRENT (I_diff)</th>
                 <th className="py-2 px-2.5 text-right">STATUS</th>
               </tr>
             </thead>
@@ -780,14 +780,14 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                           className="text-[9px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/50 py-0.5 flex items-center gap-1 w-fit font-bold"
                         >
                           <Wifi className="h-3 w-3" />
-                          <span>PRIMARY CT/PT</span>
+                          <span>CLASS 0.5S RTU</span>
                         </Badge>
                       ) : (
                         <Badge
                           variant="outline"
                           className="text-[9px] bg-slate-100 dark:bg-zinc-800/80 border-slate-300 dark:border-zinc-700 text-slate-600 dark:text-zinc-400 py-0.5 w-fit"
                         >
-                          STATE ESTIMATED
+                          WLS ESTIMATED
                         </Badge>
                       )}
                     </td>

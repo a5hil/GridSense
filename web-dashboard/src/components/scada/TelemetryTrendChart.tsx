@@ -627,7 +627,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
             </span>
             <Activity className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <span className="font-bold text-xs uppercase tracking-wider text-slate-800 dark:text-zinc-200">
-              SCADA TELEMETRY WAVEFORM MONITOR // MULTI-CHANNEL ANALYZER
+              DISTURBANCE RECORDER &amp; POWER QUALITY ANALYZER // MULTI-CHANNEL OSCILLOGRAPHY
             </span>
           </div>
 
@@ -642,7 +642,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               }`}
             >
               <Layers className="h-3 w-3" />
-              <span>3-PHASE WAVEFORMS</span>
+              <span>3-PHASE POLYPHASE CHANNELS</span>
             </button>
             <button
               onClick={() => setChannelScope("ANCHOR")}
@@ -653,7 +653,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               }`}
             >
               <Radio className="h-3 w-3" />
-              <span>ANSI 87L DIFFERENTIAL (F1-P01 ↔ F1-P02)</span>
+              <span>ZONE 1 DIFFERENTIAL CHANNELS (ANSI 87L)</span>
             </button>
           </div>
 
@@ -674,7 +674,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                 <optgroup label="FEEDER LT-1 (RESIDENTIAL - 10 POLES)">
                   {nodesByFeeder["LT-1"].map((n) => (
                     <option key={n.id} value={n.id}>
-                      {n.id === n.label ? n.id : `${n.id} - ${n.label}`} {n.id === "F1-P01" ? "[INCOMER TERMINAL]" : n.id === "F1-P02" ? "[SECTION TERMINAL]" : ""}
+                      {n.id === n.label ? n.id : `${n.id} - ${n.label}`} {n.id === "F1-P01" ? "[INCOMER RTU]" : n.id === "F1-P02" ? "[BOUNDARY RTU]" : ""}
                     </option>
                   ))}
                 </optgroup>
@@ -723,10 +723,10 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                 ? "bg-amber-500 hover:bg-amber-600 text-zinc-950 border border-amber-400"
                 : "bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white border border-slate-300 dark:border-zinc-700"
             }`}
-            title={isFrozen ? "Resume Live Rolling Stream" : "Freeze All Waveform Buffers for Presentation Inspection"}
+            title={isFrozen ? "Resume Live Rolling Stream" : "Freeze Oscillography Buffer for Inspection"}
           >
             {isFrozen ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
-            <span>{isFrozen ? "RESUME LIVE STREAM" : "FREEZE ALL WAVEFORMS"}</span>
+            <span>{isFrozen ? "RESUME CONTINUOUS RECORDING" : "FREEZE OSCILLOGRAPHY BUFFER"}</span>
           </button>
 
           {/* Export Waveforms CSV */}
@@ -736,7 +736,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
             title="Export 40-sample polyphase waveform data to CSV for post-incident power quality analysis"
           >
             <Download className="h-3.5 w-3.5 text-emerald-500" />
-            <span>EXPORT (.CSV)</span>
+            <span>EXPORT COMTRADE / CSV</span>
           </button>
 
           <div className="text-xs text-slate-500 dark:text-zinc-400 border-l border-slate-200 dark:border-zinc-800 pl-3">

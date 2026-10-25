@@ -402,7 +402,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                           <span className="font-bold text-slate-800 dark:text-zinc-200">{node.id}</span>
                           {node.isLive ? (
                             <span className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/40 text-[8px] px-1 py-0.2 rounded-xs font-bold">
-                              {isP1 ? "INCOMER" : "OUTGOING"}
+                              {isP1 ? "INCOMER RTU" : "BOUNDARY RTU"}
                             </span>
                           ) : (
                             <span className="bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[8px] px-1 py-0.2 rounded-xs">
@@ -457,7 +457,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                     <div className="mt-2 pt-1 border-t border-slate-200 dark:border-zinc-800/60 flex items-center justify-between text-[9px] text-slate-500 dark:text-zinc-400">
                       <span>LOAD: {Math.round(liveP)}W</span>
                       <span className="font-bold text-slate-700 dark:text-zinc-300">
-                        {node.isLive ? (isP1 ? "INCOMER" : "OUTGOING") : node.status}
+                        {node.isLive ? (isP1 ? "INCOMER RTU" : "BOUNDARY RTU") : (node.status === "NORMAL" ? "ENERGIZED" : node.status)}
                       </span>
                     </div>
                   </div>
