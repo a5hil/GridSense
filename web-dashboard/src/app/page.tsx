@@ -647,7 +647,7 @@ export default function SCADADashboard() {
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-zinc-100">
-                GRIDSENSE ADMS // 11kV DISTRIBUTION DISPATCH CONSOLE
+                GRIDSENSE ADMS // 415V/230V LT DISTRIBUTION DISPATCH CONSOLE
               </h1>
               <Badge
                 variant={isFault ? "destructive" : "healthy"}
