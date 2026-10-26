@@ -678,7 +678,7 @@ export default function SCADADashboard() {
   const isDataReady = Boolean(networkSnapshot && (connectedSSE || telemetry));
 
   return (
-    <div className="flex flex-col gap-3 font-mono">
+    <div className="min-h-full flex-1 flex flex-col gap-2.5 font-mono">
       {!isPlatformReady && (
         <PlatformLoadingOverlay
           isDataReady={isDataReady}
@@ -767,14 +767,14 @@ export default function SCADADashboard() {
       )}
 
       {/* 3. MAIN CONTENT AREA */}
-      <main className="flex flex-col gap-3 flex-1">
+      <main className="flex-1 flex flex-col gap-2.5 min-h-0">
         {/* ============================================================== */}
         {/* VIEW A: OPERATOR DESK (CLEAN, INTUITIVE, HUMAN-FIRST) */}
         {/* ============================================================== */}
         {activeView === "OPERATOR" && (
-          <div className="flex-1 flex flex-col gap-3">
+          <div className="flex-1 flex flex-col gap-2.5 min-h-0">
             {/* ROW 1: FOUR UNIFIED OPERATOR SCADA KPI METRIC CARDS */}
-            <div className="grid grid-cols-12 gap-3">
+            <div className="grid grid-cols-12 gap-2.5 shrink-0">
               {/* CARD 1: Grid Protection & FLISR Supervision (ANSI 87L / 50/51) */}
               <Card
                 isFault={!isPowerCut && (isFault || (gridMetrics?.criticalDetections ?? 0) > 0)}
@@ -1052,17 +1052,19 @@ export default function SCADADashboard() {
             </div>
 
             {/* ROW 2: SINGLE-LINE DIAGRAM (SLD) POWER FLOW */}
-            <SingleLinePowerFlow
-              telemetry={telemetry}
-              networkSnapshot={networkSnapshot}
-              selectedPoleId={selectedPoleId}
-              onSelectPole={handlePoleSelect}
-            />
+            <div className="shrink-0">
+              <SingleLinePowerFlow
+                telemetry={telemetry}
+                networkSnapshot={networkSnapshot}
+                selectedPoleId={selectedPoleId}
+                onSelectPole={handlePoleSelect}
+              />
+            </div>
 
             {/* ROW 3: REAL GEOSPATIAL MAP (COL 8) + OPERATIONS DISPATCH STATION (COL 4) */}
-            <div className="grid grid-cols-12 gap-3 flex-1 min-h-[440px]">
+            <div className="grid grid-cols-12 gap-2.5 flex-1 min-h-[460px]">
               {/* Left (8 cols): Mapbox Vector GIS Map */}
-              <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-[440px]">
+              <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-[460px]">
                 <GisFeederMap
                   telemetry={telemetry}
                   networkSnapshot={networkSnapshot}
@@ -1072,7 +1074,7 @@ export default function SCADADashboard() {
               </div>
 
               {/* Right (4 cols): Operations & Incident Dispatch Hub */}
-              <div className="col-span-12 lg:col-span-4 flex flex-col gap-3 font-mono h-full">
+              <div className="col-span-12 lg:col-span-4 flex flex-col gap-2.5 font-mono h-full">
                 {/* Feeder Status Overview */}
                 <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3 rounded-sm space-y-2.5 shadow-xs dark:shadow-none transition-colors">
                   <div className="flex items-center justify-between text-xs text-slate-800 dark:text-zinc-300 font-bold border-b border-slate-200 dark:border-zinc-800/80 pb-2">
@@ -1328,7 +1330,7 @@ export default function SCADADashboard() {
         {/* VIEW B: GIS FULL VIEW WITH ASSET TREE */}
         {/* ============================================================== */}
         {activeView === "GIS" && (
-          <div className="grid grid-cols-12 gap-3 flex-1 min-h-[580px]">
+          <div className="grid grid-cols-12 gap-2.5 flex-1 h-full min-h-[550px]">
             <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-[550px]">
               <GisFeederMap
                 telemetry={telemetry}
@@ -1352,7 +1354,7 @@ export default function SCADADashboard() {
         {/* VIEW B2: 3-PHASE NETWORK DIGITAL TWIN & SIMULATOR */}
         {/* ============================================================== */}
         {activeView === "NETWORK" && (
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col min-h-0">
             <NetworkTwinView
               snapshot={networkSnapshot}
               onRefresh={fetchNetworkSnapshot}
@@ -1366,7 +1368,7 @@ export default function SCADADashboard() {
         {/* VIEW C: WAVEFORM MONITOR */}
         {/* ============================================================== */}
         {activeView === "WAVEFORMS" && (
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col min-h-0">
             <TelemetryTrendChart
               history={history}
               tripLimit={0.35}
@@ -1383,7 +1385,7 @@ export default function SCADADashboard() {
         {/* VIEW D: WORKFORCE & OUTAGE MANAGEMENT (OMS) */}
         {/* ============================================================== */}
         {activeView === "OMS" && (
-          <div className="flex-1 min-h-[500px]">
+          <div className="flex-1 flex flex-col min-h-0">
             <WorkforceOmsPanel
               tickets={tickets}
               onRefresh={fetchTickets}
@@ -1400,22 +1402,24 @@ export default function SCADADashboard() {
         {/* VIEW E: ENGINEERING & FIRMWARE DIAGNOSTICS */}
         {/* ============================================================== */}
         {(activeView === "DIAGNOSTICS" || activeView === "COMMS") && (
-          <EngineeringDiagnostics
-            telemetry={telemetry}
-            networkSnapshot={networkSnapshot}
-            systemStatus={systemStatus}
-            availablePorts={availablePorts}
-            selectedPort={selectedPort}
-            onSelectPort={setSelectedPort}
-            onConnectPort={handlePortConnect}
-          />
+          <div className="flex-1 flex flex-col min-h-0">
+            <EngineeringDiagnostics
+              telemetry={telemetry}
+              networkSnapshot={networkSnapshot}
+              systemStatus={systemStatus}
+              availablePorts={availablePorts}
+              selectedPort={selectedPort}
+              onSelectPort={setSelectedPort}
+              onConnectPort={handlePortConnect}
+            />
+          </div>
         )}
 
         {/* ============================================================== */}
         {/* VIEW F: SEQUENTIAL EVENT RECORDER (SER AUDIT LOG) */}
         {/* ============================================================== */}
         {(activeView === "LOGS" || activeView === "SOE") && (
-          <Card className="col-span-12 flex-1 flex flex-col font-mono min-h-[500px]">
+          <Card className="col-span-12 flex-1 flex flex-col font-mono min-h-0">
             <CardHeader className="py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Terminal className="h-4 w-4 text-emerald-400" />
@@ -1435,7 +1439,7 @@ export default function SCADADashboard() {
               </div>
             </CardHeader>
 
-            <div className="flex-1 min-h-[380px] max-h-[calc(100vh-250px)] overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <Table>
                 <TableHeader>
                   <TableRow>

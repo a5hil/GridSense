@@ -179,7 +179,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
   };
 
   return (
-    <div className="flex flex-col gap-3 font-mono">
+    <div className="flex flex-col gap-2.5 font-mono flex-1 min-h-full">
       {/* 1. TOP SUMMARY BAR: DTR SUBSTATION & 3-PHASE NETWORK METRICS */}
       <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm shadow-xs dark:shadow-none flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -635,7 +635,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
       )}
 
       {/* 5. FEEDER SELECTION & 3-PHASE TREE VIEW */}
-      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm flex flex-col gap-3">
+      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm flex flex-col gap-3 flex-1 min-h-0">
         {/* Feeder Tabs */}
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-zinc-800/80 pb-2.5">
           <div className="flex items-center gap-2">
@@ -703,7 +703,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
         </div>
 
         {/* Poles 3-Phase Grid Table */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto flex-1">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-slate-200 dark:border-zinc-800 text-[10px] text-slate-400 uppercase tracking-wider">
