@@ -1295,15 +1295,19 @@ export default function SCADADashboard() {
                   {/* Alarm Silencing / Reset Action */}
                   {isFault ? (
                     <Button
-                      variant={isPtwLocked ? "outline" : "destructive"}
+                      variant={isPtwLocked ? "outline" : isPowerCut ? "secondary" : "destructive"}
                       size="sm"
-                      className="w-full font-mono font-bold text-xs shadow-sm"
+                      className={`w-full font-mono font-bold text-xs shadow-sm ${
+                        isPowerCut ? "bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700" : ""
+                      }`}
                       onClick={handleAcknowledgeAlarm}
                       disabled={isAcking}
                     >
                       <Check className="h-3.5 w-3.5 mr-1" />
                       {isAcking
-                        ? "CLEARING TRIP LATCH..."
+                        ? "CLEARING..."
+                        : isPowerCut
+                        ? "ACKNOWLEDGE OUTAGE (ESC)"
                         : isAlarmUnacked
                         ? "ACKNOWLEDGE TRIP ALARM (ESC)"
                         : "RESET TRIP LATCH // RECLOSE SECTIONALIZER"}
