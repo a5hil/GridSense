@@ -62,6 +62,7 @@ import { SingleLinePowerFlow } from "@/components/scada/SingleLinePowerFlow";
 import { EngineeringDiagnostics } from "@/components/scada/EngineeringDiagnostics";
 import { ScadaUser } from "@/lib/auth";
 import { NetworkTwinView } from "@/components/scada/NetworkTwinView";
+import { PlatformLoadingOverlay } from "@/components/scada/PlatformLoadingOverlay";
 import { NetworkSnapshot } from "@/lib/network/types";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { ENTERPRISE_CONFIG } from "@/lib/constants";
@@ -167,6 +168,7 @@ export default function SCADADashboard() {
   const [accumulatedEnergyKWh, setAccumulatedEnergyKWh] = React.useState<number>(1.248);
   const lastEnergyTickRef = React.useRef<number>(Date.now());
   const [currentUser, setCurrentUser] = React.useState<ScadaUser | null>(null);
+  const [isPlatformReady, setIsPlatformReady] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     fetch("/api/auth/me")
@@ -657,8 +659,16 @@ export default function SCADADashboard() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activeFault, activeView]);
 
+  const isDataReady = Boolean(networkSnapshot && (connectedSSE || telemetry));
+
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-[#09090b] text-slate-900 dark:text-[#fafafa] flex flex-col p-3 md:p-4 gap-3 select-none transition-colors duration-150">
+      {!isPlatformReady && (
+        <PlatformLoadingOverlay
+          isDataReady={isDataReady}
+          onFinished={() => setIsPlatformReady(true)}
+        />
+      )}
       {/* 1. TOP SCADA HEADER BAR - CLEAN OPERATOR DESK */}
       <header className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] p-3 rounded-sm flex flex-wrap items-center justify-between gap-3 font-mono shadow-xs dark:shadow-none transition-colors">
         {/* Left: Branding & Substation Title */}

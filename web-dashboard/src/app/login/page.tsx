@@ -25,6 +25,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("gridsense123");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isAuthorized, setIsAuthorized] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [systemTime, setSystemTime] = useState<string>("");
 
@@ -54,8 +55,11 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/");
-      router.refresh();
+      setIsAuthorized(true);
+      setTimeout(() => {
+        router.push("/");
+        router.refresh();
+      }, 500);
     } catch {
       setErrorMsg("Network error communicating with authentication service");
       setIsLoading(false);
@@ -179,10 +183,19 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={isLoading}
-              className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:bg-zinc-800 disabled:text-zinc-500 text-white font-bold text-xs tracking-wider uppercase rounded-sm shadow-lg shadow-emerald-950/40 transition-all flex items-center justify-center gap-2 border border-emerald-400/40"
+              disabled={isLoading || isAuthorized}
+              className={`w-full py-2.5 px-4 font-bold text-xs tracking-wider uppercase rounded-sm shadow-lg transition-all flex items-center justify-center gap-2 border ${
+                isAuthorized
+                  ? "bg-emerald-700 text-white border-emerald-300 shadow-emerald-900/80"
+                  : "bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 disabled:bg-zinc-800 disabled:text-zinc-500 text-white border-emerald-400/40 shadow-emerald-950/40"
+              }`}
             >
-              {isLoading ? (
+              {isAuthorized ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-300 animate-bounce" />
+                  <span>ACCESS GRANTED • INITIALIZING CONSOLE...</span>
+                </>
+              ) : isLoading ? (
                 <>
                   <div className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   <span>Verifying SCADA Credentials...</span>
