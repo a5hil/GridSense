@@ -18,74 +18,11 @@ import {
   EyeOff,
 } from "lucide-react";
 
-interface Persona {
-  id: string;
-  label: string;
-  username: string;
-  pass: string;
-  name: string;
-  badge: string;
-  role: string;
-  color: string;
-  bgClass: string;
-  borderClass: string;
-}
-
-const PERSONAS: Persona[] = [
-  {
-    id: "op",
-    label: "Chief Dispatcher",
-    username: "operator",
-    pass: "gridsense123",
-    name: "K. P. Rajesh",
-    badge: "#OP-4412",
-    role: "OPERATOR",
-    color: "text-emerald-400",
-    bgClass: "bg-emerald-950/40 hover:bg-emerald-900/60",
-    borderClass: "border-emerald-700/50 hover:border-emerald-500",
-  },
-  {
-    id: "adm",
-    label: "Substation In-Charge",
-    username: "admin",
-    pass: "admin123",
-    name: "Er. Anita Varma",
-    badge: "#ENG-1002",
-    role: "ADMIN",
-    color: "text-cyan-400",
-    bgClass: "bg-cyan-950/40 hover:bg-cyan-900/60",
-    borderClass: "border-cyan-700/50 hover:border-cyan-500",
-  },
-  {
-    id: "line",
-    label: "Field Lineman",
-    username: "lineman",
-    pass: "lineman123",
-    name: "Suresh Kumar",
-    badge: "#LM-7701",
-    role: "FIELD_ENGINEER",
-    color: "text-amber-400",
-    bgClass: "bg-amber-950/40 hover:bg-amber-900/60",
-    borderClass: "border-amber-700/50 hover:border-amber-500",
-  },
-  {
-    id: "audit",
-    label: "Viva Examiner",
-    username: "auditor",
-    pass: "viva2026",
-    name: "External Auditor",
-    badge: "#AUD-9011",
-    role: "AUDITOR",
-    color: "text-purple-400",
-    bgClass: "bg-purple-950/40 hover:bg-purple-900/60",
-    borderClass: "border-purple-700/50 hover:border-purple-500",
-  },
-];
 
 export default function LoginPage() {
   const router = useRouter();
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("operator");
+  const [password, setPassword] = useState("gridsense123");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -123,12 +60,6 @@ export default function LoginPage() {
       setErrorMsg("Network error communicating with authentication service");
       setIsLoading(false);
     }
-  };
-
-  const handleSelectPersona = (p: Persona) => {
-    setUsername(p.username);
-    setPassword(p.pass);
-    handleLogin(p.username, p.pass);
   };
 
   return (
@@ -265,39 +196,33 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* VIVA DEMO 1-CLICK PERSONA SELECTOR */}
+          {/* QUICK OPERATOR LOGIN CHIP */}
           <div className="mt-6 pt-5 border-t border-zinc-800/80">
-            <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2.5 flex items-center justify-between">
-              <span>Quick Demo Personas (1-Click Viva Test)</span>
-              <span className="text-[9px] px-1 bg-zinc-800 text-zinc-400 rounded">FAST LOGIN</span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              {PERSONAS.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => handleSelectPersona(p)}
-                  disabled={isLoading}
-                  className={`p-2.5 border rounded-sm text-left transition-all ${p.bgClass} ${p.borderClass} group`}
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`text-[11px] font-bold ${p.color}`}>
-                      {p.label}
-                    </span>
-                    <span className="text-[9px] px-1 bg-black/40 text-zinc-400 rounded font-mono">
-                      {p.badge}
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-zinc-300 font-sans truncate">
-                    {p.name}
-                  </div>
-                  <div className="text-[9px] text-zinc-500 truncate font-mono mt-0.5">
-                    {p.username} / {p.pass}
-                  </div>
-                </button>
-              ))}
-            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setUsername("operator");
+                setPassword("gridsense123");
+                handleLogin("operator", "gridsense123");
+              }}
+              disabled={isLoading}
+              className="w-full p-2.5 bg-emerald-950/40 hover:bg-emerald-900/60 border border-emerald-700/50 hover:border-emerald-500 rounded-sm text-left transition-all flex items-center justify-between group"
+            >
+              <div>
+                <div className="text-[11px] font-bold text-emerald-400 flex items-center gap-2">
+                  <span>⚡ Quick Demo Login (Operator)</span>
+                  <span className="text-[9px] px-1 bg-black/40 text-zinc-400 rounded font-mono">
+                    #OP-4412
+                  </span>
+                </div>
+                <div className="text-[9px] text-zinc-400 font-mono mt-0.5">
+                  operator / gridsense123
+                </div>
+              </div>
+              <span className="text-[9px] px-2 py-1 bg-emerald-900/60 text-emerald-300 rounded font-bold uppercase tracking-wider group-hover:bg-emerald-800 transition-colors">
+                1-Click Login →
+              </span>
+            </button>
           </div>
         </div>
       </main>
