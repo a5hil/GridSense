@@ -184,6 +184,14 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
               <AlertTriangle className="h-3 w-3" />
               <span>LT-1 PROTECTION TRIP ({telemetry?.fault_code || "LEAKAGE"})</span>
             </Badge>
+          ) : viewScope === "LT-1" && isPowerCut ? (
+            <Badge
+              variant="secondary"
+              className="flex items-center gap-1.5 py-0.5 text-[10px] bg-zinc-800 text-zinc-300 border border-zinc-700"
+            >
+              <AlertTriangle className="h-3 w-3 text-amber-500" />
+              <span>LT-1 DE-ENERGIZED // POWER CUT (0V)</span>
+            </Badge>
           ) : isFeederFaulted ? (
             <Badge
               variant="destructive"
@@ -263,10 +271,10 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
             {/* Feeder Bus Arrow */}
             <div className="w-[35px] shrink-0 flex flex-col items-center justify-center">
               <div className="w-full flex items-center">
-                <div className="h-[2px] w-full bg-emerald-500/60 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-emerald-500 dark:bg-emerald-400 w-1/3 animate-pulse" />
+                <div className={`h-[2px] w-full ${isPowerCut ? "bg-slate-400 dark:bg-zinc-700" : "bg-emerald-500/60"} relative overflow-hidden`}>
+                  <div className={`absolute inset-0 ${isPowerCut ? "bg-slate-500 dark:bg-zinc-600" : "bg-emerald-500 dark:bg-emerald-400"} w-1/3 ${isPowerCut ? "" : "animate-pulse"}`} />
                 </div>
-                <ArrowRight className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 -ml-1 shrink-0" />
+                <ArrowRight className={`h-3.5 w-3.5 ${isPowerCut ? "text-slate-400 dark:text-zinc-600" : "text-emerald-600 dark:text-emerald-400"} -ml-1 shrink-0`} />
               </div>
             </div>
 
@@ -277,7 +285,11 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                   <span className="text-slate-800 dark:text-zinc-200 font-bold uppercase">{viewScope} BUSBAR</span>
                   <span
                     className={`h-2 w-2 rounded-full ${
-                      isFeederFaulted ? "bg-rose-500 animate-pulse" : "bg-emerald-500 dark:bg-emerald-400"
+                      isFeederFaulted
+                        ? "bg-rose-500 animate-pulse"
+                        : isPowerCut
+                        ? "bg-slate-400 dark:bg-zinc-600"
+                        : "bg-emerald-500 dark:bg-emerald-400"
                     }`}
                   />
                 </div>
@@ -288,8 +300,12 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                   CURRENT: {feederSummary ? `${feederSummary.headCurrent.R.toFixed(1)}A (R)` : "---"}
                 </div>
               </div>
-              <div className="text-[9px] text-center font-bold uppercase py-0.5 rounded-xs mt-1 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900">
-                RADIAL FEEDER
+              <div className={`text-[9px] text-center font-bold uppercase py-0.5 rounded-xs mt-1 ${
+                isPowerCut
+                  ? "bg-zinc-800 text-zinc-400 border border-zinc-700"
+                  : "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-900"
+              }`}>
+                {isPowerCut ? "DE-ENERGIZED" : "RADIAL FEEDER"}
               </div>
             </div>
 
@@ -322,18 +338,28 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                           className={`h-[3px] w-full ${
                             isFault || isDifferentialFault
                               ? "bg-rose-500 ring-2 ring-rose-500 animate-pulse"
+                              : isPowerCut
+                              ? "bg-slate-400 dark:bg-zinc-700"
                               : "bg-emerald-500"
                           } relative overflow-hidden rounded-xs`}
                         >
                           <div
                             className={`absolute inset-0 ${
-                              isFault || isDifferentialFault ? "bg-rose-300" : "bg-emerald-300"
-                            } w-1/3 animate-pulse`}
+                              isFault || isDifferentialFault
+                                ? "bg-rose-300"
+                                : isPowerCut
+                                ? "bg-slate-500 dark:bg-zinc-600"
+                                : "bg-emerald-300"
+                            } w-1/3 ${isPowerCut ? "" : "animate-pulse"}`}
                           />
                         </div>
                         <ArrowRight
                           className={`h-4 w-4 -ml-1 shrink-0 ${
-                            isFault || isDifferentialFault ? "text-rose-500 animate-bounce" : "text-emerald-500"
+                            isFault || isDifferentialFault
+                              ? "text-rose-500 animate-bounce"
+                              : isPowerCut
+                              ? "text-slate-400 dark:text-zinc-600"
+                              : "text-emerald-500"
                           }`}
                         />
                       </div>
@@ -341,6 +367,8 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                         className={`mt-1 px-1.5 py-0.5 rounded-xs text-[9px] font-bold text-center border w-full ${
                           isFault || isDifferentialFault
                             ? "bg-rose-500/20 text-rose-500 border-rose-500 animate-pulse"
+                            : isPowerCut
+                            ? "bg-zinc-900/60 text-zinc-400 border-zinc-700/60"
                             : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                         }`}
                       >
@@ -349,7 +377,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                           <span>ANSI 87L DIFFERENTIAL</span>
                         </div>
                         <div className="text-[8px] font-mono tabular-nums opacity-90">
-                          ΔI = {idiff.toFixed(3)}A {isDifferentialFault ? "(TRIP LIMIT EXCEEDED)" : "• Z = 0.045 Ω"}
+                          {isPowerCut ? "DE-ENERGIZED // NO FLOW (0A)" : `ΔI = ${idiff.toFixed(3)}A ${isDifferentialFault ? "(TRIP LIMIT EXCEEDED)" : "• Z = 0.045 Ω"}`}
                         </div>
                       </div>
                     </div>
@@ -358,27 +386,43 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                       <div className="w-full flex items-center">
                         <div
                           className={`h-[2px] w-full ${
-                            isSpanTripped ? "bg-rose-500 ring-1 ring-rose-400" : "bg-emerald-500/60"
+                            isSpanTripped
+                              ? "bg-rose-500 ring-1 ring-rose-400"
+                              : isPowerCut || isNodeDeenergized
+                              ? "bg-slate-400 dark:bg-zinc-700"
+                              : "bg-emerald-500/60"
                           } relative overflow-hidden`}
                         >
                           <div
                             className={`absolute inset-0 ${
-                              isSpanTripped ? "bg-rose-500 animate-pulse" : "bg-emerald-500 dark:bg-emerald-400"
-                            } w-1/3 animate-pulse`}
+                              isSpanTripped
+                                ? "bg-rose-500 animate-pulse"
+                                : isPowerCut || isNodeDeenergized
+                                ? "bg-slate-500 dark:bg-zinc-600"
+                                : "bg-emerald-500 dark:bg-emerald-400"
+                            } w-1/3 ${isPowerCut || isNodeDeenergized ? "" : "animate-pulse"}`}
                           />
                         </div>
                         <ArrowRight
                           className={`h-3 w-3 -ml-1 shrink-0 ${
-                            isSpanTripped ? "text-rose-500 font-bold" : "text-emerald-600 dark:text-emerald-400"
+                            isSpanTripped
+                              ? "text-rose-500 font-bold"
+                              : isPowerCut || isNodeDeenergized
+                              ? "text-slate-400 dark:text-zinc-600"
+                              : "text-emerald-600 dark:text-emerald-400"
                           }`}
                         />
                       </div>
                       <span
                         className={`text-[8px] font-bold mt-0.5 truncate uppercase ${
-                          isSpanTripped ? "text-rose-500 animate-pulse" : "text-slate-400 dark:text-zinc-500"
+                          isSpanTripped
+                            ? "text-rose-500 animate-pulse"
+                            : isPowerCut || isNodeDeenergized
+                            ? "text-slate-400 dark:text-zinc-600"
+                            : "text-slate-400 dark:text-zinc-500"
                         }`}
                       >
-                        {isSpanTripped ? "LEAK/SNAP" : `SPAN ${index + 1}`}
+                        {isSpanTripped ? "LEAK/SNAP" : isPowerCut ? "0V DEAD" : `SPAN ${index + 1}`}
                       </span>
                     </div>
                   )}
@@ -393,6 +437,8 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                         ? "border-rose-500/80 bg-rose-50/30 dark:bg-rose-950/30 ring-1 ring-rose-500"
                         : isNodeWarn
                         ? "border-amber-500/80 bg-amber-50/20 dark:bg-amber-950/20"
+                        : isNodeDeenergized
+                        ? "border-zinc-700/80 bg-zinc-950/60 opacity-80"
                         : "border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 hover:border-slate-300 dark:hover:border-zinc-700"
                     }`}
                   >
@@ -402,9 +448,15 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                         <div className="flex items-center gap-1.5">
                           <span className="font-bold text-slate-800 dark:text-zinc-200">{node.id}</span>
                           {node.isLive ? (
-                            <span className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/40 text-[8px] px-1 py-0.2 rounded-xs font-bold">
-                              {isP1 ? "INCOMER RTU" : "BOUNDARY RTU"}
-                            </span>
+                            isNodeDeenergized ? (
+                              <span className="bg-zinc-800 text-zinc-400 border border-zinc-700 text-[8px] px-1 py-0.2 rounded-xs font-bold">
+                                {isP1 ? "INCOMER (0V)" : "BOUNDARY (0V)"}
+                              </span>
+                            ) : (
+                              <span className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/40 text-[8px] px-1 py-0.2 rounded-xs font-bold">
+                                {isP1 ? "INCOMER RTU" : "BOUNDARY RTU"}
+                              </span>
+                            )
                           ) : (
                             <span className="bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[8px] px-1 py-0.2 rounded-xs">
                               {isNodeDeenergized ? "DE-ENERGIZED" : "ENERGIZED"}
@@ -460,7 +512,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                     <div className="mt-2 pt-1 border-t border-slate-200 dark:border-zinc-800/60 flex items-center justify-between text-[9px] text-slate-500 dark:text-zinc-400">
                       <span>LOAD: {Math.round(liveP)}W</span>
                       <span className="font-bold text-slate-700 dark:text-zinc-300">
-                        {node.isLive ? (isP1 ? "INCOMER RTU" : "BOUNDARY RTU") : (node.status === "NORMAL" ? "ENERGIZED" : node.status)}
+                        {node.isLive ? (isNodeDeenergized ? "DE-ENERGIZED" : isP1 ? "INCOMER RTU" : "BOUNDARY RTU") : (node.status === "NORMAL" ? "ENERGIZED" : node.status)}
                       </span>
                     </div>
                   </div>
@@ -471,17 +523,17 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
             {/* Terminal Customer Service Load */}
             <div className="w-[35px] shrink-0 flex flex-col items-center justify-center">
               <div className="w-full flex items-center">
-                <div className="h-[2px] w-full bg-emerald-500/60 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-emerald-500 dark:bg-emerald-400 w-1/3 animate-pulse" />
+                <div className={`h-[2px] w-full ${isPowerCut ? "bg-slate-400 dark:bg-zinc-700" : "bg-emerald-500/60"} relative overflow-hidden`}>
+                  <div className={`absolute inset-0 ${isPowerCut ? "bg-slate-500 dark:bg-zinc-600" : "bg-emerald-500 dark:bg-emerald-400"} w-1/3 ${isPowerCut ? "" : "animate-pulse"}`} />
                 </div>
-                <ArrowRight className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 -ml-1 shrink-0" />
+                <ArrowRight className={`h-3.5 w-3.5 ${isPowerCut ? "text-slate-400 dark:text-zinc-600" : "text-emerald-600 dark:text-emerald-400"} -ml-1 shrink-0`} />
               </div>
             </div>
 
             <div className="w-[130px] shrink-0 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 p-2.5 rounded-sm flex flex-col justify-between text-center">
               <div>
                 <div className="flex items-center justify-center gap-1 text-[10px] text-slate-500 dark:text-zinc-400 font-semibold uppercase">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 dark:bg-emerald-400" />
+                  <span className={`h-2 w-2 rounded-full ${isPowerCut ? "bg-slate-400 dark:bg-zinc-600" : "bg-emerald-500 dark:bg-emerald-400"}`} />
                   <span>END OF LINE</span>
                 </div>
                 <div className="text-xs font-bold text-slate-800 dark:text-zinc-200 mt-1">
@@ -492,7 +544,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                 </div>
               </div>
               <div className="text-[9px] text-slate-600 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xs py-0.5 mt-2">
-                TERMINAL SPAN
+                {isPowerCut ? "0V OUTAGE" : "TERMINAL SPAN"}
               </div>
             </div>
           </div>

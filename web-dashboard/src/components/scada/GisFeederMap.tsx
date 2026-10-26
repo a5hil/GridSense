@@ -435,6 +435,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       iconType: "SUBSTATION" | "DTR" | "POLE" | "LIVE_POLE";
       loadingPct?: number;
       isLive?: boolean;
+      isDeenergized?: boolean;
       isTripped?: boolean;
       isWarn?: boolean;
       feederName?: string;
@@ -462,7 +463,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
           <div class="absolute -top-3 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-rose-500/40 animate-ping pointer-events-none -z-10"></div>
           <div class="absolute -top-1.5 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-rose-500/30 animate-pulse pointer-events-none -z-10"></div>
         `;
-      } else if (isLive) {
+      } else if (isLive && !spec.isDeenergized) {
         haloHtml = `
           <div class="absolute -top-2.5 left-1/2 -translate-x-1/2 w-13 h-13 rounded-full bg-emerald-500/25 animate-ping pointer-events-none -z-10"></div>
           <div class="absolute -top-1 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-emerald-500/20 animate-pulse pointer-events-none -z-10"></div>
@@ -498,9 +499,10 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       } else if (isLive) {
         // Live Hardware Node with Bolt + P1/P2
         const shortNum = spec.id === "F1-P01" || spec.id === "POLE-A" || spec.id === "Pole-A" ? "P1" : "P2";
+        const boltColor = spec.isDeenergized ? "text-zinc-500" : spec.isTripped ? "text-rose-400" : "text-emerald-400";
         iconSvg = `
           <div class="flex flex-col items-center justify-center leading-none">
-            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 text-emerald-400 fill-current"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 ${boltColor} fill-current"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
             <span class="text-[9px] font-black text-white font-mono mt-0.5">${shortNum}</span>
           </div>
         `;
@@ -516,9 +518,13 @@ export const GisFeederMap = React.memo(function GisFeederMap({
 
       // Live tag badge above live nodes
       const liveBadgeHtml = isLive
-        ? `<div class="absolute -top-3.5 bg-emerald-500 text-black text-[8px] font-black font-mono px-1.5 py-0.2 rounded-full uppercase tracking-tighter flex items-center gap-1 shadow-md shadow-emerald-500/30">
-            <span class="h-1.5 w-1.5 rounded-full bg-black animate-pulse"></span>LIVE
-           </div>`
+        ? spec.isDeenergized
+          ? `<div class="absolute -top-3.5 bg-zinc-800 text-zinc-400 border border-zinc-700 text-[8px] font-black font-mono px-1.5 py-0.2 rounded-full uppercase tracking-tighter flex items-center gap-1 shadow-md">
+              <span class="h-1.5 w-1.5 rounded-full bg-zinc-500"></span>0V DEAD
+             </div>`
+          : `<div class="absolute -top-3.5 bg-emerald-500 text-black text-[8px] font-black font-mono px-1.5 py-0.2 rounded-full uppercase tracking-tighter flex items-center gap-1 shadow-md shadow-emerald-500/30">
+              <span class="h-1.5 w-1.5 rounded-full bg-black animate-pulse"></span>LIVE
+             </div>`
         : "";
 
       // Quick hover preview tooltip
@@ -659,6 +665,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
           color,
           iconType: isLive ? "LIVE_POLE" : "POLE",
           isLive,
+          isDeenergized,
           isTripped,
           isWarn,
           feederName: fDef?.name || node.feederId,
@@ -687,6 +694,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         color: p1Color,
         iconType: "LIVE_POLE",
         isLive: true,
+        isDeenergized: isPowerCut,
         isTripped: isFault,
         statusText: isPowerCut ? "DE-ENERGIZED (0V)" : isFault ? "DIFFERENTIAL FAULT" : "HEALTHY",
       });
@@ -710,6 +718,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         color: p2Color,
         iconType: "LIVE_POLE",
         isLive: true,
+        isDeenergized: isPowerCut || telemetry?.p2.isOnline === false,
         isTripped: isFault || isLastGasp,
         statusText: telemetry?.p2.isOnline === false ? "OUTAGE" : isPowerCut ? "DE-ENERGIZED (0V)" : isFault ? "TRIPPED" : "HEALTHY",
       });
