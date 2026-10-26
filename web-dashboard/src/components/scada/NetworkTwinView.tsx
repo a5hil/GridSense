@@ -70,6 +70,44 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
   const [faultMagnitudeA, setFaultMagnitudeA] = React.useState<number>(1.5);
   const [injectionFeedback, setInjectionFeedback] = React.useState<{ error?: string; success?: string } | null>(null);
 
+  const [showFaultsOnly, setShowFaultsOnly] = React.useState(false);
+  const [showSecondaryFdir, setShowSecondaryFdir] = React.useState(false);
+
+  // Identify root-cause trips vs secondary cascade sags
+  const rootDetections = React.useMemo(() => {
+    if (!snapshot) return [];
+    return snapshot.detections.filter((d) => !d.ansi.includes("27") || d.severity === "CRITICAL");
+  }, [snapshot]);
+
+  const cascadeDetections = React.useMemo(() => {
+    if (!snapshot) return [];
+    return snapshot.detections.filter((d) => d.ansi.includes("27") && d.severity !== "CRITICAL");
+  }, [snapshot]);
+
+  const totalFaultedPoles = React.useMemo(() => {
+    if (!snapshot) return 0;
+    return snapshot.nodes.filter((n) => {
+      const hasTrippedSection = snapshot.sections.some(
+        (s) => s.parentId === n.id && s.tripped
+      );
+      return n.feederId !== null && (n.status === "ALARM" || n.status === "WARN" || hasTrippedSection);
+    }).length;
+  }, [snapshot]);
+
+  // Filter nodes for the selected feeder (+ DTR as root)
+  const feederNodes = React.useMemo(() => {
+    if (!snapshot) return [];
+    return snapshot.nodes.filter((n) => {
+      if (showFaultsOnly) {
+        const hasTrippedSection = snapshot.sections.some(
+          (s) => s.parentId === n.id && s.tripped
+        );
+        return n.status === "ALARM" || n.status === "WARN" || hasTrippedSection;
+      }
+      return n.feederId === selectedFeederId || (selectedFeederId === "ALL" && n.feederId !== null);
+    });
+  }, [snapshot, selectedFeederId, showFaultsOnly]);
+
   if (!snapshot) {
     return (
       <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-8 rounded-sm text-center font-mono">
@@ -80,41 +118,6 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
   }
 
   const { dtr, feeders, nodes, detections, injectedFaults, uninstrumentedMode, calibration, liveLinkUp } = snapshot;
-
-  const [showFaultsOnly, setShowFaultsOnly] = React.useState(false);
-  const [showSecondaryFdir, setShowSecondaryFdir] = React.useState(false);
-
-  // Identify root-cause trips vs secondary cascade sags
-  const rootDetections = React.useMemo(() => {
-    return detections.filter((d) => !d.ansi.includes("27") || d.severity === "CRITICAL");
-  }, [detections]);
-
-  const cascadeDetections = React.useMemo(() => {
-    return detections.filter((d) => d.ansi.includes("27") && d.severity !== "CRITICAL");
-  }, [detections]);
-
-  const totalFaultedPoles = React.useMemo(() => {
-    return nodes.filter((n) => {
-      const hasTrippedSection = snapshot.sections.some(
-        (s) => s.parentId === n.id && s.tripped
-      );
-      return n.feederId !== null && (n.status === "ALARM" || n.status === "WARN" || hasTrippedSection);
-    }).length;
-  }, [nodes, snapshot.sections]);
-
-  // Filter nodes for the selected feeder (+ DTR as root)
-  const feederNodes = React.useMemo(() => {
-    return nodes.filter((n) => {
-      if (showFaultsOnly) {
-        const hasTrippedSection = snapshot.sections.some(
-          (s) => s.parentId === n.id && s.tripped
-        );
-        return n.status === "ALARM" || n.status === "WARN" || hasTrippedSection;
-      }
-      return n.feederId === selectedFeederId || (selectedFeederId === "ALL" && n.feederId !== null);
-    });
-  }, [nodes, selectedFeederId, showFaultsOnly, snapshot.sections]);
-
   const activeFeederSummary = feeders.find((f) => f.id === selectedFeederId);
 
   // Switch uninstrumented mode
