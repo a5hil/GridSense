@@ -141,6 +141,7 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
                                     (pole.isLive && (selectedPoleId === "Pole-A" || selectedPoleId === "Pole 1" || selectedPoleId === "P1") && pole.id === "F1-P01") ||
                                     (pole.isLive && (selectedPoleId === "Pole-B" || selectedPoleId === "Pole 2" || selectedPoleId === "P2") && pole.id === "F1-P02");
                                   const isPoleTripped = pole.status === "ALARM";
+                                  const isPoleDeenergized = pole.status === "DEENERGIZED" || !pole.energized || pole.phases.R.v < 50;
 
                                   return (
                                     <div
@@ -150,7 +151,9 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
                                         isSelected
                                           ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-800 dark:text-emerald-300 font-bold"
                                           : pole.isLive
-                                          ? "bg-emerald-500/5 hover:bg-emerald-500/10 border border-transparent"
+                                          ? isPoleDeenergized
+                                            ? "bg-zinc-900/40 border border-transparent"
+                                            : "bg-emerald-500/5 hover:bg-emerald-500/10 border border-transparent"
                                           : "hover:bg-slate-100 dark:hover:bg-zinc-800/60 border border-transparent"
                                       }`}
                                     >
@@ -159,6 +162,8 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
                                           className={`h-1.5 w-1.5 rounded-full shrink-0 ${
                                             isPoleTripped
                                               ? "bg-rose-500 animate-ping"
+                                              : isPoleDeenergized
+                                              ? "bg-slate-400 dark:bg-zinc-600"
                                               : pole.isLive
                                               ? "bg-emerald-400 animate-pulse"
                                               : "bg-slate-400"
@@ -166,8 +171,12 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
                                         />
                                         <span>{pole.label}</span>
                                         {pole.isLive && (
-                                          <span className="text-[8.5px] bg-emerald-500/20 text-emerald-500 border border-emerald-500/40 px-1 rounded-xs font-bold">
-                                            {pole.id === "F1-P01" ? "INCOMER" : "OUTGOING"}
+                                          <span className={`text-[8.5px] px-1 rounded-xs font-bold ${
+                                            isPoleDeenergized
+                                              ? "bg-zinc-800 text-zinc-400 border border-zinc-700"
+                                              : "bg-emerald-500/20 text-emerald-500 border border-emerald-500/40"
+                                          }`}>
+                                            {pole.id === "F1-P01" ? (isPoleDeenergized ? "INCOMER (0V)" : "INCOMER") : (isPoleDeenergized ? "OUTGOING (0V)" : "OUTGOING")}
                                           </span>
                                         )}
                                       </div>

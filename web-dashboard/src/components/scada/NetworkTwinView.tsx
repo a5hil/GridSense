@@ -884,6 +884,10 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                         <Badge variant="warning" className="text-[9px] py-0 font-bold">
                           WARN
                         </Badge>
+                      ) : n.status === "DEENERGIZED" || !n.energized || n.phases.R.v < 50 ? (
+                        <Badge variant="outline" className="text-[9px] py-0 border-zinc-700 text-zinc-400 bg-zinc-900/60">
+                          DE-ENERGIZED
+                        </Badge>
                       ) : (
                         <Badge variant="healthy" className="text-[9px] py-0">
                           NORMAL

@@ -535,6 +535,10 @@ export default function SCADADashboard() {
     }
   }
 
+  const isPowerCut =
+    faultCode === "POWERCUT" ||
+    activeFault?.ansiCode === "ANSI 27" ||
+    (!isGatewayOffline && v1 < 50 && v2 < 50 && !isBreakerTripped);
   const isFault = activeFault !== null;
   const isAlarmUnacked = isFault && systemStatus?.operatorAck === false;
   const openTicketsCount = tickets.filter((t) => t.status !== "CLOSED").length;
@@ -714,8 +718,8 @@ export default function SCADADashboard() {
                     RECLOSE INTERLOCKED (PTW ACTIVE)
                   </span>
                 ) : isAlarmUnacked && (
-                  <span className="bg-rose-900 border border-rose-500 text-rose-100 text-[10px] px-2 py-0.5 rounded-sm animate-pulse">
-                    UNACKNOWLEDGED RELAY TRIP
+                  <span className={`${isPowerCut ? "bg-amber-900/80 border-amber-500 text-amber-200" : "bg-rose-900 border-rose-500 text-rose-100"} border text-[10px] px-2 py-0.5 rounded-sm animate-pulse`}>
+                    {isPowerCut ? "DE-ENERGIZATION ADVISORY" : "UNACKNOWLEDGED RELAY TRIP"}
                   </span>
                 )}
               </div>
@@ -740,18 +744,20 @@ export default function SCADADashboard() {
             </Button>
 
             <Button
-              variant={isPtwLocked ? "outline" : "destructive"}
+              variant={isPtwLocked ? "outline" : isPowerCut ? "secondary" : "destructive"}
               size="sm"
               className={`font-mono font-bold text-xs ${
                 isPtwLocked
                   ? "border-amber-600 text-amber-300 bg-amber-950/50 cursor-not-allowed"
+                  : isPowerCut
+                  ? "bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700"
                   : "bg-rose-600 hover:bg-rose-700 text-white shadow-sm"
               }`}
               onClick={handleAcknowledgeAlarm}
               disabled={isAcking}
             >
               <Check className="h-3.5 w-3.5 mr-1" />
-              {isAcking ? "CLEARING..." : isAlarmUnacked ? "ACKNOWLEDGE TRIP ALARM" : "CLEAR LATCH / RE-ARM PROTECTION"}
+              {isAcking ? "CLEARING..." : isPowerCut ? "ACKNOWLEDGE OUTAGE" : isAlarmUnacked ? "ACKNOWLEDGE TRIP ALARM" : "CLEAR LATCH / RE-ARM PROTECTION"}
             </Button>
           </div>
         </div>
@@ -768,7 +774,7 @@ export default function SCADADashboard() {
             <div className="grid grid-cols-12 gap-3">
               {/* CARD 1: Grid Protection & FLISR Supervision (ANSI 87L / 50/51) */}
               <Card
-                isFault={isFault || (gridMetrics?.criticalDetections ?? 0) > 0}
+                isFault={!isPowerCut && (isFault || (gridMetrics?.criticalDetections ?? 0) > 0)}
                 className="col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between"
               >
                 <CardHeader className="pb-1">
@@ -779,6 +785,10 @@ export default function SCADADashboard() {
                     {isGatewayOffline ? (
                       <Badge variant="outline" className="text-[10px] border-amber-500/80 text-amber-500 font-bold">
                         GATEWAY OFFLINE
+                      </Badge>
+                    ) : isPowerCut ? (
+                      <Badge variant="warning" className="text-[10px]">
+                        POWERCUT (ANSI 27)
                       </Badge>
                     ) : isFault || (gridMetrics?.totalDetections ?? 0) > 0 ? (
                       <Badge variant="destructive" className="text-[10px]">
@@ -795,6 +805,8 @@ export default function SCADADashboard() {
                   <div className="flex items-center gap-2.5">
                     {isGatewayOffline ? (
                       <Radio className="h-7 w-7 text-amber-500 animate-pulse shrink-0" />
+                    ) : isPowerCut ? (
+                      <Power className="h-7 w-7 text-amber-400 shrink-0" />
                     ) : isFault || (gridMetrics?.criticalDetections ?? 0) > 0 ? (
                       <AlertOctagon className="h-7 w-7 text-rose-500 shrink-0 animate-bounce" />
                     ) : (gridMetrics?.totalDetections ?? 0) > 0 ? (
@@ -807,6 +819,8 @@ export default function SCADADashboard() {
                         className={`text-lg font-bold font-mono tracking-tight ${
                           isGatewayOffline
                             ? "text-amber-500"
+                            : isPowerCut
+                            ? "text-amber-400"
                             : isFault || (gridMetrics?.criticalDetections ?? 0) > 0
                             ? "text-rose-400"
                             : (gridMetrics?.totalDetections ?? 0) > 0
@@ -816,6 +830,8 @@ export default function SCADADashboard() {
                       >
                         {isGatewayOffline
                           ? "TELEMETRY OFFLINE"
+                          : isPowerCut
+                          ? "POWERCUT (0V SUPPLY)"
                           : isFault
                           ? telemetry?.fault_code || "ANOMALY / TRIP"
                           : (gridMetrics?.totalDetections ?? 0) > 0
@@ -823,7 +839,9 @@ export default function SCADADashboard() {
                           : "FEEDER OPERATION: BALANCED & NORMAL"}
                       </div>
                       <div className="text-[11px] text-zinc-400 font-mono">
-                        {isFault
+                        {isPowerCut
+                          ? "Feeder unpowered • Upstream supply 0.0V"
+                          : isFault
                           ? `ΔI = ${idiff.toFixed(3)}A • Span F1-P01 ↔ F1-P02`
                           : (gridMetrics?.totalDetections ?? 0) > 0
                           ? `${gridMetrics?.criticalDetections} Critical • ${gridMetrics?.trippedSections} Spans Tripped`
@@ -973,7 +991,7 @@ export default function SCADADashboard() {
 
               {/* CARD 4: Grid Incomer Current & Conductor Integrity */}
               <Card
-                isFault={isFault || (gridMetrics?.trippedSections ?? 0) > 0}
+                isFault={!isPowerCut && (isFault || (gridMetrics?.trippedSections ?? 0) > 0)}
                 className="col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between"
               >
                 <CardHeader className="pb-1">
@@ -982,18 +1000,26 @@ export default function SCADADashboard() {
                       PHASE CONDUCTOR &amp; DIFFERENTIAL INTEGRITY
                     </span>
                     <Badge
-                      variant={isGatewayOffline ? "outline" : isFault || (gridMetrics?.trippedSections ?? 0) > 0 ? "destructive" : "healthy"}
-                      className="text-[10px]"
+                      variant={isGatewayOffline ? "outline" : isPowerCut ? "outline" : isFault || (gridMetrics?.trippedSections ?? 0) > 0 ? "destructive" : "healthy"}
+                      className={`text-[10px] ${isPowerCut ? "border-zinc-700 text-zinc-400" : ""}`}
                     >
-                      {isGatewayOffline ? "OFFLINE" : isFault ? "DIFFERENTIAL ALARM" : (gridMetrics?.trippedSections ?? 0) > 0 ? "SPAN TRIP" : "CONDUCTORS INTACT (NORMAL)"}
+                      {isGatewayOffline
+                        ? "OFFLINE"
+                        : isPowerCut
+                        ? "DE-ENERGIZED (0V)"
+                        : isFault
+                        ? "DIFFERENTIAL ALARM"
+                        : (gridMetrics?.trippedSections ?? 0) > 0
+                        ? "SPAN TRIP"
+                        : "CONDUCTORS INTACT (NORMAL)"}
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-1 pb-2">
                   <div className="flex items-center gap-2.5">
-                    <GitBranch className="h-7 w-7 text-emerald-400 shrink-0" />
+                    <GitBranch className={`h-7 w-7 shrink-0 ${isPowerCut ? "text-zinc-500" : isFault ? "text-rose-500" : "text-emerald-400"}`} />
                     <div>
-                      <div className="text-xl font-bold font-mono text-emerald-400 tabular-nums">
+                      <div className={`text-xl font-bold font-mono tabular-nums ${isPowerCut ? "text-zinc-400" : "text-emerald-400"}`}>
                         {networkSnapshot
                           ? (
                               networkSnapshot.dtr.current.R +
@@ -1008,15 +1034,15 @@ export default function SCADADashboard() {
                         <span>•</span>
                         <span>F1-P02: {i2.toFixed(2)}A</span>
                         <span>•</span>
-                        <span className={idiff >= tripLimit ? "text-rose-400 font-bold" : "text-emerald-400"}>ΔI: {idiff.toFixed(3)}A</span>
+                        <span className={idiff >= tripLimit ? "text-rose-400 font-bold" : isPowerCut ? "text-zinc-400" : "text-emerald-400"}>ΔI: {idiff.toFixed(3)}A</span>
                       </div>
                     </div>
                   </div>
                 </CardContent>
                 <div className="border-t border-slate-100 dark:border-zinc-800/60 px-3 py-1 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between">
                   <span>SUPERVISED CORRIDOR: SPAN F1-P01 ↔ F1-P02</span>
-                  <span className={isFault ? "text-rose-500 font-bold" : "text-emerald-500 font-semibold"}>
-                    {isFault ? "DIFF TRIP" : "28 DISTRIBUTION NODES ENERGIZED"}
+                  <span className={isPowerCut ? "text-zinc-400 font-semibold" : isFault ? "text-rose-500 font-bold" : "text-emerald-500 font-semibold"}>
+                    {isPowerCut ? "FEEDER DE-ENERGIZED // 0A SUPPLY" : isFault ? "DIFF TRIP" : "28 DISTRIBUTION NODES ENERGIZED"}
                   </span>
                 </div>
               </Card>
@@ -1067,12 +1093,16 @@ export default function SCADADashboard() {
                       } ${isP1Stale ? "opacity-50 border-amber-500/50" : ""}`}
                     >
                       <div className="flex items-center gap-2">
-                        <span className={`h-2 w-2 rounded-full ${!isGatewayOffline && telemetry?.p1?.isOnline ? "bg-emerald-500 dark:bg-emerald-400" : "bg-slate-400 dark:bg-zinc-600"}`} />
+                        <span className={`h-2 w-2 rounded-full ${isPowerCut ? "bg-slate-400 dark:bg-zinc-600" : !isGatewayOffline && telemetry?.p1?.isOnline ? "bg-emerald-500 dark:bg-emerald-400" : "bg-slate-400 dark:bg-zinc-600"}`} />
                         <div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-slate-800 dark:text-zinc-200 font-bold">F1-P01</span>
-                            <span className="text-[9px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 px-1 py-0.2 rounded-xs font-bold">
-                              INCOMER TERMINAL
+                            <span className={`text-[9px] px-1 py-0.2 rounded-xs font-bold ${
+                              isPowerCut
+                                ? "bg-zinc-800 text-zinc-400 border border-zinc-700"
+                                : "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40"
+                            }`}>
+                              {isPowerCut ? "INCOMER (0V)" : "INCOMER TERMINAL"}
                             </span>
                           </div>
                           <span className="text-[10px] text-slate-400 dark:text-zinc-500">Substation Tap (Phase R Metered)</span>
@@ -1085,7 +1115,13 @@ export default function SCADADashboard() {
                           </Badge>
                         )}
                         <span className="font-bold text-slate-700 dark:text-zinc-200">
-                          {!isGatewayOffline && telemetry?.p1?.isOnline ? `${telemetry.p1.v.toFixed(1)}V • ${telemetry.p1.i.toFixed(2)}A` : "OFFLINE // NO FEED"}
+                          {isPowerCut ? (
+                            "0.0V • 0.00A"
+                          ) : !isGatewayOffline && telemetry?.p1?.isOnline ? (
+                            `${telemetry.p1.v.toFixed(1)}V • ${telemetry.p1.i.toFixed(2)}A`
+                          ) : (
+                            "OFFLINE // NO FEED"
+                          )}
                         </span>
                       </div>
                     </div>
@@ -1102,7 +1138,7 @@ export default function SCADADashboard() {
                       <div className="flex items-center gap-2">
                         <span
                           className={`h-2 w-2 rounded-full ${
-                            isGatewayOffline
+                            isGatewayOffline || isPowerCut
                               ? "bg-slate-400 dark:bg-zinc-600"
                               : telemetry?.p2?.isOnline === false
                               ? "bg-rose-500 animate-pulse"
@@ -1112,8 +1148,12 @@ export default function SCADADashboard() {
                         <div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-slate-800 dark:text-zinc-200 font-bold">F1-P02</span>
-                            <span className="text-[9px] bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 px-1 py-0.2 rounded-xs font-bold">
-                              SECTION TERMINAL
+                            <span className={`text-[9px] px-1 py-0.2 rounded-xs font-bold ${
+                              isPowerCut
+                                ? "bg-zinc-800 text-zinc-400 border border-zinc-700"
+                                : "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40"
+                            }`}>
+                              {isPowerCut ? "BOUNDARY (0V)" : "SECTION TERMINAL"}
                             </span>
                           </div>
                           <span className="text-[10px] text-slate-400 dark:text-zinc-500">Differential Boundary (Phase R Metered)</span>
@@ -1126,7 +1166,9 @@ export default function SCADADashboard() {
                           </Badge>
                         )}
                         <span className="font-bold text-slate-700 dark:text-zinc-200">
-                          {isGatewayOffline || telemetry?.p2?.isOnline === false ? (
+                          {isPowerCut ? (
+                            "0.0V • 0.00A"
+                          ) : isGatewayOffline || telemetry?.p2?.isOnline === false ? (
                             <span className="text-slate-500 dark:text-zinc-400 font-bold">OFFLINE // NO FEED</span>
                           ) : (
                             `${telemetry?.p2?.v.toFixed(1)}V • ${telemetry?.p2?.i.toFixed(2)}A`
@@ -1164,14 +1206,14 @@ export default function SCADADashboard() {
                     {/* Protected Differential Zone Span Summary */}
                     <div className="flex items-center justify-between p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm font-mono text-[11px]">
                       <div className="flex items-center gap-2">
-                        <Activity className={`h-3.5 w-3.5 ${isFault ? "text-rose-500 animate-pulse" : "text-emerald-500 dark:text-emerald-400"}`} />
+                        <Activity className={`h-3.5 w-3.5 ${isPowerCut ? "text-zinc-500" : isFault ? "text-rose-500 animate-pulse" : "text-emerald-500 dark:text-emerald-400"}`} />
                         <span className="text-slate-800 dark:text-zinc-200">ZONE 1 DIFFERENTIAL SPAN:</span>
                       </div>
                       <Badge
-                        variant={isFault ? "destructive" : "outline"}
-                        className={`text-[9px] py-0.5 ${!isFault ? "text-emerald-600 dark:text-emerald-400 border-emerald-500/30" : ""}`}
+                        variant={isPowerCut ? "outline" : isFault ? "destructive" : "outline"}
+                        className={`text-[9px] py-0.5 ${isPowerCut ? "text-zinc-400 border-zinc-700" : !isFault ? "text-emerald-600 dark:text-emerald-400 border-emerald-500/30" : ""}`}
                       >
-                        {isFault ? `TRIP: I_diff = ${(telemetry?.idiff ?? 0).toFixed(3)}A` : `120m • INTACT (I_diff ${(telemetry?.idiff ?? 0).toFixed(3)}A)`}
+                        {isPowerCut ? "DE-ENERGIZED // NO FLOW (0A)" : isFault ? `TRIP: I_diff = ${(telemetry?.idiff ?? 0).toFixed(3)}A` : `120m • INTACT (I_diff ${(telemetry?.idiff ?? 0).toFixed(3)}A)`}
                       </Badge>
                     </div>
                   </div>
@@ -1182,14 +1224,14 @@ export default function SCADADashboard() {
                   <div className="space-y-2.5">
                     <div className="flex items-center justify-between text-xs text-slate-800 dark:text-zinc-300 font-bold border-b border-slate-200 dark:border-zinc-800/80 pb-2">
                       <div className="flex items-center gap-2">
-                        <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                        <ShieldCheck className={`h-4 w-4 ${isPowerCut ? "text-zinc-500" : "text-emerald-500"}`} />
                         <span>SECTION 1 SUPERVISORY CONTROL (FDIR)</span>
                       </div>
                       <Badge
-                        variant={isFault ? "destructive" : "healthy"}
-                        className="text-[10px]"
+                        variant={isPowerCut ? "outline" : isFault ? "destructive" : "healthy"}
+                        className={`text-[10px] ${isPowerCut ? "border-zinc-700 text-zinc-400" : ""}`}
                       >
-                        {isFault ? "TRIPPED & ISOLATED (OPEN)" : "ENERGIZED (CLOSED)"}
+                        {isPowerCut ? "DE-ENERGIZED (0V)" : isFault ? "TRIPPED & ISOLATED (OPEN)" : "ENERGIZED (CLOSED)"}
                       </Badge>
                     </div>
 
@@ -1201,7 +1243,7 @@ export default function SCADADashboard() {
                       </div>
                       <div className="flex items-center justify-between text-[11px] tabular-nums">
                         <span className="text-slate-500 dark:text-zinc-400">Differential Current (I_diff):</span>
-                        <span className={`font-bold ${isFault ? "text-rose-500" : "text-emerald-500"}`}>
+                        <span className={`font-bold ${isPowerCut ? "text-zinc-400" : isFault ? "text-rose-500" : "text-emerald-500"}`}>
                           {(telemetry?.idiff ?? 0).toFixed(3)} A / {tripLimit.toFixed(3)} A
                         </span>
                       </div>
