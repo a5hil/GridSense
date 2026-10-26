@@ -398,22 +398,6 @@ export default function SCADADashboard() {
     }
   };
 
-  // Direct HIL Hardware Serial Scenario Injector
-  const handleSendHILCommand = async (cmd: string) => {
-    try {
-      if (cmd.toLowerCase() === "n") {
-        await handleAcknowledgeAlarm();
-      }
-      await fetch("/api/telemetry/ports", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "command", command: cmd }),
-      });
-    } catch (err) {
-      console.error("Failed to send HIL command:", err);
-    }
-  };
-
 
 
   const isPtwLocked =
@@ -827,62 +811,6 @@ export default function SCADADashboard() {
           </div>
         </div>
       </header>
-
-      {/* HIL HARDWARE BENCH TESTBED QUICK INJECTOR BAR */}
-      <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-[#121316] px-3 py-1.5 rounded-sm flex flex-wrap items-center justify-between gap-2 font-mono text-xs">
-        <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-[10px] bg-slate-200 dark:bg-zinc-800 font-bold tracking-wider uppercase text-slate-700 dark:text-zinc-300">
-            HIL TESTBED RIG
-          </Badge>
-          <span className="text-[11px] text-slate-500 dark:text-zinc-400 hidden sm:inline">
-            Direct Hardware RTU Injections:
-          </span>
-        </div>
-        <div className="flex items-center flex-wrap gap-1.5">
-          <button
-            onClick={() => handleSendHILCommand("n")}
-            className="px-2.5 py-1 text-[10px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xs transition-colors shadow-xs"
-            title="Normal Balanced Grid (Command 'n')"
-          >
-            NORMAL (N)
-          </button>
-          <button
-            onClick={() => handleSendHILCommand("d")}
-            className="px-2.5 py-1 text-[10px] font-bold bg-rose-700 hover:bg-rose-600 text-white rounded-xs transition-colors shadow-xs"
-            title="ANSI 87L Differential Earth Leakage (Command 'd')"
-          >
-            87L LEAKAGE (D)
-          </button>
-          <button
-            onClick={() => handleSendHILCommand("y")}
-            className="px-2.5 py-1 text-[10px] font-bold bg-amber-700 hover:bg-amber-600 text-white rounded-xs transition-colors shadow-xs"
-            title="ANSI 46BC Broken Conductor Phase Y (Command 'y')"
-          >
-            OPEN CONDUCTOR (Y)
-          </button>
-          <button
-            onClick={() => handleSendHILCommand("b")}
-            className="px-2.5 py-1 text-[10px] font-bold bg-purple-700 hover:bg-purple-600 text-white rounded-xs transition-colors shadow-xs"
-            title="ANSI 59N Floating Neutral Voltage Spread (Command 'b')"
-          >
-            BROKEN NEUTRAL (B)
-          </button>
-          <button
-            onClick={() => handleSendHILCommand("p")}
-            className="px-2.5 py-1 text-[10px] font-bold bg-zinc-700 hover:bg-zinc-600 text-white rounded-xs transition-colors shadow-xs"
-            title="Powercut / Outage with Last Gasp (Command 'p')"
-          >
-            LAST GASP OUTAGE (P)
-          </button>
-          <button
-            onClick={() => handleSendHILCommand("o")}
-            className="px-2.5 py-1 text-[10px] font-bold bg-orange-700 hover:bg-orange-600 text-white rounded-xs transition-colors shadow-xs"
-            title="ANSI 51 Feeder Overcurrent (Command 'o')"
-          >
-            OVERCURRENT (O)
-          </button>
-        </div>
-      </div>
 
       {/* SSE STREAM DISCONNECTION HIGH-CONTRAST WARNING */}
       {isStreamDisconnected && (

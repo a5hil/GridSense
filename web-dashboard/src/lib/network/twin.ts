@@ -254,33 +254,6 @@ class NetworkTwin extends EventEmitter {
       subtree(f.spanChildId!).forEach((id) => dead[f.phase!].add(id));
     }
 
-    // Physical Hardware Radial Outage Propagation:
-    // In radial distribution, poles are connected in series (DTR -> P01 -> P02 -> P03 ... -> P10)
-    // 1. If Pole 1 loses voltage (< 50V) on a phase, the entire downstream line loses power on that phase
-    if (live.a.online) {
-      for (const p of PHASES) {
-        const v1 = live.a.phases?.[p]?.v ?? (p === "R" ? live.a.v : 0);
-        if (v1 < 50 && (live.a.phases?.[p]?.src === "LIVE" || p === "R")) {
-          subtree("F1-P01").forEach((id) => dead[p].add(id));
-        }
-      }
-    }
-    // 2. If Pole 2 loses voltage (< 50V) on a phase while Pole 1 is live,
-    //    or if Pole 2 sent LAST_GASP / silence open conductor,
-    //    Pole 2 and all downstream poles (P03 through P10) lose power on that phase
-    if (live.b.online) {
-      for (const p of PHASES) {
-        const v2 = live.b.phases?.[p]?.v ?? (p === "R" ? live.b.v : 0);
-        if (v2 < 50 && (live.b.phases?.[p]?.src === "LIVE" || p === "R")) {
-          subtree("F1-P02").forEach((id) => dead[p].add(id));
-        }
-      }
-    }
-    const t = telemetryStore.getTelemetry();
-    if (t.lastGasp?.pole === 2 || (t as any).p2LastGasp || t.protectionState === "OPEN_CONDUCTOR") {
-      subtree("F1-P02").forEach((id) => dead.R.add(id));
-    }
-
     // Classify each phase of each node
     const srcOf = (id: string, p: Phase): PhaseReading["source"] => {
       const n = NODE_BY_ID[id];
@@ -321,7 +294,7 @@ class NetworkTwin extends EventEmitter {
     }
 
     // 2a. Bench-scale KCL reconciliation at the hardware/twin boundary
-    if (live.b.online && !dead.R.has("F1-P02")) {
+    if (live.b.online) {
       const iMeas = live.b.phases?.R.i ?? live.b.i;
       const sumR = [...benchSub].reduce((a, id) => a + localLoad[id].R, 0);
       const leakR = [...benchSub].reduce((a, id) => a + leakOnSpan(id, "R"), 0);
@@ -356,18 +329,17 @@ class NetworkTwin extends EventEmitter {
       iSpan[id] = s;
     }
 
-    // 2. Voltages top-down.
-    // Anchor DTR phase R to live V1 within normal bounds, but decouple Y and B to prevent feeder sags from collapsing the 250 kVA transformer bus
+    // 2. Voltages top-down. Anchor DTR phase R to live V1 when available.
     const pathToA: string[] = [];
     for (let cur: string | null = "F1-P01"; cur && cur !== "DTR-01"; cur = NODE_BY_ID[cur]?.parentId ?? null) pathToA.push(cur);
     if (live.a.online && live.a.v > 180) {
       const drop = pathToA.reduce((acc, id) => acc + iSpan[id].R * ohm(id), 0);
-      this.dtrV.R = Math.min(245, Math.max(225, live.a.v + drop));
+      this.dtrV.R = live.a.v + drop;
     } else {
       this.dtrV.R += 0.05 * (240 - this.dtrV.R);
     }
-    this.dtrV.Y = 240.0 + this.dtrOffset.Y;
-    this.dtrV.B = 240.0 + this.dtrOffset.B;
+    this.dtrV.Y = this.dtrV.R + this.dtrOffset.Y;
+    this.dtrV.B = this.dtrV.R + this.dtrOffset.B;
 
     const volt: Record<string, PhaseNums> = { "DTR-01": { ...this.dtrV } };
     for (const id of TOPO_ORDER) {

@@ -62,13 +62,7 @@ export function computeSections(nodes: Record<string, NodeState>): SectionResult
     if (sourceOf([parent, ...children]) === "MIXED") continue;
     if (children.some((c) => c.isLive && !c.online)) continue;
 
-    const isLiveSpan = parent.isLive && children.every((c) => c.isLive);
-
     for (const phase of PHASES) {
-      // Physical bench hardware only meters Phase R with actual current sensor.
-      // Do not compute differential leakage on unmetered phases Y and B for live spans.
-      if (isLiveSpan && phase !== "R") continue;
-
       const pr = parent.phases[phase];
       const crs = children.map((c) => c.phases[phase]);
       if (!energized(pr) || crs.some((r) => !instrumented(r))) continue;
