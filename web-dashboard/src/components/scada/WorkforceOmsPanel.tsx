@@ -18,10 +18,13 @@ import {
   GitBranch,
   Lock,
   MapPin,
+  MessageSquare,
   Navigation,
   Phone,
   Power,
   Radio,
+  Send,
+  Share2,
   Shield,
   ShieldAlert,
   ShieldCheck,
@@ -48,6 +51,75 @@ interface WorkforceOmsPanelProps {
   networkSnapshot?: NetworkSnapshot | null;
   selectedPoleId?: string;
   onSelectPole?: (poleId: string) => void;
+}
+
+export const FIELD_CREWS = [
+  {
+    id: "QRU-4",
+    name: "Lineman Quick-Response Unit #4 (K. P. Rajesh & Team)",
+    type: "Lineman Quick Response",
+    phone: "+919447012345",
+  },
+  {
+    id: "GANG-2",
+    name: "Breakdown & Conductor Jointing Gang (Unit #2)",
+    type: "Breakdown / Conductor Splice",
+    phone: "+919846099881",
+  },
+  {
+    id: "TREE-1",
+    name: "Tree Trimming & Vegetation Clearance Unit",
+    type: "Vegetation & Line Clearance",
+    phone: "+919447055443",
+  },
+  {
+    id: "DTR-TECH",
+    name: "Substation & DTR Technical Crew (Transformers)",
+    type: "Transformer Maintenance",
+    phone: "+919447066772",
+  },
+];
+
+export function getWhatsAppUrl(ticket: TroubleTicket, phone: string, customNotes?: string) {
+  const cleanPhone = phone.replace(/[^0-9]/g, "");
+  const targetPhone = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
+  const mapsUrl = `https://maps.google.com/?q=${ticket.gps.lat.toFixed(6)},${ticket.gps.lng.toFixed(6)}`;
+
+  const text = `🚨 *KSEB SCADA EMERGENCY FIELD DISPATCH* 🚨
+*Ticket ID:* ${ticket.ticketId}
+*Severity:* ${ticket.severity}
+*Feeder Corridor:* ${ticket.feederName}
+*Fault Type:* ${ticket.faultType}
+*Target Pole:* ${ticket.affectedPole}
+*Impacted Customers:* ~${ticket.estimatedCustomers} Metered Drops
+
+📍 *GPS Navigation Route:* ${mapsUrl}
+
+${customNotes ? `📝 *Operator Directive:* ${customNotes}\n` : ""}
+⚠️ *MANDATORY SAFETY DIRECTIVE (CEA SEC 44):*
+Physical line isolation and digital Permit-To-Work (PTW) must be verified before conductor contact.`;
+
+  return `https://wa.me/${targetPhone}?text=${encodeURIComponent(text)}`;
+}
+
+export function getRemainingSoak(soakExpiresAt?: string): {
+  minutes: number;
+  seconds: number;
+  isExpired: boolean;
+  label: string;
+} {
+  if (!soakExpiresAt) return { minutes: 0, seconds: 0, isExpired: true, label: "00:00" };
+  const diffMs = new Date(soakExpiresAt).getTime() - Date.now();
+  if (diffMs <= 0) return { minutes: 0, seconds: 0, isExpired: true, label: "00:00" };
+  const totalSec = Math.floor(diffMs / 1000);
+  const minutes = Math.floor(totalSec / 60);
+  const seconds = totalSec % 60;
+  return {
+    minutes,
+    seconds,
+    isExpired: false,
+    label: `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`,
+  };
 }
 
 const DEFAULT_RESOLVED_INCIDENTS = [
@@ -110,6 +182,20 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
   const [localPtwIssued, setLocalPtwIssued] = React.useState(false);
   const [localStatus, setLocalStatus] = React.useState<string | null>(null);
 
+  // Manual Dispatch Modal states
+  const [isDispatchModalOpen, setIsDispatchModalOpen] = React.useState(false);
+  const [selectedCrewId, setSelectedCrewId] = React.useState("QRU-4");
+  const [customDispatchNotes, setCustomDispatchNotes] = React.useState(
+    "Inspect conductor span, verify phase balance, and obtain digital PTW before line touch."
+  );
+
+  // Periodic tick for live soak countdown timer
+  const [, setNowTick] = React.useState(Date.now());
+  React.useEffect(() => {
+    const timer = setInterval(() => setNowTick(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   // Keep simulated phone clock alive
   React.useEffect(() => {
     const updateTime = () => {
@@ -150,25 +236,36 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
     return activeDetections.filter((d) => isCascadeSymptom(d));
   }, [activeDetections, hasRootFault, isCascadeSymptom]);
 
-  // Sync selected ticket or detection
-  React.useEffect(() => {
-    if (!selectedTicketId && tickets.length > 0) {
-      setSelectedTicketId(tickets[0].ticketId);
-    }
-  }, [tickets, selectedTicketId]);
-
-  // Find explicit ticket from DB
-  const rawActiveTicket = tickets.find((t) => t.ticketId === selectedTicketId) || tickets[0] || null;
-
-  // Selected detection if operator clicked a detection card
+  // Selected detection for dossier inspection
   const activeDetection = React.useMemo(() => {
     if (selectedDetectionKey) {
-      return activeDetections.find((d) => d.key === selectedDetectionKey) || activeDetections[0] || null;
+      return activeDetections.find((d) => d.key === selectedDetectionKey) || null;
     }
-    return activeDetections[0] || null;
-  }, [activeDetections, selectedDetectionKey]);
+    return primaryDetections[0] || activeDetections[0] || null;
+  }, [activeDetections, primaryDetections, selectedDetectionKey]);
 
-  // Unified Effective Ticket: combines database ticket with live FDIR detection
+  // Raw Active Ticket from database
+  const rawActiveTicket = React.useMemo(() => {
+    if (selectedTicketId) {
+      const match = tickets.find((t) => t.ticketId === selectedTicketId);
+      if (match) return match;
+    }
+    // Default to first open or watching ticket
+    return (
+      tickets.find(
+        (t) =>
+          t.status === "WATCHING" ||
+          t.status === "ESCALATED" ||
+          t.status === "DISPATCHED" ||
+          t.status === "CREW_ON_SITE" ||
+          t.status === "PTW_ISSUED"
+      ) ||
+      tickets[0] ||
+      null
+    );
+  }, [tickets, selectedTicketId]);
+
+  // Unified Effective Ticket
   const effectiveTicket: TroubleTicket | null = React.useMemo(() => {
     if (rawActiveTicket) return rawActiveTicket;
     if (activeDetection) {
@@ -176,6 +273,10 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
       const targetNode = networkSnapshot?.nodes.find((n) => n.id === targetNodeId);
       const topoNode = NODE_BY_ID[targetNodeId];
       const feederDef = networkSnapshot?.feeders.find((f) => f.id === activeDetection.feederId);
+      const isBroken =
+        activeDetection.ansi.includes("46BC") ||
+        activeDetection.type.includes("BROKEN");
+
       return {
         ticketId: `FDIR-${activeDetection.ansi.replace(/\s+/g, "")}-${targetNodeId}`,
         createdAt: new Date().toISOString(),
@@ -185,9 +286,9 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
         gps: topoNode ? { lat: topoNode.lat, lng: topoNode.lng } : { lat: 10.2318, lng: 76.4088 },
         faultType: `${activeDetection.ansi}: ${activeDetection.type}`,
         severity: activeDetection.severity,
-        status: (localStatus as any) || "DISPATCHED",
-        assignedCrew: "Lineman Quick-Response Unit #4 (K. P. Rajesh)",
-        assignedPhone: "+91 94470 12345",
+        status: (localStatus as any) || (isBroken ? "ESCALATED" : "WATCHING"),
+        assignedCrew: "Unassigned (Monitoring in Soak Watchlist)",
+        assignedPhone: "+919447012345",
         estimatedCustomers: activeDetection.customersAffected ?? topoNode?.customers ?? 28,
         ptw: localPtwIssued
           ? {
@@ -199,6 +300,9 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
               reclosingInterlockActive: true,
             }
           : null,
+        soakExpiresAt: new Date(Date.now() + 15 * 60000).toISOString(),
+        soakDurationMinutes: 15,
+        safetyBypassTriggered: isBroken,
         workLog: [
           `FDIR Supervisory Alert: ${activeDetection.message}`,
           `FLISR Isolation: Upstream pole ${activeDetection.isolate?.upstream || "DTR-01"}, Downstream [${activeDetection.isolate?.downstream?.join(", ") || "Terminal"}]`,
@@ -211,34 +315,83 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
 
   const hasActiveIncidents = Boolean(rawActiveTicket || activeDetection);
 
-  // Auto-dispatch ticket to backend SQLite database
-  const handleAutoDispatch = async (det: Detection) => {
+  // Manual Dispatch Action
+  const handleConfirmManualDispatch = async () => {
+    if (!effectiveTicket) return;
     setIsSubmitting(true);
-    try {
-      const targetNodeId = det.nodeId || det.sectionId || "F1-P01";
-      const targetNode = networkSnapshot?.nodes.find((n) => n.id === targetNodeId);
-      const topoNode = NODE_BY_ID[targetNodeId];
-      const gps = topoNode ? { lat: topoNode.lat, lng: topoNode.lng } : { lat: 10.2318, lng: 76.4088 };
-      const feederDef = networkSnapshot?.feeders.find((f) => f.id === det.feederId);
+    const chosenCrew = FIELD_CREWS.find((c) => c.id === selectedCrewId) || FIELD_CREWS[0];
 
+    try {
       await fetch("/api/oms/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: "create_ticket",
-          faultCode: `${det.ansi}: ${det.type}`,
-          affectedPole: targetNode ? `${targetNode.id} (${targetNode.label})` : targetNodeId,
-          gps,
-          idiff: det.value || 0.45,
-          severity: det.severity,
-          feederId: det.feederId || "LT-1",
-          feederName: feederDef ? feederDef.name : `Feeder ${det.feederId || "LT-1"}`,
-          estimatedCustomers: det.customersAffected ?? topoNode?.customers ?? 35,
+          action: "manual_dispatch",
+          ticketId: effectiveTicket.ticketId,
+          crewName: chosenCrew.name,
+          crewPhone: chosenCrew.phone,
+          crewType: chosenCrew.type,
+          operatorNotes: customDispatchNotes,
         }),
       });
+      setLocalStatus("DISPATCHED");
+      setIsDispatchModalOpen(false);
       if (onRefresh) onRefresh();
     } catch (err) {
-      console.error("Auto dispatch error:", err);
+      console.error("Manual dispatch error:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Launch WhatsApp Dispatch Message
+  const handleLaunchWhatsApp = (phone?: string) => {
+    if (!effectiveTicket) return;
+    const targetPhone = phone || effectiveTicket.assignedPhone || "+919447012345";
+    const url = getWhatsAppUrl(effectiveTicket, targetPhone, customDispatchNotes);
+    window.open(url, "_blank");
+  };
+
+  // Early Escalation (Bypass Soak)
+  const handleEscalateEarly = async () => {
+    if (!effectiveTicket) return;
+    setIsSubmitting(true);
+    try {
+      await fetch("/api/oms/tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "escalate_early",
+          ticketId: effectiveTicket.ticketId,
+        }),
+      });
+      setLocalStatus("ESCALATED");
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error("Escalate error:", err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Flag as Scheduled Local Maintenance
+  const handleFlagMaintenance = async () => {
+    if (!effectiveTicket) return;
+    setIsSubmitting(true);
+    try {
+      await fetch("/api/oms/tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "flag_maintenance",
+          ticketId: effectiveTicket.ticketId,
+          reason: "Scheduled Local Line & Vegetation Maintenance",
+        }),
+      });
+      setLocalStatus("MAINTENANCE_SUPPRESSED");
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error("Maintenance flag error:", err);
     } finally {
       setIsSubmitting(false);
     }
@@ -322,38 +475,35 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
   const isPtwActive =
     effectiveTicket?.ptw?.reclosingInterlockActive === true || localPtwIssued;
 
-  // Active target node from snapshot
-  const activeNode = React.useMemo(() => {
-    if (!networkSnapshot || !effectiveTicket) return null;
-    const rawTarget = effectiveTicket.affectedPole.split(" ")[0].trim();
-    return (
-      networkSnapshot.nodes.find(
-        (n) => n.id.toLowerCase() === rawTarget.toLowerCase()
-      ) || null
-    );
-  }, [networkSnapshot, effectiveTicket]);
+  const soakRemaining = getRemainingSoak(effectiveTicket?.soakExpiresAt);
 
   return (
-    <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] rounded-sm flex flex-col h-full overflow-hidden text-xs font-mono shadow-sm">
+    <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] rounded-sm flex flex-col h-full overflow-hidden text-xs font-mono shadow-sm relative">
       {/* 1. Global SCADA Header Bar */}
       <div className="flex flex-wrap items-center justify-between border-b border-slate-200 dark:border-zinc-800 px-3.5 py-2.5 bg-slate-50 dark:bg-zinc-950/80 gap-2">
         <div className="flex items-center gap-2">
           <Wrench className="h-4 w-4 text-amber-500 dark:text-amber-400" />
           <span className="font-semibold uppercase tracking-wider text-slate-800 dark:text-zinc-100">
-            OUTAGE MANAGEMENT SYSTEM (OMS) // FLISR AUTOMATION &amp; FIELD DISPATCH CONSOLE
+            OUTAGE MANAGEMENT SYSTEM (OMS) // TIERED SOAK &amp; MANUAL DISPATCH CONSOLE
           </span>
           <Badge
             variant={hasActiveIncidents ? "destructive" : "healthy"}
             className="text-[10px]"
           >
             {hasActiveIncidents
-              ? `ACTIVE DISTRIBUTION OUTAGES: ${tickets.filter((t) => t.status !== "CLOSED").length + activeDetections.length}`
+              ? `DISTRIBUTION OUTAGES: ${tickets.filter((t) => t.status !== "CLOSED").length + activeDetections.length}`
               : "FEEDER TOPOLOGY NORMAL // NO OUTAGES"}
           </Badge>
-          {activeDetections.length > 0 && (
-            <Badge variant="warning" className="text-[10px] animate-pulse flex items-center gap-1">
-              <Activity className="h-3 w-3" />
-              <span>{activeDetections.length} FDIR FAULT(S) ACTIVE</span>
+          {effectiveTicket?.status === "WATCHING" && (
+            <Badge variant="warning" className="text-[10px] flex items-center gap-1 font-bold">
+              <Clock className="h-3 w-3 animate-spin" />
+              <span>SOAK WATCHLIST: {soakRemaining.label}</span>
+            </Badge>
+          )}
+          {effectiveTicket?.status === "ESCALATED" && (
+            <Badge variant="destructive" className="text-[10px] animate-pulse flex items-center gap-1 font-bold">
+              <AlertTriangle className="h-3 w-3" />
+              <span>ESCALATED: OPERATOR ACTION REQUIRED</span>
             </Badge>
           )}
         </div>
@@ -371,61 +521,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
         )}
       </div>
 
-      {/* 2. Dynamic FLISR Isolation & Backfeed Strategy Bar (Visible during active fault) */}
-      {activeDetections.length > 0 && (
-        <div className="bg-rose-500/10 border-b border-rose-500/30 px-3.5 py-2 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-rose-500 animate-bounce" />
-            <span className="font-bold text-rose-700 dark:text-rose-400">
-              FLISR AUTOMATED FAULT ISOLATION MATRIX (FDIR):
-            </span>
-            <span className="text-slate-700 dark:text-zinc-300">
-              Fault at <strong className="text-rose-600 dark:text-rose-400">{activeDetection?.nodeId || activeDetection?.sectionId}</strong> on Feeder <strong className="text-cyan-600 dark:text-cyan-400">{activeDetection?.feederId}</strong>
-            </span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-zinc-400">
-              <span>UPSTREAM SECTIONALIZER:</span>
-              <span className="bg-rose-500/20 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 rounded-xs font-bold border border-rose-500/40">
-                {activeDetection?.isolate?.upstream || "DTR-01 ACB"}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-zinc-400">
-              <span>ISOLATED CUSTOMERS:</span>
-              <span className="text-amber-600 dark:text-amber-400 font-bold">
-                ~{activeDetection?.customersAffected ?? 28} Consumers
-              </span>
-            </div>
-
-            {activeDetection && !rawActiveTicket && (
-              <Button
-                size="sm"
-                variant="destructive"
-                className="h-6 text-[10px] px-2.5 font-bold"
-                disabled={isSubmitting}
-                onClick={() => handleAutoDispatch(activeDetection)}
-              >
-                DISPATCH FIELD CREW (OMS)
-              </Button>
-            )}
-
-            {activeDetection && (
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-6 text-[10px] px-2.5 border-slate-300 dark:border-zinc-700 font-bold"
-                onClick={() => onSelectPole?.(activeDetection.nodeId || activeDetection.sectionId || "F1-P01")}
-              >
-                INSPECT POLE (SLD)
-              </Button>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* 3. Three-Column SCADA Layout */}
+      {/* 2. Three-Column SCADA Layout */}
       <div className="grid grid-cols-12 flex-1 min-h-[460px]">
         {/* ============================================================== */}
         {/* LEFT COLUMN: LIVE FDIR INCIDENTS & HISTORICAL QUEUE */}
@@ -433,117 +529,20 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
         <div className="col-span-12 lg:col-span-4 border-r border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-950/40 p-3 flex flex-col gap-2">
           <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800/80 pb-1.5">
             <div className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
-              {hasActiveIncidents ? "ACTIVE DISTRIBUTION OUTAGE INCIDENTS" : "HISTORICAL RESOLVED INCIDENTS (ARCHIVE)"}
+              {hasActiveIncidents ? "INCIDENTS & SOAK WATCHLIST" : "HISTORICAL RESOLVED INCIDENTS (ARCHIVE)"}
             </div>
             <Badge variant="outline" className="text-[9px]">
               {hasActiveIncidents
-                ? `${tickets.length + primaryDetections.length} ROOT CAUSE${cascadeDetections.length > 0 ? ` (+${cascadeDetections.length} SAGS)` : ""}`
+                ? `${tickets.length + primaryDetections.length} ACTIVE`
                 : "ARCHIVE LOG"}
             </Badge>
           </div>
 
           <div className="space-y-2 overflow-y-auto max-h-[440px] pr-0.5">
-            {/* 1. Primary Root-Cause FDIR Detections from Digital Twin Network */}
-            {primaryDetections.map((d) => {
-              const isSelected = activeDetection?.key === d.key;
-              return (
-                <div
-                  key={d.key}
-                  onClick={() => setSelectedDetectionKey(d.key)}
-                  className={`border p-2.5 rounded-sm cursor-pointer transition-all ${
-                    isSelected
-                      ? "border-rose-500 bg-rose-500/10 shadow-sm ring-1 ring-rose-500/50"
-                      : "border-rose-500/40 bg-white dark:bg-zinc-950/60 hover:bg-rose-500/5"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
-                      <span className="h-2 w-2 rounded-full bg-rose-500 animate-ping" />
-                      <span className="font-bold text-rose-600 dark:text-rose-400">
-                        {d.ansi} FAULT [ROOT CAUSE]
-                      </span>
-                    </div>
-                    <Badge variant="destructive" className="text-[9px]">
-                      {d.severity}
-                    </Badge>
-                  </div>
-
-                  <div className="text-[11px] text-slate-800 dark:text-zinc-200 font-bold mt-1 flex items-center justify-between">
-                    <span>{d.nodeId || d.sectionId} ({d.feederId})</span>
-                    <span className="text-[10px] text-amber-600 dark:text-amber-400">
-                      ~{d.customersAffected ?? NODE_BY_ID[d.nodeId || d.sectionId || ""]?.customers ?? 24} Cust
-                    </span>
-                  </div>
-
-                  <div className="text-[10px] text-slate-600 dark:text-zinc-400 mt-1">
-                    {d.message}
-                  </div>
-
-                  <div className="mt-1.5 pt-1 border-t border-slate-200 dark:border-zinc-800/80 flex items-center justify-between text-[10px]">
-                    <span className="text-cyan-600 dark:text-cyan-400 font-semibold">
-                      ISOLATE: {d.isolate?.upstream || "DTR-01"}
-                    </span>
-                    <span className="text-rose-600 dark:text-rose-400 font-bold">
-                      [DISPATCH PENDING]
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* 2. Collapsible Downstream Cascade / Sympathetic Sags */}
-            {cascadeDetections.length > 0 && (
-              <div className="border border-amber-500/40 bg-amber-500/5 dark:bg-amber-950/20 rounded-sm overflow-hidden text-xs">
-                <div
-                  onClick={() => setShowCascade(!showCascade)}
-                  className="px-2.5 py-2 flex items-center justify-between cursor-pointer hover:bg-amber-500/10 transition-colors"
-                >
-                  <div className="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-400 text-[11px]">
-                    <ChevronRight className={`h-3.5 w-3.5 transition-transform duration-200 ${showCascade ? "rotate-90" : ""}`} />
-                    <span>SYMPATHETIC VOLTAGE TRANSIENTS / SAGS ({cascadeDetections.length})</span>
-                  </div>
-                  <Badge variant="outline" className="text-[9px] border-amber-500/50 text-amber-500 py-0">
-                    CASCADE SYMPTOMS
-                  </Badge>
-                </div>
-
-                {showCascade && (
-                  <div className="p-2 space-y-1.5 border-t border-amber-500/20 bg-black/10">
-                    <div className="text-[10px] text-slate-500 dark:text-zinc-400 italic mb-1">
-                      Secondary undervoltages induced downstream by the primary upstream fault:
-                    </div>
-                    {cascadeDetections.map((d) => {
-                      const isSelected = activeDetection?.key === d.key;
-                      return (
-                        <div
-                          key={d.key}
-                          onClick={() => setSelectedDetectionKey(d.key)}
-                          className={`border p-2 rounded-sm cursor-pointer transition-all ${
-                            isSelected
-                              ? "border-amber-500 bg-amber-500/10 shadow-xs"
-                              : "border-slate-200 dark:border-zinc-800 bg-white/60 dark:bg-zinc-950/40 hover:bg-amber-500/5"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between text-[10px]">
-                            <span className="font-bold text-amber-600 dark:text-amber-400">
-                              {d.ansi} // {d.nodeId || d.sectionId} ({d.feederId})
-                            </span>
-                            <span className="text-slate-400">~{d.customersAffected ?? 8} Cust</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-zinc-400 truncate mt-0.5">
-                            {d.message}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Database Trouble Tickets */}
             {tickets.map((t) => {
               const isSelected = effectiveTicket?.ticketId === t.ticketId;
+              const rem = getRemainingSoak(t.soakExpiresAt);
               return (
                 <div
                   key={t.ticketId}
@@ -565,13 +564,17 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                       variant={
                         t.status === "CLOSED"
                           ? "healthy"
-                          : t.status === "PTW_ISSUED"
+                          : t.status === "WATCHING"
                           ? "warning"
-                          : "destructive"
+                          : t.status === "ESCALATED"
+                          ? "destructive"
+                          : t.status === "PTW_ISSUED"
+                          ? "destructive"
+                          : "default"
                       }
-                      className="text-[9px]"
+                      className="text-[9px] font-bold"
                     >
-                      {t.status}
+                      {t.status === "WATCHING" ? `SOAKING (${rem.label})` : t.status}
                     </Badge>
                   </div>
 
@@ -583,6 +586,13 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                     <span>{t.feederName}</span>
                     <span>{new Date(t.createdAt).toLocaleTimeString()}</span>
                   </div>
+
+                  {t.safetyBypassTriggered && (
+                    <div className="mt-1 text-[9px] text-rose-500 font-bold flex items-center gap-1">
+                      <ShieldAlert className="h-3 w-3" />
+                      <span>SAFETY CRITICAL OVERRIDE (ANSI 46BC)</span>
+                    </div>
+                  )}
 
                   {t.ptw && (
                     <div className="mt-1.5 pt-1 border-t border-slate-200 dark:border-zinc-800/80 flex items-center justify-between text-[10px]">
@@ -647,7 +657,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
         </div>
 
         {/* ============================================================== */}
-        {/* CENTER COLUMN: INCIDENT DOSSIER & FLISR ISOLATION MATRIX */}
+        {/* CENTER COLUMN: INCIDENT DOSSIER & OPERATOR ACTION CONSOLE */}
         {/* ============================================================== */}
         <div className="col-span-12 lg:col-span-4 border-r border-slate-200 dark:border-zinc-800 p-3.5 flex flex-col justify-between space-y-3 bg-white dark:bg-[#0d0e11]">
           {effectiveTicket ? (
@@ -656,9 +666,9 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                 <div>
                   <div className="text-sm font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
                     <span>{effectiveTicket.ticketId}</span>
-                    {activeDetection && (
+                    {effectiveTicket.safetyBypassTriggered && (
                       <span className="text-[9px] bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/40 px-1 py-0.2 rounded-xs font-bold">
-                        LIVE FDIR
+                        SAFETY OVERRIDE
                       </span>
                     )}
                   </div>
@@ -667,12 +677,129 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                   </div>
                 </div>
                 <Badge
-                  variant={effectiveTicket.severity === "CRITICAL" ? "trip" : "warning"}
-                  className="text-[10px]"
+                  variant={
+                    effectiveTicket.status === "ESCALATED"
+                      ? "destructive"
+                      : effectiveTicket.status === "WATCHING"
+                      ? "warning"
+                      : "healthy"
+                  }
+                  className="text-[10px] font-bold"
                 >
-                  SEV: {effectiveTicket.severity}
+                  {effectiveTicket.status}
                 </Badge>
               </div>
+
+              {/* 1. SOAK OBSERVATION CARD (When WATCHING) */}
+              {effectiveTicket.status === "WATCHING" && (
+                <div className="border border-amber-500/40 bg-amber-500/10 p-2.5 rounded-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400 text-xs">
+                      <Clock className="h-4 w-4 animate-spin text-amber-500" />
+                      <span>TRANSIENT OUTAGE UNDER SOAK OBSERVATION</span>
+                    </div>
+                    <span className="text-xs font-mono font-bold text-amber-600 dark:text-amber-300">
+                      {soakRemaining.label}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-slate-600 dark:text-zinc-300">
+                    Monitoring for automatic restoration or local reclose. If power restores within this window, the outage will auto-archive without paging field crews.
+                  </p>
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="h-6 text-[10px] px-2 font-bold"
+                      onClick={handleEscalateEarly}
+                      disabled={isSubmitting}
+                    >
+                      <AlertTriangle className="h-3 w-3 mr-1" />
+                      ESCALATE NOW (BYPASS SOAK)
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[10px] px-2 border-slate-300 dark:border-zinc-700 font-bold"
+                      onClick={handleFlagMaintenance}
+                      disabled={isSubmitting}
+                    >
+                      <Wrench className="h-3 w-3 mr-1" />
+                      FLAG AS PLANNED WORK
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* 2. ESCALATED CALL-TO-ACTION CARD (When ESCALATED) */}
+              {effectiveTicket.status === "ESCALATED" && (
+                <div className="border border-rose-500 bg-rose-500/10 p-2.5 rounded-sm space-y-2 animate-pulse">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold text-rose-700 dark:text-rose-400 text-xs">
+                      <AlertTriangle className="h-4 w-4 text-rose-500 animate-bounce" />
+                      <span>SUSTAINED OUTAGE // OPERATOR ACTION REQUIRED</span>
+                    </div>
+                    <Badge variant="destructive" className="text-[9px]">
+                      {effectiveTicket.safetyBypassTriggered ? "SAFETY OVERRIDE" : "SOAK EXPIRED"}
+                    </Badge>
+                  </div>
+                  <p className="text-[10px] text-slate-600 dark:text-zinc-300">
+                    {effectiveTicket.safetyBypassTriggered
+                      ? "High-risk live broken conductor detected. Immediate manual lineman assignment required for public safety."
+                      : "Outage persisted beyond configured soak period without restoration. Please assign and dispatch a field crew."}
+                  </p>
+                  <div className="flex items-center gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs px-3 font-bold bg-rose-600 hover:bg-rose-500 text-white shadow-sm"
+                      onClick={() => setIsDispatchModalOpen(true)}
+                    >
+                      <UserCheck className="h-3.5 w-3.5 mr-1" />
+                      ASSIGN &amp; DISPATCH FIELD CREW
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-[10px] px-2 border-slate-300 dark:border-zinc-700 font-bold"
+                      onClick={handleFlagMaintenance}
+                    >
+                      FLAG AS PLANNED
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* 3. DISPATCHED STATUS WITH WHATSAPP LINK */}
+              {(effectiveTicket.status === "DISPATCHED" ||
+                effectiveTicket.status === "CREW_ON_SITE" ||
+                effectiveTicket.status === "PTW_ISSUED") && (
+                <div className="border border-emerald-500/40 bg-emerald-500/10 p-2.5 rounded-sm space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-emerald-700 dark:text-emerald-400 text-xs flex items-center gap-1.5">
+                      <UserCheck className="h-4 w-4" />
+                      FIELD CREW ASSIGNED &amp; DISPATCHED
+                    </span>
+                    <Badge variant="healthy" className="text-[9px]">
+                      {effectiveTicket.status}
+                    </Badge>
+                  </div>
+                  <div className="text-xs text-slate-800 dark:text-zinc-200 font-bold">
+                    {effectiveTicket.assignedCrew}
+                  </div>
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[11px] text-slate-500 dark:text-zinc-400">
+                      {effectiveTicket.assignedPhone}
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={() => handleLaunchWhatsApp(effectiveTicket.assignedPhone)}
+                      className="h-6 text-[10px] px-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold gap-1 shadow-xs cursor-pointer"
+                    >
+                      <MessageSquare className="h-3 w-3" />
+                      SEND VIA WHATSAPP
+                    </Button>
+                  </div>
+                </div>
+              )}
 
               {/* Geographic & Technical Specs */}
               <div className="space-y-1.5 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 p-2.5 rounded-sm">
@@ -702,85 +829,12 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                 </div>
               </div>
 
-              {/* FLISR Automated Isolation Protocol */}
-              <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-950/70 p-2.5 rounded-sm space-y-2">
-                <div className="flex items-center justify-between text-[11px] font-bold text-slate-800 dark:text-zinc-200 border-b border-slate-200 dark:border-zinc-800 pb-1">
-                  <span className="flex items-center gap-1.5">
-                    <Split className="h-3.5 w-3.5 text-cyan-500" />
-                    FLISR ISOLATION &amp; BACKFEED PLAN
-                  </span>
-                  <span className="text-[9px] text-cyan-600 dark:text-cyan-400">IEEE 1686</span>
-                </div>
-
-                <div className="space-y-1.5 text-[10px]">
-                  <div className="flex items-center justify-between bg-white dark:bg-zinc-900 p-1.5 rounded-xs border border-slate-200 dark:border-zinc-800">
-                    <span className="text-slate-500 dark:text-zinc-400">1. UPSTREAM SECTIONALIZER:</span>
-                    <span className="font-bold text-rose-600 dark:text-rose-400">
-                      {activeDetection?.isolate?.upstream || "DTR-01 ACB"} [TRIP &amp; LOTO]
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between bg-white dark:bg-zinc-900 p-1.5 rounded-xs border border-slate-200 dark:border-zinc-800">
-                    <span className="text-slate-500 dark:text-zinc-400">2. DOWNSTREAM BOUNDARY:</span>
-                    <span className="font-bold text-amber-600 dark:text-amber-400">
-                      {activeDetection?.isolate?.downstream?.join(", ") || "Radial End"} [ISOLATED]
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between bg-white dark:bg-zinc-900 p-1.5 rounded-xs border border-slate-200 dark:border-zinc-800">
-                    <span className="text-slate-500 dark:text-zinc-400">3. HEALTHY BACKFEED:</span>
-                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                      Upstream Feeder Intact
-                    </span>
-                  </div>
-                </div>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="w-full text-[10px] h-6 font-bold border-cyan-500/40 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/10"
-                  onClick={() => onSelectPole?.(activeDetection?.nodeId || activeDetection?.sectionId || "F1-P01")}
-                >
-                  <Crosshair className="h-3 w-3 mr-1" />
-                  LOCATE POLE ON SINGLE-LINE DIAGRAM
-                </Button>
-              </div>
-
-              {/* Lineman Assignment */}
-              <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 p-2.5 rounded-sm space-y-1.5">
-                <div className="flex items-center justify-between text-[11px] font-semibold text-slate-500 dark:text-zinc-400">
-                  <span className="flex items-center gap-1.5">
-                    <UserCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                    ASSIGNED FIELD CREW
-                  </span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">DISPATCHED</span>
-                </div>
-                <div className="text-slate-900 dark:text-zinc-100 font-bold">
-                  {effectiveTicket.assignedCrew}
-                </div>
-                <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-zinc-400">
-                  <span className="flex items-center gap-1">
-                    <Phone className="h-3 w-3 text-slate-400 dark:text-zinc-500" />
-                    {effectiveTicket.assignedPhone}
-                  </span>
-                  <a
-                    href={`https://www.google.com/maps?q=${effectiveTicket.gps.lat},${effectiveTicket.gps.lng}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 font-bold"
-                  >
-                    <Navigation className="h-3 w-3" />
-                    GPS ROUTE
-                  </a>
-                </div>
-              </div>
-
               {/* Event / Action Work Log */}
               <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-950/70 p-2.5 rounded-sm">
                 <div className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-1">
                   CHRONOLOGICAL AUDIT TRAIL
                 </div>
-                <div className="space-y-1 max-h-24 overflow-y-auto text-[10px] text-slate-600 dark:text-zinc-300">
+                <div className="space-y-1 max-h-28 overflow-y-auto text-[10px] text-slate-600 dark:text-zinc-300">
                   {effectiveTicket.workLog.map((log, idx) => (
                     <div key={idx} className="border-b border-slate-200 dark:border-zinc-800/40 pb-0.5">
                       • {log}
@@ -790,7 +844,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
               </div>
             </div>
           ) : (
-            /* Standby Status Summary Card (0 Active Incidents) */
+            /* Standby Status Summary Card */
             <div className="space-y-3">
               <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-2">
                 <div className="flex items-center gap-2">
@@ -815,45 +869,7 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                   ANGAMALY 33/11kV DTR-01 • 3 RADIAL LT FEEDERS
                 </div>
                 <div className="text-[10px] text-slate-500 dark:text-zinc-400">
-                  ANSI 87L Current Differential &amp; IEC 61000 Power Quality Supervision
-                </div>
-              </div>
-
-              <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-950 p-2.5 rounded-sm space-y-1.5">
-                <div className="flex items-center justify-between text-[11px] font-semibold">
-                  <span className="text-slate-500 dark:text-zinc-400 uppercase">PTW SAFETY INTERLOCK MATRIX</span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold text-[10px] flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3" />
-                    CLEAR / UNLOCKED
-                  </span>
-                </div>
-                <div className="text-slate-800 dark:text-zinc-200 text-xs">
-                  IEEE 1686 Safety Interlock Matrix: <strong className="text-emerald-600 dark:text-emerald-400">READY</strong>
-                </div>
-                <div className="text-[10px] text-slate-500 dark:text-zinc-400">
-                  0 active Permit-To-Work locks. Remote SCADA breaker reclose is authorized.
-                </div>
-              </div>
-
-              <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-950 p-2.5 rounded-sm space-y-1.5">
-                <div className="flex items-center justify-between text-[11px] font-semibold">
-                  <span className="flex items-center gap-1.5 text-slate-500 dark:text-zinc-400 uppercase">
-                    <Users className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                    DUTY CREW #4 (STANDBY)
-                  </span>
-                  <span className="text-emerald-600 dark:text-emerald-400 font-bold text-[10px]">
-                    READY FOR DISPATCH
-                  </span>
-                </div>
-                <div className="text-slate-800 dark:text-zinc-100 font-bold text-xs">
-                  K. P. Rajesh (Sr. Lineman) &amp; M. S. Sreejith (Line Assistant)
-                </div>
-                <div className="text-[10px] text-slate-500 dark:text-zinc-400 flex items-center justify-between">
-                  <span className="flex items-center gap-1">
-                    <Phone className="h-3 w-3 text-slate-400" />
-                    +91 94470 12345
-                  </span>
-                  <span>ETA: &lt; 8 mins</span>
+                  ANSI 87L Current Differential &amp; CEA Sec 44 Safety Regulation Active
                 </div>
               </div>
             </div>
@@ -896,42 +912,74 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                     <Smartphone className="h-4 w-4 text-emerald-400" />
                     <div>
                       <div className="text-[11px] font-bold uppercase text-white tracking-wider">
-                        KSEB DISCOM FIELD CREW MOBILE // ADMS LINK
+                        KSEB FIELD LINEMAN APP
                       </div>
                       <div className="text-[8px] text-zinc-400 uppercase">
-                        FIELD AUTOMATION &amp; PERMIT-TO-WORK (PTW) // UNIT #4
+                        PERMIT-TO-WORK (PTW) // UNIT #4
                       </div>
                     </div>
                   </div>
                   <Badge
-                    variant={hasActiveIncidents ? "destructive" : "healthy"}
-                    className="text-[9px] py-0 px-1.5"
+                    variant={
+                      effectiveTicket?.status === "DISPATCHED" || effectiveTicket?.status === "CREW_ON_SITE"
+                        ? "destructive"
+                        : "healthy"
+                    }
+                    className="text-[9px] py-0 px-1.5 font-bold"
                   >
-                    {hasActiveIncidents ? "DISPATCH ACTIVE" : "STANDBY"}
+                    {effectiveTicket?.status === "DISPATCHED"
+                      ? "DISPATCHED"
+                      : effectiveTicket?.status === "CREW_ON_SITE"
+                      ? "ON SITE"
+                      : effectiveTicket?.status === "PTW_ISSUED"
+                      ? "PTW ACTIVE"
+                      : "STANDBY"}
                   </Badge>
                 </div>
 
-                {!hasActiveIncidents ? (
-                  <div className="mb-2.5 p-2 bg-emerald-950/40 border border-emerald-800/60 rounded-sm text-[10px] text-emerald-300 space-y-1">
-                    <div className="flex items-center gap-1.5 font-bold text-emerald-200">
-                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                      <span>ALL DISTRIBUTION FEEDERS HEALTHY &amp; SUPERVISED</span>
+                {/* Standby notice if not dispatched */}
+                {(!effectiveTicket ||
+                  effectiveTicket.status === "WATCHING" ||
+                  effectiveTicket.status === "ESCALATED") && (
+                  <div className="mb-2.5 p-2 bg-slate-800/80 border border-zinc-700 rounded-sm text-[10px] space-y-1">
+                    <div className="flex items-center gap-1.5 font-bold text-amber-300">
+                      <Clock className="h-3.5 w-3.5" />
+                      <span>
+                        {effectiveTicket?.status === "WATCHING"
+                          ? "INCIDENT IN SOAK OBSERVATION"
+                          : "AWAITING OPERATOR DISPATCH"}
+                      </span>
                     </div>
                     <p className="text-[9px] text-zinc-400">
-                      No active trouble tickets dispatched. Safety action buttons remain locked until an outage incident is reported.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="mb-2.5 p-2 bg-rose-950/40 border border-rose-800/60 rounded-sm text-[10px] text-rose-300 space-y-0.5">
-                    <div className="flex items-center gap-1 font-bold text-rose-200">
-                      <AlertTriangle className="h-3.5 w-3.5 text-rose-400" />
-                      <span>ACTIVE DISPATCH ASSIGNMENT</span>
-                    </div>
-                    <p className="text-[9px] text-zinc-300">
-                      Target: <strong className="text-amber-300">{effectiveTicket?.affectedPole}</strong> • GPS: {effectiveTicket?.gps.lat.toFixed(4)}°N, {effectiveTicket?.gps.lng.toFixed(4)}°E
+                      Field crew dispatch has not been authorized by the SCADA Operator. Action steps remain locked.
                     </p>
                   </div>
                 )}
+
+                {/* Active Dispatch banner */}
+                {effectiveTicket &&
+                  (effectiveTicket.status === "DISPATCHED" ||
+                    effectiveTicket.status === "CREW_ON_SITE" ||
+                    effectiveTicket.status === "PTW_ISSUED") && (
+                    <div className="mb-2.5 p-2 bg-rose-950/40 border border-rose-800/60 rounded-sm text-[10px] text-rose-300 space-y-1">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1 font-bold text-rose-200">
+                          <AlertTriangle className="h-3.5 w-3.5 text-rose-400" />
+                          <span>ACTIVE DISPATCH ASSIGNMENT</span>
+                        </div>
+                        <button
+                          onClick={() => handleLaunchWhatsApp(effectiveTicket.assignedPhone)}
+                          className="text-[9px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 underline font-bold"
+                        >
+                          <MessageSquare className="h-3 w-3" />
+                          WhatsApp
+                        </button>
+                      </div>
+                      <p className="text-[9px] text-zinc-300">
+                        Target: <strong className="text-amber-300">{effectiveTicket.affectedPole}</strong>
+                      </p>
+                    </div>
+                  )}
 
                 {/* Lineman 3-Step Action Workflow */}
                 <div className="space-y-2">
@@ -939,27 +987,20 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                   <div className="border border-zinc-800 bg-zinc-950/70 p-2 rounded-sm space-y-1.5">
                     <div className="text-[10px] font-bold text-zinc-200 uppercase flex items-center justify-between">
                       <span>STEP 1: DISPATCH ARRIVAL &amp; LINE VERIFICATION</span>
-                      {hasActiveIncidents && effectiveTicket?.status !== "DISPATCHED" ? (
+                      {effectiveTicket?.status !== "WATCHING" &&
+                      effectiveTicket?.status !== "ESCALATED" &&
+                      effectiveTicket?.status !== "DISPATCHED" ? (
                         <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
                       ) : null}
                     </div>
                     <p className="text-[9px] text-zinc-400">
                       Field crew arrives at {effectiveTicket?.affectedPole || "faulted pole"} coordinates and verifies physical line clearance.
                     </p>
-                    {hasActiveIncidents && effectiveTicket?.status === "DISPATCHED" && (
-                      <div className="bg-black/60 border border-zinc-800 p-1.5 rounded-xs text-[9px] flex items-center justify-between text-zinc-300">
-                        <div className="flex items-center gap-1.5">
-                          <Navigation className="h-3 w-3 text-cyan-400 animate-pulse" />
-                          <span>Unit #4 (KL-07-CD-4102)</span>
-                        </div>
-                        <span className="text-amber-400 font-bold">1.2 km away • ETA ~4m</span>
-                      </div>
-                    )}
                     <Button
                       variant="outline"
                       size="sm"
-                      className="w-full text-[10px] h-7 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 disabled:opacity-40"
-                      disabled={!hasActiveIncidents || effectiveTicket?.status !== "DISPATCHED" || isSubmitting}
+                      className="w-full text-[10px] h-7 bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-200 disabled:opacity-40 cursor-pointer"
+                      disabled={effectiveTicket?.status !== "DISPATCHED" || isSubmitting}
                       onClick={() =>
                         handleUpdateStatus(
                           "CREW_ON_SITE",
@@ -991,19 +1032,18 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                       ) : null}
                     </div>
                     <p className="text-[9px] text-zinc-400">
-                      Engages remote SCADA lockout at upstream sectionalizer {activeDetection?.isolate?.upstream || "switch"}. Remote and local reclose is strictly inhibited under CEA Sec 44.
+                      Engages remote SCADA breaker lockout. Remote and local reclose is strictly inhibited under CEA Sec 44.
                     </p>
 
                     <Button
-                      variant={isPtwActive ? "secondary" : "amber"}
+                      variant={isPtwActive ? "secondary" : "default"}
                       size="sm"
-                      className="w-full text-[10px] h-7 font-bold disabled:opacity-40"
-                      disabled={
-                        !hasActiveIncidents ||
-                        effectiveTicket?.status !== "CREW_ON_SITE" ||
-                        isPtwActive ||
-                        isSubmitting
-                      }
+                      className={`w-full text-[10px] h-7 font-bold disabled:opacity-40 cursor-pointer ${
+                        !isPtwActive && effectiveTicket?.status === "CREW_ON_SITE"
+                          ? "bg-amber-600 hover:bg-amber-500 text-white"
+                          : ""
+                      }`}
+                      disabled={effectiveTicket?.status !== "CREW_ON_SITE" || isPtwActive || isSubmitting}
                       onClick={handleIssuePtw}
                     >
                       <Lock className="h-3 w-3 mr-1" />
@@ -1014,11 +1054,11 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                   {/* STEP 3: Repair Clearance & PTW Sign-Off */}
                   <div className="border border-zinc-800 bg-zinc-950/70 p-2 rounded-sm space-y-1.5">
                     <div className="text-[10px] font-bold text-zinc-200 uppercase flex items-center justify-between">
-                      <span>STEP 3: REPAIR COMPLETION, LINE CLEARANCE &amp; RE-ARM</span>
+                      <span>STEP 3: REPAIR COMPLETION &amp; PTW SURRENDER</span>
                     </div>
                     <input
                       type="text"
-                      disabled={!hasActiveIncidents || !isPtwActive}
+                      disabled={!isPtwActive}
                       className="w-full bg-zinc-900 border border-zinc-700 text-zinc-200 text-[10px] px-2 py-1 rounded-sm font-mono focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-40"
                       value={repairNotes}
                       onChange={(e) => setRepairNotes(e.target.value)}
@@ -1026,10 +1066,9 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
                     />
 
                     <Button
-                      variant="emerald"
                       size="sm"
-                      className="w-full text-[10px] h-7 font-bold disabled:opacity-40"
-                      disabled={!hasActiveIncidents || !isPtwActive || isSubmitting}
+                      className="w-full text-[10px] h-7 font-bold bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-40 cursor-pointer"
+                      disabled={!isPtwActive || isSubmitting}
                       onClick={handleClearPtw}
                     >
                       <Unlock className="h-3 w-3 mr-1" />
@@ -1043,13 +1082,135 @@ export const WorkforceOmsPanel = React.memo(function WorkforceOmsPanel({
               <div className="pt-2 border-t border-zinc-800 text-center">
                 <div className="h-1 w-24 bg-zinc-600 rounded-full mx-auto" />
                 <span className="text-[8px] text-zinc-500 mt-1 block">
-                  KSEB FIELD WORKFORCE MOBILE CLIENT v2.4.1 // IEEE 1686 &amp; CEA 44 COMPLIANT
+                  KSEB FIELD WORKFORCE MOBILE CLIENT // CEA SEC 44 COMPLIANT
                 </span>
               </div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* ============================================================== */}
+      {/* MANUAL OPERATOR DISPATCH MODAL                                 */}
+      {/* ============================================================== */}
+      {isDispatchModalOpen && effectiveTicket && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#0f1115] border border-slate-300 dark:border-zinc-700 rounded-sm w-full max-w-lg p-4 font-mono shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-2">
+              <div className="flex items-center gap-2">
+                <UserCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 uppercase">
+                    AUTHORIZE FIELD CREW DISPATCH (KSEB OMS)
+                  </h3>
+                  <span className="text-[10px] text-slate-500 dark:text-zinc-400">
+                    Ticket: {effectiveTicket.ticketId} • Feeder: {effectiveTicket.feederName}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsDispatchModalOpen(false)}
+                className="text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs px-1.5 py-0.5 border border-slate-300 dark:border-zinc-700 rounded-xs"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Incident Waypoint Box */}
+            <div className="bg-slate-50 dark:bg-zinc-950 p-2.5 rounded-sm border border-slate-200 dark:border-zinc-800 text-xs space-y-1">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Target Distribution Pole:</span>
+                <span className="font-bold text-slate-900 dark:text-zinc-100">{effectiveTicket.affectedPole}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">GPS Navigation Waypoint:</span>
+                <span className="text-cyan-600 dark:text-cyan-400 font-bold tabular-nums">
+                  {effectiveTicket.gps.lat.toFixed(6)}°N, {effectiveTicket.gps.lng.toFixed(6)}°E
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Fault Classification:</span>
+                <span className="text-rose-600 dark:text-rose-400 font-bold">{effectiveTicket.faultType}</span>
+              </div>
+            </div>
+
+            {/* Crew Selection */}
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+                Select Designated KSEB Field Unit
+              </label>
+              <div className="space-y-1.5">
+                {FIELD_CREWS.map((crew) => (
+                  <div
+                    key={crew.id}
+                    onClick={() => setSelectedCrewId(crew.id)}
+                    className={`p-2 rounded-sm border cursor-pointer flex items-center justify-between text-xs transition-all ${
+                      selectedCrewId === crew.id
+                        ? "border-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/30 ring-1 ring-emerald-500"
+                        : "border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/60 hover:border-slate-400"
+                    }`}
+                  >
+                    <div>
+                      <div className="font-bold text-slate-900 dark:text-zinc-100">{crew.name}</div>
+                      <div className="text-[10px] text-slate-500 dark:text-zinc-400">{crew.type}</div>
+                    </div>
+                    <span className="text-[11px] font-mono text-cyan-600 dark:text-cyan-400">{crew.phone}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Operator Directives */}
+            <div className="space-y-1">
+              <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+                Field Instructions / Safety Directive
+              </label>
+              <textarea
+                rows={2}
+                value={customDispatchNotes}
+                onChange={(e) => setCustomDispatchNotes(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-sm p-2 text-xs font-mono text-slate-900 dark:text-zinc-100 outline-none focus:border-emerald-500"
+              />
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-zinc-800">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  const chosenCrew = FIELD_CREWS.find((c) => c.id === selectedCrewId) || FIELD_CREWS[0];
+                  handleLaunchWhatsApp(chosenCrew.phone);
+                }}
+                className="border-emerald-600 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-xs font-bold gap-1.5"
+              >
+                <MessageSquare className="h-3.5 w-3.5 text-emerald-600" />
+                <span>OPEN IN WHATSAPP</span>
+              </Button>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsDispatchModalOpen(false)}
+                  className="text-xs border-slate-300 dark:border-zinc-700"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleConfirmManualDispatch}
+                  disabled={isSubmitting}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs gap-1.5 shadow-sm"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  <span>{isSubmitting ? "DISPATCHING..." : "CONFIRM DISPATCH"}</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 });

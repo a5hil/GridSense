@@ -786,8 +786,8 @@ class TelemetryStore extends EventEmitter {
           faultCode: next.fault_code,
         };
 
-        // Auto-Issue Trouble Ticket in Outage Management System (OMS)
-        omsManager.autoCreateTicketForFault({
+        // Register incident for soak observation (or safety escalation) in Outage Management System (OMS)
+        omsManager.registerIncidentForObservation({
           faultCode: next.fault_code,
           affectedPole: "Feeder LT-1: Span F1-P01 ↔ F1-P02",
           gps: { lat: 10.2325, lng: 76.4095 },
@@ -808,6 +808,9 @@ class TelemetryStore extends EventEmitter {
       if (this.systemStatus.activeAlarm) {
         this.systemStatus.activeAlarm.active = false;
       }
+      // If incident was sitting in Soak Watchlist, auto-clear it as a momentary transient
+      omsManager.autoClearTransientIfRestored();
+
       this.addEventLog({
         level: "INFO",
         source: "FDIR_CORE",

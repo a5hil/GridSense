@@ -86,13 +86,33 @@ export interface TroubleTicket {
   gps: { lat: number; lng: number };
   faultType: string;
   severity: "CRITICAL" | "HIGH" | "MEDIUM";
-  status: "DISPATCHED" | "CREW_ON_SITE" | "PTW_ISSUED" | "REPAIRED" | "CLOSED";
+  status:
+    | "WATCHING"
+    | "ESCALATED"
+    | "DISPATCHED"
+    | "CREW_ON_SITE"
+    | "PTW_ISSUED"
+    | "REPAIRED"
+    | "CLOSED"
+    | "MAINTENANCE_SUPPRESSED";
   assignedCrew: string;
   assignedPhone: string;
   estimatedCustomers: number;
   ptw: PermitToWork | null;
   workLog: string[];
   source?: "LIVE" | "TRAINING";
+  soakExpiresAt?: string;
+  soakDurationMinutes?: number;
+  safetyBypassTriggered?: boolean;
+  assignedCrewType?: string;
+  operatorNotes?: string;
+}
+
+export interface OmsSettings {
+  soakDurationMinutes: number;
+  safetyOverrideEnabled: boolean;
+  linemanPhone: string;
+  notifyOnEscalation: boolean;
 }
 
 export interface GridTelemetry {

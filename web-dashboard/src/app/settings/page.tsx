@@ -15,6 +15,11 @@ import {
   Bell,
   Volume2,
   VolumeX,
+  Wrench,
+  Shield,
+  Phone,
+  MessageSquare,
+  AlertTriangle,
 } from "lucide-react";
 import { useTheme } from "@/lib/theme-context";
 import { useDashboard } from "@/context/DashboardContext";
@@ -37,9 +42,52 @@ export default function SettingsPage() {
   const [gatewayIp, setGatewayIp] = useState<string>("192.168.1.100");
   const [isSaved, setIsSaved] = useState<boolean>(false);
 
-  const handleSave = () => {
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 2500);
+  // OMS Escalation Policy States (Kerala KSEB Outage Soak Model)
+  const [soakDurationMinutes, setSoakDurationMinutes] = useState<number>(15);
+  const [safetyOverrideEnabled, setSafetyOverrideEnabled] = useState<boolean>(true);
+  const [linemanPhone, setLinemanPhone] = useState<string>("+919447012345");
+  const [notifyOnEscalation, setNotifyOnEscalation] = useState<boolean>(true);
+
+  // Load existing OMS settings
+  React.useEffect(() => {
+    fetch("/api/oms/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.settings) {
+          if (typeof data.settings.soakDurationMinutes === "number") {
+            setSoakDurationMinutes(data.settings.soakDurationMinutes);
+          }
+          if (typeof data.settings.safetyOverrideEnabled === "boolean") {
+            setSafetyOverrideEnabled(data.settings.safetyOverrideEnabled);
+          }
+          if (typeof data.settings.linemanPhone === "string") {
+            setLinemanPhone(data.settings.linemanPhone);
+          }
+          if (typeof data.settings.notifyOnEscalation === "boolean") {
+            setNotifyOnEscalation(data.settings.notifyOnEscalation);
+          }
+        }
+      })
+      .catch((err) => console.error("Failed to load OMS settings:", err));
+  }, []);
+
+  const handleSave = async () => {
+    try {
+      await fetch("/api/oms/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          soakDurationMinutes,
+          safetyOverrideEnabled,
+          linemanPhone,
+          notifyOnEscalation,
+        }),
+      });
+      setIsSaved(true);
+      setTimeout(() => setIsSaved(false), 2500);
+    } catch (err) {
+      console.error("Save error:", err);
+    }
   };
 
   return (
@@ -366,7 +414,111 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* SECTION 4: SUBSTATION & RTU COMMS PARAMETERS */}
+        {/* SECTION 4: OUTAGE MANAGEMENT SYSTEM (OMS) & ESCALATION POLICY */}
+        <Card className="border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] shadow-sm rounded-sm md:col-span-2">
+          <CardHeader className="pb-3 border-b border-slate-200 dark:border-zinc-800/80">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                <Wrench className="h-4 w-4 text-amber-500" />
+                <span>Outage Management &amp; Soak Escalation Policy (KSEB Field Dispatch)</span>
+              </CardTitle>
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-xs border border-emerald-500/30">
+                CEA SEC 44 &amp; IEEE 1366
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* Soak Duration */}
+            <div className="space-y-2 md:col-span-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+                  Outage Soak Duration (Observation Window)
+                </label>
+                <span className="text-amber-600 dark:text-amber-400 font-bold text-xs tabular-nums">
+                  {soakDurationMinutes} Minutes
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-zinc-400">
+                Incidents are monitored before notifying the operator or dispatching linemen. If power is restored naturally within this window (e.g. routine local maintenance), the event is auto-archived with zero lineman dispatch.
+              </p>
+
+              <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 pt-1">
+                {[
+                  { label: "1m (Demo)", val: 1 },
+                  { label: "2m (Demo)", val: 2 },
+                  { label: "5m", val: 5 },
+                  { label: "15m (Std)", val: 15 },
+                  { label: "30m", val: 30 },
+                  { label: "60m", val: 60 },
+                ].map((item) => (
+                  <button
+                    key={item.val}
+                    type="button"
+                    onClick={() => setSoakDurationMinutes(item.val)}
+                    className={`py-1.5 px-2 rounded-sm border text-center text-xs font-mono transition-all cursor-pointer ${
+                      soakDurationMinutes === item.val
+                        ? "bg-amber-500 text-white font-bold border-amber-600 shadow-xs"
+                        : "bg-slate-50 dark:bg-zinc-950 border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 hover:border-slate-400"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Lineman WhatsApp Phone Number */}
+            <div className="space-y-1.5">
+              <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+                Field Lineman WhatsApp Number
+              </label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={linemanPhone}
+                  onChange={(e) => setLinemanPhone(e.target.value)}
+                  placeholder="+919447012345"
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-sm text-xs font-mono text-slate-900 dark:text-zinc-100 outline-none focus:border-emerald-500"
+                />
+                <Phone className="h-3.5 w-3.5 text-emerald-500 absolute right-3 top-2.5" />
+              </div>
+              <p className="text-[10px] text-slate-500 dark:text-zinc-400">
+                Number used when the SCADA operator clicks &quot;Send via WhatsApp&quot; with GPS navigation coordinates.
+              </p>
+            </div>
+
+            {/* Safety Critical Override Toggle */}
+            <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50/70 dark:bg-zinc-950/60 p-3 rounded-sm space-y-2 md:col-span-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-rose-500" />
+                  <div>
+                    <span className="text-xs font-bold text-slate-900 dark:text-zinc-100">
+                      Safety Critical Override: Immediate Escalation for Physical Conductor Breaks
+                    </span>
+                    <span className="text-[10px] text-slate-500 dark:text-zinc-400 block">
+                      When active, broken conductor trips (ANSI 46BC) bypass the soak period immediately due to public electrocution hazards.
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSafetyOverrideEnabled(!safetyOverrideEnabled)}
+                  className={`px-3 py-1 text-xs font-bold rounded-sm border transition-all cursor-pointer ${
+                    safetyOverrideEnabled
+                      ? "bg-rose-600 text-white border-rose-700 shadow-xs"
+                      : "bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border-slate-300 dark:border-zinc-700"
+                  }`}
+                >
+                  {safetyOverrideEnabled ? "OVERRIDE ACTIVE (IMMEDIATE)" : "OVERRIDE DISABLED"}
+                </button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* SECTION 5: SUBSTATION & RTU COMMS PARAMETERS */}
         <Card className="border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] shadow-sm rounded-sm md:col-span-2">
           <CardHeader className="pb-3 border-b border-slate-200 dark:border-zinc-800/80">
             <CardTitle className="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-zinc-100 flex items-center gap-2">

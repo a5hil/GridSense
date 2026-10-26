@@ -1,4 +1,4 @@
-import { PermitToWork, TroubleTicket } from "./types";
+import { PermitToWork, TroubleTicket, OmsSettings } from "./types";
 import { getStoredTickets, saveTicketRecord } from "./db";
 
 class OmsManager {
@@ -6,6 +6,13 @@ class OmsManager {
   private ticketCounter = 42;
   private ptwCounter = 901;
   private initialized = false;
+
+  private settings: OmsSettings = {
+    soakDurationMinutes: 15,
+    safetyOverrideEnabled: true,
+    linemanPhone: "+919447012345",
+    notifyOnEscalation: true,
+  };
 
   constructor() {
     this.tickets = [];
@@ -18,7 +25,6 @@ class OmsManager {
       const stored = await getStoredTickets();
       if (stored && stored.length > 0) {
         this.tickets = stored;
-        // Parse highest ticket counter
         stored.forEach((t) => {
           const num = parseInt(t.ticketId.replace(/\D/g, ""), 10);
           if (!isNaN(num) && num > this.ticketCounter) {
@@ -32,14 +38,146 @@ class OmsManager {
     }
   }
 
+  public getSettings(): OmsSettings {
+    return { ...this.settings };
+  }
+
+  public updateSettings(updates: Partial<OmsSettings>): OmsSettings {
+    this.settings = { ...this.settings, ...updates };
+    return { ...this.settings };
+  }
+
   public getTickets(): TroubleTicket[] {
+    this.checkSoakExpirations();
     return this.tickets;
   }
 
   public getActiveTicket(): TroubleTicket | null {
-    return this.tickets.find((t) => t.status !== "CLOSED") || null;
+    this.checkSoakExpirations();
+    return (
+      this.tickets.find(
+        (t) =>
+          t.status !== "CLOSED" &&
+          t.status !== "MAINTENANCE_SUPPRESSED"
+      ) || null
+    );
   }
 
+  /**
+   * Check and escalate any WATCHING tickets whose soak duration has elapsed.
+   */
+  public checkSoakExpirations(): void {
+    const now = Date.now();
+    for (const t of this.tickets) {
+      if (t.status === "WATCHING" && t.soakExpiresAt) {
+        const expires = new Date(t.soakExpiresAt).getTime();
+        if (now >= expires) {
+          t.status = "ESCALATED";
+          const time = new Date().toLocaleTimeString();
+          t.workLog.push(
+            `${time} - Outage persisted beyond ${t.soakDurationMinutes || 15}m soak observation. Escalated to SCADA Operator for field dispatch.`
+          );
+          saveTicketRecord(t).catch(() => {});
+        }
+      }
+    }
+  }
+
+  /**
+   * Registers a new incident for observation (Soak Watchlist).
+   * If safetyOverride is active and fault is a severe physical hazard (e.g. broken conductor ANSI 46BC),
+   * it escalates immediately for public safety.
+   */
+  public registerIncidentForObservation(params: {
+    faultCode: string;
+    affectedPole: string;
+    gps: { lat: number; lng: number };
+    idiff: number;
+    severity?: "CRITICAL" | "HIGH" | "MEDIUM";
+    feederId?: string;
+    feederName?: string;
+    estimatedCustomers?: number;
+    source?: "LIVE" | "TRAINING";
+  }): TroubleTicket {
+    this.checkSoakExpirations();
+
+    // Check if open ticket already exists for this feeder section
+    const existing = this.getActiveTicket();
+    if (existing) return existing;
+
+    this.ticketCounter++;
+    const ticketId = `TT-2026-10-00${this.ticketCounter}`;
+    const timestamp = new Date().toISOString();
+    const timeStr = new Date().toLocaleTimeString();
+
+    // Check if fault is severe physical hazard (broken conductor / high current physical contact)
+    const faultUpper = params.faultCode.toUpperCase();
+    const isPhysicalHazard =
+      (faultUpper.includes("46BC") ||
+        faultUpper.includes("BROKEN") ||
+        faultUpper.includes("PHYSICAL") ||
+        (faultUpper.includes("87L") && params.idiff >= 0.35)) &&
+      !faultUpper.includes("POWERCUT") &&
+      !faultUpper.includes("ANSI 27");
+
+    const bypassSoak = this.settings.safetyOverrideEnabled && isPhysicalHazard;
+
+    let initialStatus: TroubleTicket["status"] = "WATCHING";
+    let soakExpiresAt: string | undefined = undefined;
+    const workLog: string[] = [];
+
+    if (bypassSoak) {
+      initialStatus = "ESCALATED";
+      workLog.push(
+        `${timeStr} - SAFETY CRITICAL OVERRIDE: Physical line hazard (${params.faultCode}). Soak observation bypassed for public safety.`
+      );
+      workLog.push(
+        `${timeStr} - Incident escalated directly to SCADA Operator for immediate field crew dispatch.`
+      );
+    } else {
+      initialStatus = "WATCHING";
+      const soakMins = this.settings.soakDurationMinutes || 15;
+      soakExpiresAt = new Date(Date.now() + soakMins * 60000).toISOString();
+      workLog.push(
+        `${timeStr} - Incident detected (${params.faultCode}). Placed in Soak Watchlist for ${soakMins}m observation [${params.source || "LIVE"}].`
+      );
+      workLog.push(
+        `${timeStr} - Lineman dispatch withheld. Monitoring for automatic restoration or temporary switching.`
+      );
+    }
+
+    const newTicket: TroubleTicket = {
+      ticketId,
+      createdAt: timestamp,
+      feederId: params.feederId || "FEEDER_04_SECTOR4",
+      feederName: params.feederName || "Feeder 04 (Sector 4 Primary)",
+      affectedPole: params.affectedPole,
+      gps: params.gps,
+      faultType: params.faultCode,
+      severity: params.severity || "CRITICAL",
+      status: initialStatus,
+      assignedCrew: bypassSoak
+        ? "Unassigned (Awaiting Immediate Operator Dispatch)"
+        : "Unassigned (Monitoring in Soak Watchlist)",
+      assignedPhone: this.settings.linemanPhone || "+919447012345",
+      estimatedCustomers: params.estimatedCustomers ?? 28,
+      ptw: null,
+      source: params.source,
+      soakExpiresAt,
+      soakDurationMinutes: this.settings.soakDurationMinutes,
+      safetyBypassTriggered: bypassSoak,
+      workLog,
+    };
+
+    this.tickets.unshift(newTicket);
+    saveTicketRecord(newTicket).catch(() => {});
+
+    return newTicket;
+  }
+
+  /**
+   * Backward-compatible alias for registerIncidentForObservation.
+   */
   public autoCreateTicketForFault(params: {
     faultCode: string;
     affectedPole: string;
@@ -51,44 +189,103 @@ class OmsManager {
     estimatedCustomers?: number;
     source?: "LIVE" | "TRAINING";
   }): TroubleTicket {
-    // Check if open ticket already exists for this feeder section
-    const existing = this.getActiveTicket();
-    if (existing) return existing;
+    return this.registerIncidentForObservation(params);
+  }
 
-    this.ticketCounter++;
-    const ticketId = `TT-2026-10-00${this.ticketCounter}`;
-    const timestamp = new Date().toISOString();
+  /**
+   * If a watched incident restores power before soak timer expires,
+   * auto-clear it as a momentary transient outage (no lineman dispatch).
+   */
+  public autoClearTransientIfRestored(feederId?: string): TroubleTicket | null {
+    const active = this.getActiveTicket();
+    if (active && active.status === "WATCHING") {
+      const now = new Date();
+      const elapsedMs = now.getTime() - new Date(active.createdAt).getTime();
+      const elapsedMins = Math.max(1, Math.round(elapsedMs / 60000));
 
-    const newTicket: TroubleTicket = {
-      ticketId,
-      createdAt: timestamp,
-      feederId: params.feederId || "FEEDER_04_SECTOR4",
-      feederName: params.feederName || "Feeder 04 (Sector 4 Primary)",
-      affectedPole: params.affectedPole,
-      gps: params.gps,
-      faultType: params.faultCode,
-      severity: params.severity || "CRITICAL",
-      status: "DISPATCHED",
-      assignedCrew: "Lineman Quick-Response Unit #4 (K. P. Rajesh)",
-      assignedPhone: "+91 98460 99881",
-      estimatedCustomers: params.estimatedCustomers ?? 62,
-      ptw: null,
-      source: params.source,
-      workLog: [
-        `${new Date().toLocaleTimeString()} - Auto-generated by Central FDIR Engine (${params.faultCode}) [${params.source || "LIVE"}]`,
-        `${new Date().toLocaleTimeString()} - SMS & Push dispatched to K. P. Rajesh (GPS: ${params.gps.lat.toFixed(4)}°N, ${params.gps.lng.toFixed(4)}°E)`,
-      ],
-    };
+      active.status = "CLOSED";
+      active.workLog.push(
+        `${now.toLocaleTimeString()} - Power restored naturally after ~${elapsedMins}m. Auto-cleared as transient outage; zero lineman dispatched.`
+      );
+      saveTicketRecord(active).catch(() => {});
+      return active;
+    }
+    return null;
+  }
 
-    this.tickets.unshift(newTicket);
-    saveTicketRecord(newTicket).catch(() => {});
+  /**
+   * Operator manually dispatches a specific field crew.
+   */
+  public manualDispatchCrew(
+    ticketId: string,
+    params: {
+      crewName: string;
+      crewPhone: string;
+      crewType: string;
+      operatorNotes?: string;
+    }
+  ): TroubleTicket | null {
+    const ticket = this.tickets.find((t) => t.ticketId === ticketId);
+    if (!ticket) return null;
 
-    return newTicket;
+    ticket.status = "DISPATCHED";
+    ticket.assignedCrew = params.crewName;
+    ticket.assignedPhone = params.crewPhone;
+    ticket.assignedCrewType = params.crewType;
+    ticket.operatorNotes = params.operatorNotes;
+
+    const time = new Date().toLocaleTimeString();
+    ticket.workLog.push(
+      `${time} - Manual field dispatch authorized by SCADA Operator: ${params.crewName} (${params.crewType}).`
+    );
+    if (params.operatorNotes) {
+      ticket.workLog.push(`${time} - Directive: "${params.operatorNotes}"`);
+    }
+
+    saveTicketRecord(ticket).catch(() => {});
+    return ticket;
+  }
+
+  /**
+   * Operator flags incident as scheduled local maintenance (e.g. tree trimming, transformer oiling).
+   */
+  public flagAsScheduledMaintenance(
+    ticketId: string,
+    reason?: string
+  ): TroubleTicket | null {
+    const ticket = this.tickets.find((t) => t.ticketId === ticketId);
+    if (!ticket) return null;
+
+    ticket.status = "MAINTENANCE_SUPPRESSED";
+    const time = new Date().toLocaleTimeString();
+    ticket.workLog.push(
+      `${time} - Operator flagged incident as scheduled local maintenance: ${reason || "Planned Line Maintenance"}. Alarms suppressed; emergency dispatch cancelled.`
+    );
+
+    saveTicketRecord(ticket).catch(() => {});
+    return ticket;
+  }
+
+  /**
+   * Operator bypasses remaining soak time on demand and escalates immediately.
+   */
+  public escalateEarly(ticketId: string): TroubleTicket | null {
+    const ticket = this.tickets.find((t) => t.ticketId === ticketId);
+    if (!ticket) return null;
+
+    ticket.status = "ESCALATED";
+    const time = new Date().toLocaleTimeString();
+    ticket.workLog.push(
+      `${time} - SCADA Operator manually bypassed remaining soak duration. Escalated for crew dispatch.`
+    );
+
+    saveTicketRecord(ticket).catch(() => {});
+    return ticket;
   }
 
   public updateTicketStatus(
     ticketId: string,
-    status: "DISPATCHED" | "CREW_ON_SITE" | "PTW_ISSUED" | "REPAIRED" | "CLOSED",
+    status: TroubleTicket["status"],
     logMessage?: string
   ): TroubleTicket | null {
     const ticket = this.tickets.find((t) => t.ticketId === ticketId);

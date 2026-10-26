@@ -539,7 +539,7 @@ class NetworkTwin extends EventEmitter {
         : null; // natural SIM condition: advisory only
       if (kind && (d.severity === "CRITICAL" || d.severity === "HIGH") && d.type !== "NODE_OFFLINE") {
         const targetNode = d.nodeId ? NODE_BY_ID[d.nodeId] : undefined;
-        omsManager.autoCreateTicketForFault({
+        omsManager.registerIncidentForObservation({
           faultCode: `${d.ansi} // ${d.type}`,
           affectedPole: targetNode ? `${targetNode.label} (${targetNode.id})` : d.sectionId ? `Section ${d.sectionId}` : "Distribution Span",
           gps: targetNode ? { lat: targetNode.lat, lng: targetNode.lng } : { lat: 10.2318, lng: 76.4088 },
@@ -560,6 +560,10 @@ class NetworkTwin extends EventEmitter {
           message: `[${d.source}] Cleared: ${d.ansi} ${d.type.replace(/_/g, " ").toLowerCase()}${d.nodeId ? ` @ ${d.nodeId}` : ""}`,
         });
       }
+    }
+    if (this.activeKeys.size > 0 && now.size === 0) {
+      // All faults cleared; auto-clear any watched transient outages
+      omsManager.autoClearTransientIfRestored();
     }
     this.activeKeys = now;
   }

@@ -544,7 +544,12 @@ export default function SCADADashboard() {
   }
   const isFault = activeFault !== null;
   const isAlarmUnacked = isFault && systemStatus?.operatorAck === false;
-  const openTicketsCount = tickets.filter((t) => t.status !== "CLOSED").length;
+  const openTicketsCount = tickets.filter((t) => t.status !== "CLOSED" && t.status !== "MAINTENANCE_SUPPRESSED").length;
+  const watchingTicket = tickets.find((t) => t.status === "WATCHING");
+  const escalatedTicket = tickets.find((t) => t.status === "ESCALATED");
+  const dispatchedTicket = tickets.find(
+    (t) => t.status === "DISPATCHED" || t.status === "CREW_ON_SITE" || t.status === "PTW_ISSUED"
+  );
 
   // Sync state to global DashboardContext
   React.useEffect(() => {
@@ -720,6 +725,16 @@ export default function SCADADashboard() {
                     <Lock className="h-3 w-3" />
                     RECLOSE INTERLOCKED (PTW ACTIVE)
                   </span>
+                ) : escalatedTicket ? (
+                  <span className="bg-rose-900 border border-rose-400 text-rose-100 text-[10px] px-2 py-0.5 rounded-sm flex items-center gap-1 font-bold animate-pulse">
+                    <AlertOctagon className="h-3 w-3 text-rose-300" />
+                    {escalatedTicket.safetyBypassTriggered ? "SAFETY OVERRIDE // DISPATCH REQUIRED" : "OUTAGE ESCALATED (>15m) // DISPATCH REQUIRED"}
+                  </span>
+                ) : watchingTicket ? (
+                  <span className="bg-amber-900/80 border border-amber-500 text-amber-200 text-[10px] px-2 py-0.5 rounded-sm flex items-center gap-1 font-bold">
+                    <Clock className="h-3 w-3 text-amber-400" />
+                    TRANSIENT SOAK OBSERVATION (CREW NOT DISPATCHED)
+                  </span>
                 ) : isAlarmUnacked && (
                   <span className={`${isPowerCut ? "bg-amber-900/80 border-amber-500 text-amber-200" : "bg-rose-900 border-rose-500 text-rose-100"} border text-[10px] px-2 py-0.5 rounded-sm animate-pulse`}>
                     {isPowerCut ? "DE-ENERGIZATION ADVISORY" : "UNACKNOWLEDGED RELAY TRIP"}
@@ -743,7 +758,7 @@ export default function SCADADashboard() {
               onClick={() => setActiveView("OMS")}
             >
               <Wrench className="h-3.5 w-3.5 text-amber-400" />
-              <span>DISPATCH FIELD CREW (OMS)</span>
+              <span>{escalatedTicket ? "ASSIGN FIELD CREW (OMS)" : watchingTicket ? "VIEW SOAK WATCHLIST (OMS)" : "OUTAGE MANAGEMENT (OMS)"}</span>
             </Button>
 
             <Button
@@ -1255,22 +1270,64 @@ export default function SCADADashboard() {
                     </div>
 
                     {/* OMS & Workforce Status */}
-                    {openTicketsCount > 0 ? (
-                      <div className="border border-rose-500/40 bg-rose-50/60 dark:bg-rose-950/30 p-2.5 rounded-sm flex items-center justify-between">
+                    {escalatedTicket ? (
+                      <div className="border border-rose-500/60 bg-rose-50/80 dark:bg-rose-950/40 p-2.5 rounded-sm flex items-center justify-between animate-pulse">
                         <div>
                           <div className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
-                            <Wrench className="h-3.5 w-3.5" />
-                            <span>{openTicketsCount} OPEN OUTAGE DISPATCH{openTicketsCount > 1 ? "ES" : ""}</span>
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            <span>SUSTAINED OUTAGE — ACTION REQUIRED</span>
                           </div>
-                          <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">Field crew dispatched for line restoration</div>
+                          <div className="text-[10px] text-slate-600 dark:text-zinc-300 mt-0.5">
+                            {escalatedTicket.safetyBypassTriggered ? "Safety Critical Override (Conductor Hazard)" : "Soak window elapsed. Operator dispatch required."}
+                          </div>
                         </div>
                         <Button
                           size="sm"
                           variant="destructive"
-                          className="text-[11px] font-mono h-7 px-2"
+                          className="text-[11px] font-mono h-7 px-2 font-bold shadow-sm"
                           onClick={() => setActiveView("OMS")}
                         >
-                          View OMS ➔
+                          Dispatch ➔
+                        </Button>
+                      </div>
+                    ) : watchingTicket ? (
+                      <div className="border border-amber-500/40 bg-amber-50/60 dark:bg-amber-950/30 p-2.5 rounded-sm flex items-center justify-between">
+                        <div>
+                          <div className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                            <Clock className="h-3.5 w-3.5 animate-spin" style={{ animationDuration: "8s" }} />
+                            <span>SOAK OBSERVATION ACTIVE</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                            Watching event #{watchingTicket.ticketId} • Suppressing nuisance dispatch
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-[11px] font-mono h-7 px-2 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+                          onClick={() => setActiveView("OMS")}
+                        >
+                          View Soak ➔
+                        </Button>
+                      </div>
+                    ) : dispatchedTicket ? (
+                      <div className="border border-cyan-500/40 bg-cyan-50/60 dark:bg-cyan-950/30 p-2.5 rounded-sm flex items-center justify-between">
+                        <div>
+                          <div className="text-xs font-bold text-cyan-600 dark:text-cyan-400 flex items-center gap-1.5">
+                            <Wrench className="h-3.5 w-3.5" />
+                            <span>CREW DISPATCHED ({dispatchedTicket.assignedCrew || "Line Crew"})</span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                            Status: {dispatchedTicket.status.replace(/_/g, " ")} • Ticket #{dispatchedTicket.ticketId}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-[11px] font-mono h-7 px-2 border-cyan-500/40 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/40"
+                          onClick={() => setActiveView("OMS")}
+                        >
+                          Track Crew ➔
                         </Button>
                       </div>
                     ) : (
