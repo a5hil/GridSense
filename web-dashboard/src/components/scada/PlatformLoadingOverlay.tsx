@@ -9,11 +9,11 @@ interface PlatformLoadingOverlayProps {
 }
 
 const PROCESS_STEPS = [
-  "Connecting to Angamaly 33/11kV Substation...",
-  "Synchronizing 3-phase telemetry streams...",
-  "Calculating digital twin 28-pole differential matrix...",
-  "Calibrating ANSI 87L protection relays...",
-  "Finalizing SCADA dispatch console...",
+  "Connecting to distribution substation...",
+  "Synchronizing real-time telemetry...",
+  "Loading grid digital twin model...",
+  "Calibrating protection & fault detection...",
+  "Launching dispatch console...",
 ];
 
 export function PlatformLoadingOverlay({ onFinished }: PlatformLoadingOverlayProps) {
@@ -26,7 +26,7 @@ export function PlatformLoadingOverlay({ onFinished }: PlatformLoadingOverlayPro
     onFinishedRef.current = onFinished;
   }, [onFinished]);
 
-  // Cycle through process steps every 550ms
+  // Cycle through process steps every 850ms
   useEffect(() => {
     const stepInterval = setInterval(() => {
       setStepIndex((prev) => {
@@ -35,14 +35,14 @@ export function PlatformLoadingOverlay({ onFinished }: PlatformLoadingOverlayPro
         }
         return prev;
       });
-    }, 550);
+    }, 850);
 
     return () => clearInterval(stepInterval);
   }, []);
 
-  // Main exit timer: exactly 2.8 seconds total
+  // Main exit timer: exactly 4.2 seconds total
   useEffect(() => {
-    const totalDuration = 2800;
+    const totalDuration = 4200;
 
     const timer = setTimeout(() => {
       setIsFadingOut(true);
@@ -66,7 +66,6 @@ export function PlatformLoadingOverlay({ onFinished }: PlatformLoadingOverlayPro
     >
       {/* Background Subtle Substation Grid Aesthetics */}
       <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-20 pointer-events-none" />
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-cyan-500 to-amber-500" />
 
       <div className="relative z-10 flex flex-col items-center text-center max-w-sm px-6">
         {/* Animated Brand Icon */}

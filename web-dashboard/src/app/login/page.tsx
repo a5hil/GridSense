@@ -68,7 +68,6 @@ export default function LoginPage() {
     <div className="min-h-screen bg-[#08090b] text-zinc-100 flex flex-col justify-between font-mono relative overflow-hidden select-none">
       {/* Background Subtle Substation Grid Aesthetics */}
       <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-25 pointer-events-none" />
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 via-cyan-500 to-amber-500" />
 
       {/* TOP SCADA PROTOCOL HEADER */}
       <header className="border-b border-zinc-800/80 bg-[#0d0f12]/80 backdrop-blur-md px-6 py-3.5 flex items-center justify-between z-10">
