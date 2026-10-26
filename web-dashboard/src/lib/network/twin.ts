@@ -414,7 +414,7 @@ class NetworkTwin extends EventEmitter {
       const isPoleA = n.liveBinding === "Pole-A";
       const pd = isPoleA ? t.p1 : t.p2;
       const silentMs = isLiveNode ? (pd?.age_ms ?? 99999) : undefined;
-      const lastGasp = isLiveNode ? (!isPoleA && (t.lastGasp?.pole === 2 || (t as any).p2LastGasp)) : undefined;
+      const lastGasp = isLiveNode && !energized ? (!isPoleA && (t.lastGasp?.pole === 2 || (t as any).p2LastGasp)) : undefined;
       const wasSeenHealthy = isLiveNode ? !!this.wasSeenHealthy[id] : undefined;
 
       nodes[id] = {
@@ -585,8 +585,18 @@ export function describeFault(f: InjectedFault): string {
 }
 
 const g = globalThis as unknown as { gsNetworkTwin?: NetworkTwin };
-export const networkTwin = g.gsNetworkTwin || new NetworkTwin();
-if (process.env.NODE_ENV !== "production") g.gsNetworkTwin = networkTwin;
+
+function initTwin(): NetworkTwin {
+  if (g.gsNetworkTwin) {
+    Object.setPrototypeOf(g.gsNetworkTwin, NetworkTwin.prototype);
+    return g.gsNetworkTwin;
+  }
+  const twin = new NetworkTwin();
+  if (process.env.NODE_ENV !== "production") g.gsNetworkTwin = twin;
+  return twin;
+}
+
+export const networkTwin = initTwin();
 
 if (typeof window === "undefined" && process.env.NEXT_PHASE !== "phase-production-build") {
   networkTwin.start();

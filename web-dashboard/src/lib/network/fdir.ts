@@ -299,7 +299,8 @@ export function runFdir(params: {
     if (parent.phases.R.v < L.healthyV) continue;
     const deadV = n.online && n.phases.R.v < L.energizedV;
     const silent = !n.online && (n.silentMs ?? 0) >= OPEN_CONDUCTOR_SILENCE_MS && n.wasSeenHealthy;
-    if (!deadV && !silent && !n.lastGasp) continue;
+    const unenergized = !n.online || n.phases.R.v < L.energizedV;
+    if (!deadV && !silent && !(n.lastGasp && unenergized)) continue;
     det.push({
       key: `BC:${n.id}:R`,
       type: "BROKEN_CONDUCTOR",
@@ -309,7 +310,7 @@ export function runFdir(params: {
       nodeId: n.id,
       sectionId: parent.id,
       feederId: n.feederId ?? undefined,
-      message: n.lastGasp
+      message: n.lastGasp && unenergized
         ? `Loss of supply at ${n.id} confirmed by last-gasp while ${parent.id} is live`
         : `${n.id} ${deadV ? "reads 0 V" : "silent"} while ${parent.id} is live: suspected open conductor`,
       value: n.phases.R.v,

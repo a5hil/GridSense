@@ -45,7 +45,12 @@ class TelemetryStore extends EventEmitter {
   public resetProtection() {
     this.protection.reset();
     this.p2LastGasp = false;
+    this.currentTelemetry.lastGasp = null;
     this.alarmOpen = false;
+    if (this.systemStatus.activeAlarm) {
+      this.systemStatus.activeAlarm.active = false;
+    }
+    this.systemStatus.operatorAck = true;
   }
 
   constructor() {
@@ -313,6 +318,9 @@ class TelemetryStore extends EventEmitter {
   public acknowledgeAlarm() {
     this.systemStatus.operatorAck = true;
     this.protection.reset();
+    this.p2LastGasp = false;
+    this.currentTelemetry.lastGasp = null;
+    this.alarmOpen = false;
     if (this.systemStatus.activeAlarm) {
       this.addEventLog({
         level: "INFO",
@@ -560,6 +568,8 @@ class TelemetryStore extends EventEmitter {
       if (physicalHealthy) {
         // Physical measurements prove the line is fully intact and healthy: clear any stale software latch
         this.protection.reset();
+        this.p2LastGasp = false;
+        this.currentTelemetry.lastGasp = null;
       }
 
       let isTrip = false;
@@ -859,5 +869,15 @@ class TelemetryStore extends EventEmitter {
 
 // Global singleton across Next.js API routes & dev reloads
 const globalForTelemetry = globalThis as unknown as { telemetryStore?: TelemetryStore };
-export const telemetryStore = globalForTelemetry.telemetryStore || new TelemetryStore();
-if (process.env.NODE_ENV !== "production") globalForTelemetry.telemetryStore = telemetryStore;
+
+function initTelemetryStore(): TelemetryStore {
+  if (globalForTelemetry.telemetryStore) {
+    Object.setPrototypeOf(globalForTelemetry.telemetryStore, TelemetryStore.prototype);
+    return globalForTelemetry.telemetryStore;
+  }
+  const store = new TelemetryStore();
+  if (process.env.NODE_ENV !== "production") globalForTelemetry.telemetryStore = store;
+  return store;
+}
+
+export const telemetryStore = initTelemetryStore();
