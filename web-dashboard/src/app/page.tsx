@@ -435,6 +435,10 @@ export default function SCADADashboard() {
   const i1 = isGatewayOffline ? 0 : (telemetry?.p1?.i ?? 0);
   const i2 = isGatewayOffline ? 0 : (telemetry?.p2?.i ?? 0);
   const faultCode = isGatewayOffline ? "GATEWAY_DISCONNECTED" : telemetry?.fault_code;
+  let isPowerCut =
+    !isGatewayOffline &&
+    (faultCode === "POWERCUT" ||
+      (!isBreakerTripped && v1 < 50 && v2 < 50));
 
   // Guard against uninitialized node startup race-conditions:
   // Both nodes must have active, initialized power flow readings (V > 50V and I > 0.05A)
@@ -535,10 +539,9 @@ export default function SCADADashboard() {
     }
   }
 
-  const isPowerCut =
-    faultCode === "POWERCUT" ||
-    activeFault?.ansiCode === "ANSI 27" ||
-    (!isGatewayOffline && v1 < 50 && v2 < 50 && !isBreakerTripped);
+  if (activeFault?.ansiCode === "ANSI 27") {
+    isPowerCut = true;
+  }
   const isFault = activeFault !== null;
   const isAlarmUnacked = isFault && systemStatus?.operatorAck === false;
   const openTicketsCount = tickets.filter((t) => t.status !== "CLOSED").length;
