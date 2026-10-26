@@ -72,7 +72,7 @@ export function computeSections(nodes: Record<string, NodeState>): SectionResult
       const iIn = pr.i;
       const iLoad = parent.localLoadA[phase];
       const iOut = crs.reduce((a, r) => a + r.i, 0);
-      const leakA = iIn - iLoad - iOut;
+      const leakA = round(Math.abs(iIn - iLoad - iOut), 3);
       const thresholdA = Math.max(FDIR_LIMITS.diffMinA, (FDIR_LIMITS.diffBiasPct / 100) * iIn);
 
       out.push({
@@ -83,7 +83,7 @@ export function computeSections(nodes: Record<string, NodeState>): SectionResult
         iIn: round(iIn, 3),
         iOut: round(iOut, 3),
         iLoad: round(iLoad, 3),
-        leakA: round(leakA, 3),
+        leakA,
         thresholdA: round(thresholdA, 3),
         tripped: leakA >= thresholdA,
         source: sourceOf([parent, ...children]),
