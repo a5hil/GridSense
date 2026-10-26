@@ -74,24 +74,19 @@ export async function connectSerialPort(
     const availablePorts = await listAvailablePorts();
 
     if (!targetPort || !availablePorts.some((p) => p.path.toUpperCase() === targetPort.toUpperCase())) {
-      const com8Port = availablePorts.find((p) => p.path.toUpperCase() === "COM8");
-      if (com8Port) {
-        targetPort = com8Port.path;
-      } else {
-        const likelyPort = availablePorts.find(
-          (p) =>
-            p.manufacturer?.toLowerCase().includes("espressif") ||
-            p.manufacturer?.toLowerCase().includes("silicon") ||
-            p.manufacturer?.toLowerCase().includes("wch") ||
-            p.manufacturer?.toLowerCase().includes("ch340") ||
-            p.friendlyName?.toLowerCase().includes("cp210") ||
-            p.friendlyName?.toLowerCase().includes("ch340") ||
-            p.friendlyName?.toLowerCase().includes("usb-serial") ||
-            (p.friendlyName?.toLowerCase().includes("usb") && !p.manufacturer?.toLowerCase().includes("microsoft"))
-        );
-        if (likelyPort) {
-          targetPort = likelyPort.path;
-        }
+      const likelyPort = availablePorts.find(
+        (p) =>
+          p.manufacturer?.toLowerCase().includes("espressif") ||
+          p.manufacturer?.toLowerCase().includes("silicon") ||
+          p.manufacturer?.toLowerCase().includes("wch") ||
+          p.manufacturer?.toLowerCase().includes("ch340") ||
+          p.friendlyName?.toLowerCase().includes("cp210") ||
+          p.friendlyName?.toLowerCase().includes("ch340") ||
+          p.friendlyName?.toLowerCase().includes("usb-serial") ||
+          (p.friendlyName?.toLowerCase().includes("usb") && !p.manufacturer?.toLowerCase().includes("microsoft"))
+      );
+      if (likelyPort) {
+        targetPort = likelyPort.path;
       }
     }
 
