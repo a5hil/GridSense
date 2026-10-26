@@ -169,6 +169,7 @@ export default function SCADADashboard() {
   const lastEnergyTickRef = React.useRef<number>(Date.now());
   const [currentUser, setCurrentUser] = React.useState<ScadaUser | null>(null);
   const [isPlatformReady, setIsPlatformReady] = React.useState<boolean>(false);
+  const handlePlatformReady = React.useCallback(() => setIsPlatformReady(true), []);
 
   React.useEffect(() => {
     fetch("/api/auth/me")
@@ -666,7 +667,7 @@ export default function SCADADashboard() {
       {!isPlatformReady && (
         <PlatformLoadingOverlay
           isDataReady={isDataReady}
-          onFinished={() => setIsPlatformReady(true)}
+          onFinished={handlePlatformReady}
         />
       )}
       {/* 1. TOP SCADA HEADER BAR - CLEAN OPERATOR DESK */}
