@@ -94,66 +94,65 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`h-screen flex flex-col justify-between border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] font-mono select-none overflow-hidden will-change-[width] transition-[width] duration-250 ease-[cubic-bezier(0.2,0,0,1)] shrink-0 z-40 ${
+      className={`h-screen flex flex-col justify-between border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] font-mono select-none overflow-hidden will-change-[width] transition-[width] duration-200 ease-in-out shrink-0 z-40 ${
         isSidebarCollapsed ? "w-16" : "w-64"
       }`}
     >
       {/* 1. TOP BRAND LOGO & COLLAPSE TOGGLE */}
       <div>
-        <div className="h-14 border-b border-slate-200 dark:border-zinc-800 flex items-center px-3 overflow-hidden">
-          {/* Brand Icon / Morphing Toggle in Collapsed Mode */}
-          <div className="w-10 h-10 flex items-center justify-center shrink-0">
+        <div
+          className={`h-14 border-b border-slate-200 dark:border-zinc-800 flex items-center transition-colors ${
+            isSidebarCollapsed ? "justify-center px-0" : "justify-between px-3.5"
+          }`}
+        >
+          {!isSidebarCollapsed ? (
+            <>
+              <Link
+                href="/"
+                onClick={() => setActiveView("OPERATOR")}
+                className="flex items-center gap-2.5 overflow-hidden"
+              >
+                <div className="h-8 w-8 rounded-sm bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                  <Zap className="h-4 w-4 text-emerald-400 fill-emerald-400" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-black tracking-wider text-slate-900 dark:text-zinc-100 truncate">
+                    GRIDSENSE
+                  </span>
+                  <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-widest truncate">
+                    ADMS 2.0
+                  </span>
+                </div>
+              </Link>
+
+              <button
+                onClick={toggleSidebar}
+                className="p-1.5 rounded-sm text-slate-400 hover:text-slate-800 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shrink-0 cursor-pointer"
+                title="Collapse Sidebar"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            </>
+          ) : (
+            /* Perfectly centered morphing toggle button in collapsed mode */
             <button
-              onClick={isSidebarCollapsed ? toggleSidebar : () => { setActiveView("OPERATOR"); if (pathname !== "/") router.push("/"); }}
+              onClick={toggleSidebar}
               className="h-9 w-9 rounded-sm bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-400/70 hover:bg-emerald-500/20 flex items-center justify-center transition-all group cursor-pointer"
-              title={isSidebarCollapsed ? "Expand Sidebar" : "Operations Desk"}
+              title="Expand Sidebar"
             >
-              <Zap className={`h-4 w-4 text-emerald-400 fill-emerald-400 ${isSidebarCollapsed ? "group-hover:hidden" : ""}`} />
-              {isSidebarCollapsed && (
-                <ChevronRight className="h-4 w-4 text-emerald-400 hidden group-hover:block" />
-              )}
+              <Zap className="h-4 w-4 text-emerald-400 fill-emerald-400 group-hover:hidden" />
+              <ChevronRight className="h-4 w-4 text-emerald-400 hidden group-hover:block" />
             </button>
-          </div>
-
-          {/* Brand Title (Smooth fade & collapse) */}
-          <Link
-            href="/"
-            onClick={() => setActiveView("OPERATOR")}
-            className={`flex flex-col min-w-0 transition-all duration-200 ease-out overflow-hidden whitespace-nowrap ${
-              isSidebarCollapsed
-                ? "max-w-0 opacity-0 pointer-events-none ml-0"
-                : "max-w-[130px] opacity-100 ml-2.5"
-            }`}
-          >
-            <span className="text-xs font-black tracking-wider text-slate-900 dark:text-zinc-100 truncate">
-              GRIDSENSE
-            </span>
-            <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-widest truncate">
-              ADMS 2.0
-            </span>
-          </Link>
-
-          {/* Collapse Button (ChevronLeft) */}
-          <button
-            onClick={toggleSidebar}
-            className={`p-1.5 rounded-sm text-slate-400 hover:text-slate-800 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-all duration-200 shrink-0 cursor-pointer ml-auto ${
-              isSidebarCollapsed ? "opacity-0 pointer-events-none scale-75 w-0 p-0 overflow-hidden" : "opacity-100"
-            }`}
-            title="Collapse Sidebar"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
+          )}
         </div>
 
         {/* 2. PRIMARY NAVIGATION (TOP) */}
-        <div className="py-3 px-3 space-y-1.5 overflow-hidden">
-          <div
-            className={`px-3 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500 overflow-hidden whitespace-nowrap transition-all duration-200 ease-out ${
-              isSidebarCollapsed ? "h-0 opacity-0 mb-0" : "h-4 opacity-100 mb-1"
-            }`}
-          >
-            GRID SUPERVISION
-          </div>
+        <div className={`py-3 space-y-1.5 ${isSidebarCollapsed ? "px-2" : "px-2.5"}`}>
+          {!isSidebarCollapsed && (
+            <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500">
+              GRID SUPERVISION
+            </div>
+          )}
 
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -163,54 +162,49 @@ export function Sidebar() {
               <button
                 key={item.id}
                 onClick={() => handleNavClick(item.id)}
-                className={`w-full h-10 flex items-center rounded-sm transition-all duration-150 relative group cursor-pointer select-none ${
+                className={`transition-all duration-150 relative group cursor-pointer ${
+                  isSidebarCollapsed
+                    ? "w-10 h-10 mx-auto flex items-center justify-center rounded-sm"
+                    : "w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-xs font-semibold tracking-wide"
+                } ${
                   isActive
-                    ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.15)] font-bold"
-                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-900/60 border border-transparent"
+                    ? isSidebarCollapsed
+                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+                      : "bg-emerald-50/70 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 font-bold border-l-2 border-emerald-500 dark:border-emerald-400 shadow-xs"
+                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-900/60"
                 }`}
               >
-                {/* Fixed Icon Container */}
-                <div className="w-10 h-10 flex items-center justify-center shrink-0">
-                  <Icon
-                    className={`h-4 w-4 shrink-0 transition-colors ${
-                      isActive
-                        ? "text-emerald-600 dark:text-emerald-400"
-                        : "text-slate-500 dark:text-zinc-500 group-hover:text-slate-700 dark:group-hover:text-zinc-300"
-                    }`}
-                  />
-                </div>
-
-                {/* Label & Badges in Expanded Mode (smoothly collapses) */}
-                <div
-                  className={`flex items-center justify-between flex-1 min-w-0 pr-2.5 transition-all duration-200 ease-out overflow-hidden whitespace-nowrap ${
-                    isSidebarCollapsed
-                      ? "max-w-0 opacity-0 pointer-events-none translate-x-1"
-                      : "max-w-[180px] opacity-100 translate-x-0"
+                <Icon
+                  className={`h-4 w-4 shrink-0 transition-colors ${
+                    isActive
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-slate-500 dark:text-zinc-500 group-hover:text-slate-700 dark:group-hover:text-zinc-300"
                   }`}
-                >
-                  <span className="truncate text-xs tracking-wide">
+                />
+
+                {!isSidebarCollapsed && (
+                  <span className="truncate flex-1 text-left">
                     {item.label}
                   </span>
+                )}
 
-                  {item.badgeCount !== undefined && item.badgeCount > 0 && (
-                    <span
-                      className={`ml-auto text-[9px] font-mono font-bold px-1.5 py-0.5 rounded-xs shrink-0 ${
-                        item.badgeVariant === "destructive"
-                          ? "bg-rose-500/20 text-rose-500 border border-rose-500/40 animate-pulse"
-                          : "bg-amber-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/40"
-                      }`}
-                    >
-                      {item.badgeCount}
-                    </span>
-                  )}
-                </div>
+                {/* Badges in Expanded Mode */}
+                {!isSidebarCollapsed && item.badgeCount !== undefined && item.badgeCount > 0 && (
+                  <span
+                    className={`ml-auto text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-xs shrink-0 ${
+                      item.badgeVariant === "destructive"
+                        ? "bg-rose-500/20 text-rose-500 border border-rose-500/40 animate-pulse"
+                        : "bg-amber-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/40"
+                    }`}
+                  >
+                    {item.badgeCount}
+                  </span>
+                )}
 
                 {/* Indicator Pip in Collapsed Mode */}
-                {item.badgeCount !== undefined && item.badgeCount > 0 && (
+                {isSidebarCollapsed && item.badgeCount !== undefined && item.badgeCount > 0 && (
                   <span
-                    className={`absolute top-2 right-2 h-2 w-2 rounded-full ring-2 ring-white dark:ring-[#0c0d10] transition-opacity duration-200 ${
-                      isSidebarCollapsed ? "opacity-100 delay-100" : "opacity-0 pointer-events-none"
-                    } ${
+                    className={`absolute top-2 right-2 h-2 w-2 rounded-full ring-2 ring-white dark:ring-[#0c0d10] ${
                       item.badgeVariant === "destructive"
                         ? "bg-rose-500 animate-pulse"
                         : "bg-amber-500"
@@ -236,39 +230,39 @@ export function Sidebar() {
       </div>
 
       {/* 3. SECONDARY NAVIGATION (BOTTOM): SETTINGS */}
-      <div className="p-3 border-t border-slate-200 dark:border-zinc-800 overflow-hidden">
+      <div className={`p-2 border-t border-slate-200 dark:border-zinc-800 ${isSidebarCollapsed ? "px-2" : "px-2.5"}`}>
         <Link
           href="/settings"
-          className={`w-full h-10 flex items-center rounded-sm transition-all duration-150 relative group cursor-pointer select-none ${
+          className={`transition-all relative group cursor-pointer ${
+            isSidebarCollapsed
+              ? "w-10 h-10 mx-auto flex items-center justify-center rounded-sm"
+              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-xs font-semibold tracking-wide"
+          } ${
             isSettingsPage
-              ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/40 shadow-[0_0_12px_rgba(6,182,212,0.15)] font-bold"
-              : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-900/60 border border-transparent"
+              ? isSidebarCollapsed
+                ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+                : "bg-cyan-50/70 dark:bg-cyan-950/30 text-cyan-700 dark:text-cyan-400 font-bold border-l-2 border-cyan-500 dark:border-cyan-400 shadow-xs"
+              : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-900/60"
           }`}
         >
-          <div className="w-10 h-10 flex items-center justify-center shrink-0">
-            <Settings
-              className={`h-4 w-4 shrink-0 transition-transform duration-300 group-hover:rotate-45 ${
-                isSettingsPage
-                  ? "text-cyan-600 dark:text-cyan-400"
-                  : "text-slate-500 dark:text-zinc-500"
-              }`}
-            />
-          </div>
-
-          <div
-            className={`flex items-center justify-between flex-1 min-w-0 pr-2.5 transition-all duration-200 ease-out overflow-hidden whitespace-nowrap ${
-              isSidebarCollapsed
-                ? "max-w-0 opacity-0 pointer-events-none translate-x-1"
-                : "max-w-[180px] opacity-100 translate-x-0"
+          <Settings
+            className={`h-4 w-4 shrink-0 transition-transform group-hover:rotate-45 ${
+              isSettingsPage
+                ? "text-cyan-600 dark:text-cyan-400"
+                : "text-slate-500 dark:text-zinc-500"
             }`}
-          >
-            <span className="truncate text-xs tracking-wide">
-              Settings
-            </span>
-            <span className="text-[9px] font-mono text-slate-400 dark:text-zinc-500 ml-auto">
-              v2.0
-            </span>
-          </div>
+          />
+
+          {!isSidebarCollapsed && (
+            <>
+              <span className="truncate flex-1 text-left">
+                Settings
+              </span>
+              <span className="text-[9px] font-mono text-slate-400 dark:text-zinc-500">
+                v2.0
+              </span>
+            </>
+          )}
 
           {/* Floating Tooltip in Collapsed Mode */}
           {isSidebarCollapsed && (
