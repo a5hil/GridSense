@@ -96,7 +96,7 @@ test("trip stays latched after current returns; reset clears it", () => {
 });
 
 test("P2 silent while P1 live: OPEN_CONDUCTOR (suspected) only after silenceMs", () => {
-  const { results } = run({ p1: H(2.4), p2: H(2.4), from: 0, to: 20000, p2Silent: (t) => t >= 8000 });
+  const { results } = run({ p1: H(2.4), p2: H(2.4), from: 0, to: 30000, p2Silent: (t) => t >= 8000 });
   const first = results.find((x) => x.r.state === "OPEN_CONDUCTOR")!;
   assert.ok(first, "must classify open conductor");
   assert.ok(first.t - 7500 >= DEFAULT_CONFIG.silenceMs - 500, "not before silence threshold");
@@ -105,7 +105,7 @@ test("P2 silent while P1 live: OPEN_CONDUCTOR (suspected) only after silenceMs",
 
 test("P2 last-gasp: OPEN_CONDUCTOR confirmed immediately once P2 is stale", () => {
   const { results } = run({
-    p1: H(2.4), p2: H(2.4), from: 0, to: 20000,
+    p1: H(2.4), p2: H(2.4), from: 0, to: 30000,
     p2Silent: (t) => t >= 8000, lastGasp: (t) => t >= 8000,
   });
   const g = results.find((x) => x.r.confirmed)!;
@@ -117,7 +117,7 @@ test("both nodes stale: DEGRADED and blind, never HEALTHY", () => {
   const { results } = run({ p1: H(2.4), p2: H(2.4), from: 0, to: 20000, p2Silent: () => false });
   // freeze everything after t=6000 by feeding ages directly
   const prot = new SpanProtection();
-  const r = prot.step({ v: 230, i: 2.4, ageMs: 12000 }, { v: 230, i: 2.4, ageMs: 11000 });
+  const r = prot.step({ v: 230, i: 2.4, ageMs: 20000 }, { v: 230, i: 2.4, ageMs: 21000 });
   assert.equal(r.state, "DEGRADED");
   assert.ok(r.blind);
   assert.ok(results.length > 0);

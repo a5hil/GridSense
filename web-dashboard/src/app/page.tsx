@@ -478,7 +478,7 @@ export default function SCADADashboard() {
         severity: "WARNING",
       };
     } else if (faultCode === "BROKEN_CONDUCTOR") {
-      const brokenPhase = telemetry?.fault_phase && telemetry.fault_phase !== "NONE" ? telemetry.fault_phase : "Y";
+      const brokenPhase = telemetry?.fault_phase && telemetry.fault_phase !== "NONE" ? telemetry.fault_phase : "R";
       activeFault = {
         ansiCode: "ANSI 46/47",
         title: `CRITICAL ALARM: BROKEN CONDUCTOR (PHASE ${brokenPhase})`,
@@ -510,7 +510,7 @@ export default function SCADADashboard() {
         description: `Current imbalance between Pole 1 and Pole 2 (${idiff.toFixed(3)} A) exceeds safety limit (0.350 A). Broken conductor, ground fault, or illegal tap.`,
         severity: "CRITICAL",
       };
-    } else if (bothNodesActive && faultCode && faultCode !== "NORMAL") {
+    } else if (bothNodesActive && faultCode && faultCode !== "NORMAL" && faultCode !== "PROTECTION_BLIND" && faultCode !== "POLE_OFFLINE") {
       activeFault = {
         ansiCode: "ANSI 87L",
         title: `FEEDER PROTECTION ANOMALY: ${faultCode}`,

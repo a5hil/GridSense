@@ -37,10 +37,10 @@ export const DEFAULT_CONFIG: ProtectionConfig = {
   resetRatio: 0.7,
   debounceCycles: 3,
   armCycles: 2,
-  freshMs: 5000,
-  skewMs: 1500,
-  maxSkewHoldCycles: 5,
-  silenceMs: 4000,
+  freshMs: 15000,
+  skewMs: 5000,
+  maxSkewHoldCycles: 10,
+  silenceMs: 15000,
   energizedV: 50,
   healthyV: 180,
 };
@@ -104,7 +104,7 @@ export class SpanProtection {
       state,
       idiff: round3(idiff),
       thresholdA: round3(thresholdA),
-      trip: this.latched !== null,
+      trip: this.latched !== null && state !== "DEGRADED" && state !== "BENCH_DEENERGIZED",
       blind: state === "DEGRADED" || state === "UNARMED" || state === "INCONSISTENT",
       confirmed: this.latchedConfirmed,
       overCycles: this.overCycles,
@@ -154,6 +154,11 @@ export class SpanProtection {
     if (p1.v >= c.healthyV && !e2) {
       this.latch("OPEN_CONDUCTOR", false);
       return out("OPEN_CONDUCTOR", `P1 ${p1.v.toFixed(0)} V but P2 ${p2.v.toFixed(0)} V: open conductor between P1 and P2`);
+    }
+
+    // If both nodes are energized and healthy, an unconfirmed open-conductor suspicion is cleared
+    if (this.latched === "OPEN_CONDUCTOR" && !this.latchedConfirmed && p1.v >= c.healthyV && p2.v >= c.healthyV) {
+      this.latched = null;
     }
 
     // --- both energized: count PAIRED cycles only ----------------------------------

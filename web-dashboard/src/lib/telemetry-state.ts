@@ -312,6 +312,7 @@ class TelemetryStore extends EventEmitter {
 
   public acknowledgeAlarm() {
     this.systemStatus.operatorAck = true;
+    this.protection.reset();
     if (this.systemStatus.activeAlarm) {
       this.addEventLog({
         level: "INFO",
@@ -545,26 +546,109 @@ class TelemetryStore extends EventEmitter {
         { v: p2.v, i: p2.i, ageMs: p2.age_ms ?? 99999, lastGasp: this.p2LastGasp }
       );
 
-      const code: Record<string, string> = {
-        TRIP_LEAKAGE: "DIFF_CURRENT_FAULT",
-        TRIP_UNCLASSIFIED: "DIFF_UNCLASSIFIED",
-        OPEN_CONDUCTOR: "BROKEN_CONDUCTOR",
-      };
-      const faultCode = code[r.state] ?? (r.blind ? "PROTECTION_BLIND" : "NORMAL");
-      const statusVerdict: GridTelemetry["status"] = r.trip ? "TRIP" : r.blind ? "WARN" : "OK";
+      // Central Gateway firmware authoritative readings
+      const gwFault = typeof parsed.fault === "string" ? parsed.fault : "NORMAL";
+      const gwStatus = typeof parsed.status === "string" ? parsed.status : "OK";
+      const gwPhase = typeof parsed.fault_phase === "string" ? parsed.fault_phase : (typeof parsed.phase === "string" ? parsed.phase : "NONE");
+      const gwIdiff = Number.isFinite(Number(parsed.idiff)) ? Number(parsed.idiff) : r.idiff;
+      const tripLimit = Number.isFinite(Number(parsed.trip_limit)) ? Number(parsed.trip_limit) : r.thresholdA;
+
+      // Both nodes are energized and healthy
+      const bothEnergized = p1.v >= 180 && p2.v >= 180;
+      const physicalHealthy = bothEnergized && gwIdiff < tripLimit && (gwFault === "NORMAL" || gwFault === "FAULT_NONE");
+
+      if (physicalHealthy) {
+        // Physical measurements prove the line is fully intact and healthy: clear any stale software latch
+        this.protection.reset();
+      }
+
+      let isTrip = false;
+      let faultCode = "NORMAL";
+      let faultPhase = gwPhase;
+      let statusVerdict: GridTelemetry["status"] = "OK";
+      let protectionMsg = r.message;
+
+      if (gwFault !== "NORMAL" && gwFault !== "FAULT_NONE") {
+        isTrip = gwFault !== "POLE_OFFLINE" && gwFault !== "POWERCUT";
+        statusVerdict = gwStatus === "WARN" ? "WARN" : (isTrip ? "TRIP" : "ALERT");
+        faultPhase = gwPhase !== "NONE" ? gwPhase : "R";
+        switch (gwFault) {
+          case "DIFF_LEAKAGE":
+            faultCode = "DIFF_CURRENT_FAULT";
+            protectionMsg = `Gateway FDIR: Differential current ${gwIdiff.toFixed(3)} A exceeded ${tripLimit.toFixed(3)} A (Phase ${faultPhase})`;
+            break;
+          case "BROKEN_CONDUCTOR":
+            faultCode = "BROKEN_CONDUCTOR";
+            protectionMsg = `Gateway FDIR: Broken conductor detected on Phase ${faultPhase}`;
+            break;
+          case "BROKEN_NEUTRAL":
+            faultCode = "BROKEN_NEUTRAL";
+            protectionMsg = "Gateway FDIR: Broken neutral return / severe unbalance detected";
+            break;
+          case "OVERCURRENT":
+            faultCode = "OVERCURRENT";
+            protectionMsg = `Gateway FDIR: Overcurrent detected on Phase ${faultPhase}`;
+            break;
+          case "UNDERVOLTAGE":
+            faultCode = "UNDERVOLTAGE";
+            protectionMsg = `Gateway FDIR: Undervoltage detected on Phase ${faultPhase}`;
+            break;
+          case "OVERVOLTAGE":
+            faultCode = "OVERVOLTAGE";
+            protectionMsg = `Gateway FDIR: Overvoltage surge detected on Phase ${faultPhase}`;
+            break;
+          case "POWERCUT":
+            faultCode = "POWERCUT";
+            statusVerdict = "WARN";
+            protectionMsg = "Gateway FDIR: Feeder de-energized (scheduled outage or upstream power cut)";
+            break;
+          case "POLE_OFFLINE":
+            faultCode = "POLE_OFFLINE";
+            statusVerdict = "WARN";
+            protectionMsg = "Gateway FDIR: Feeder telemetry pole offline timeout";
+            break;
+          default:
+            faultCode = gwFault;
+            protectionMsg = `Gateway FDIR: ${gwFault}`;
+        }
+      } else if (r.trip) {
+        isTrip = true;
+        statusVerdict = "TRIP";
+        faultPhase = "R";
+        if (r.state === "OPEN_CONDUCTOR") {
+          faultCode = "BROKEN_CONDUCTOR";
+        } else if (r.state === "TRIP_LEAKAGE") {
+          faultCode = "DIFF_CURRENT_FAULT";
+        } else {
+          faultCode = "DIFF_UNCLASSIFIED";
+        }
+        protectionMsg = r.message;
+      } else if (r.blind) {
+        isTrip = false;
+        faultCode = "PROTECTION_BLIND";
+        statusVerdict = "WARN";
+        faultPhase = "NONE";
+        protectionMsg = r.message;
+      } else {
+        isTrip = false;
+        faultCode = "NORMAL";
+        faultPhase = "NONE";
+        statusVerdict = "OK";
+        protectionMsg = r.message;
+      }
 
       this.updateTelemetry({
         timestamp,
         gw_ms: parsed.gw_ms,
         sec: parsed.sec || "AES128",
         status: statusVerdict,
-        fault: r.trip,
+        fault: isTrip,
         fault_code: faultCode,
-        fault_phase: parsed.phase || parsed.fault_phase || "NONE",
-        idiff: r.idiff,
-        trip_limit: r.thresholdA,
+        fault_phase: faultPhase,
+        idiff: gwIdiff,
+        trip_limit: tripLimit,
         protectionState: r.state,
-        protectionMsg: r.message,
+        protectionMsg,
         nodes: [p1, p2],
         p1,
         p2,
@@ -687,7 +771,7 @@ class TelemetryStore extends EventEmitter {
     });
 
     // 3b. Alarm episode tracking - prevents infinite re-raise loop after operator Acknowledge
-    if (next.fault) {
+    if (next.fault && next.fault_code !== "NORMAL" && next.fault_code !== "PROTECTION_BLIND") {
       const isNew = !this.alarmOpen || this.systemStatus.activeAlarm?.faultCode !== next.fault_code;
       if (isNew) {
         this.alarmOpen = true;
@@ -718,12 +802,16 @@ class TelemetryStore extends EventEmitter {
           details: `F1-P01=${next.p1.i.toFixed(2)}A, F1-P02=${next.p2.i.toFixed(2)}A`,
         });
       }
-    } else if (this.alarmOpen) {
+    } else if (this.alarmOpen && !next.fault) {
       this.alarmOpen = false;
+      const clearedCode = this.systemStatus.activeAlarm?.faultCode || "NORMAL";
+      if (this.systemStatus.activeAlarm) {
+        this.systemStatus.activeAlarm.active = false;
+      }
       this.addEventLog({
         level: "INFO",
         source: "FDIR_CORE",
-        message: `Fault cleared: ${this.systemStatus.activeAlarm?.faultCode || "NORMAL"}`,
+        message: `Fault cleared: ${clearedCode}`,
       });
     }
 
