@@ -347,5 +347,26 @@ class OmsManager {
 }
 
 const globalForOms = globalThis as unknown as { omsManager?: OmsManager };
-export const omsManager = globalForOms.omsManager || new OmsManager();
-if (process.env.NODE_ENV !== "production") globalForOms.omsManager = omsManager;
+
+function initManager(): OmsManager {
+  if (globalForOms.omsManager) {
+    Object.setPrototypeOf(globalForOms.omsManager, OmsManager.prototype);
+    const existing = globalForOms.omsManager as any;
+    if (!existing.settings) {
+      existing.settings = {
+        soakDurationMinutes: 15,
+        safetyOverrideEnabled: true,
+        linemanPhone: "+919447012345",
+        notifyOnEscalation: true,
+      };
+    }
+    return globalForOms.omsManager;
+  }
+  const manager = new OmsManager();
+  if (process.env.NODE_ENV !== "production") {
+    globalForOms.omsManager = manager;
+  }
+  return manager;
+}
+
+export const omsManager = initManager();

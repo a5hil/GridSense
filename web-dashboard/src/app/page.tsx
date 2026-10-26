@@ -198,8 +198,11 @@ export default function SCADADashboard() {
   const fetchTickets = React.useCallback(async () => {
     try {
       const res = await fetch("/api/oms/tickets");
-      const json = await res.json();
-      if (json.tickets) {
+      if (!res.ok) return;
+      const text = await res.text();
+      if (!text) return;
+      const json = JSON.parse(text);
+      if (json && Array.isArray(json.tickets)) {
         setTickets(json.tickets);
       }
     } catch (err) {
@@ -211,8 +214,11 @@ export default function SCADADashboard() {
   const fetchNetworkSnapshot = React.useCallback(async () => {
     try {
       const res = await fetch("/api/network/snapshot");
-      const json = await res.json();
-      if (json.snapshot) {
+      if (!res.ok) return;
+      const text = await res.text();
+      if (!text) return;
+      const json = JSON.parse(text);
+      if (json && json.snapshot) {
         setNetworkSnapshot(json.snapshot);
       }
     } catch (err) {

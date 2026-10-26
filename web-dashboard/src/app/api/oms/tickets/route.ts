@@ -1,11 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { omsManager } from "@/lib/oms-state";
 
-export async function GET() {
-  const tickets = omsManager.getTickets();
-  const activeTicket = omsManager.getActiveTicket();
-  const settings = omsManager.getSettings();
-  return NextResponse.json({ tickets, activeTicket, settings });
+export const dynamic = "force-dynamic";
+
+export async function GET(req: NextRequest) {
+  try {
+    const tickets = omsManager.getTickets();
+    const activeTicket = omsManager.getActiveTicket();
+    const settings = omsManager.getSettings();
+    return NextResponse.json({ tickets, activeTicket, settings });
+  } catch (err: any) {
+    console.error("[OMS API] Failed to fetch tickets:", err);
+    return NextResponse.json(
+      { tickets: [], activeTicket: null, settings: omsManager.getSettings(), error: err?.message || "Internal error" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {
