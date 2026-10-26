@@ -58,7 +58,8 @@ class OmsManager {
       this.tickets.find(
         (t) =>
           t.status !== "CLOSED" &&
-          t.status !== "MAINTENANCE_SUPPRESSED"
+          t.status !== "MAINTENANCE_SUPPRESSED" &&
+          t.status !== "REPAIRED"
       ) || null
     );
   }
@@ -336,9 +337,9 @@ class OmsManager {
 
     ticket.ptw.reclosingInterlockActive = false;
     ticket.ptw.clearedAt = new Date().toISOString();
-    ticket.status = "REPAIRED";
+    ticket.status = "CLOSED";
     ticket.workLog.push(
-      `${new Date().toLocaleTimeString()} - PTW Cleared. Repairs: "${notes}". Safety interlock removed.`
+      `${new Date().toLocaleTimeString()} - PTW Cleared. Repairs: "${notes}". Safety interlock removed. Ticket CLOSED.`
     );
 
     saveTicketRecord(ticket).catch(() => {});
