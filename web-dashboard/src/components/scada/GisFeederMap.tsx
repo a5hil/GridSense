@@ -35,7 +35,7 @@ interface GisFeederMapProps {
 const ASSETS = {
   substation: {
     name: "Angamaly 33/11kV Substation",
-    coords: [76.4078, 10.2312] as [number, number],
+    coords: [76.40610968438718, 10.23210933563371] as [number, number],
     type: "SUBSTATION",
   },
   dtr: {
@@ -215,8 +215,8 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       const map = new gl.Map({
         container: mapContainerRef.current,
         style: styleUrl,
-        center: [76.4084, 10.2318],
-        zoom: 16.5,
+        center: [76.4076, 10.2318],
+        zoom: 16.2,
         pitch: 45, // 3D SCADA perspective tilt
         bearing: -15,
         attributionControl: false,
@@ -784,8 +784,8 @@ export const GisFeederMap = React.memo(function GisFeederMap({
   const handleResetCamera = () => {
     if (mapInstanceRef.current) {
       mapInstanceRef.current.flyTo({
-        center: [76.4089, 10.2319],
-        zoom: 16.5,
+        center: [76.4076, 10.2318],
+        zoom: 16.2,
         pitch: 45,
         bearing: -15,
         essential: true,
