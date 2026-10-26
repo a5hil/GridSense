@@ -20,6 +20,9 @@ export const metadata: Metadata = {
     "Distribution Office Real-Time SCADA Dashboard for Power Telemetry and Central FDIR Grid Protection",
 };
 
+import { DashboardProvider } from "@/context/DashboardContext";
+import { AppLayoutShell } from "@/components/AppLayoutShell";
+
 export default function RootLayout({
   children,
 }: {
@@ -31,9 +34,13 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-100 dark:bg-[#09090b] text-slate-900 dark:text-[#fafafa] font-sans transition-colors duration-150">
+      <body className="h-full overflow-hidden bg-slate-100 dark:bg-[#09090b] text-slate-900 dark:text-[#fafafa] font-mono transition-colors duration-150">
         <ThemeProvider>
-          <ToastProvider>{children}</ToastProvider>
+          <ToastProvider>
+            <DashboardProvider>
+              <AppLayoutShell>{children}</AppLayoutShell>
+            </DashboardProvider>
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

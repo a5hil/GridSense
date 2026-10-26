@@ -64,7 +64,7 @@ import { ScadaUser } from "@/lib/auth";
 import { NetworkTwinView } from "@/components/scada/NetworkTwinView";
 import { PlatformLoadingOverlay } from "@/components/scada/PlatformLoadingOverlay";
 import { NetworkSnapshot } from "@/lib/network/types";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useDashboard } from "@/context/DashboardContext";
 import { ENTERPRISE_CONFIG } from "@/lib/constants";
 
 export default function SCADADashboard() {
@@ -76,8 +76,23 @@ export default function SCADADashboard() {
   const [logs, setLogs] = React.useState<SCADAEventLog[]>([]);
   const [history, setHistory] = React.useState<HistoricalTelemetryPoint[]>([]);
   const [tickets, setTickets] = React.useState<TroubleTicket[]>([]);
-  const [connectedSSE, setConnectedSSE] = React.useState(false);
-  const [lastHeartbeat, setLastHeartbeat] = React.useState<string>("--:--:--");
+  const {
+    activeView,
+    setActiveView,
+    setIsFault: setGlobalIsFault,
+    setActiveFaultAnsi,
+    setActiveFaultTitle,
+    connectedSSE,
+    setConnectedSSE,
+    isAudioMuted,
+    setIsAudioMuted,
+    lastHeartbeat,
+    setLastHeartbeat,
+    setNetworkSnapshot: setGlobalNetworkSnapshot,
+    setOpenTicketsCount,
+    setSystemStatus: setGlobalSystemStatus,
+  } = useDashboard();
+
   const [availablePorts, setAvailablePorts] = React.useState<any[]>([]);
   const [selectedPort, setSelectedPort] = React.useState<string>("");
   const [isAcking, setIsAcking] = React.useState(false);
@@ -91,15 +106,9 @@ export default function SCADADashboard() {
     setSelectedPoleId(id || "");
   }, []);
   const [isBreakerTripped, setIsBreakerTripped] = React.useState(false);
-  const [activeView, setActiveView] = React.useState<
-    "OPERATOR" | "GIS" | "NETWORK" | "WAVEFORMS" | "OMS" | "DIAGNOSTICS" | "LOGS"
-  >("OPERATOR");
 
   // Waveform Freeze / Capture State
   const [isWaveformFrozen, setIsWaveformFrozen] = React.useState(false);
-
-  // Web Audio SCADA Alarm Buzzer State
-  const [isAudioMuted, setIsAudioMuted] = React.useState(false);
   const audioContextRef = React.useRef<AudioContext | null>(null);
 
   // SSE Stream Health & Disconnection State
@@ -167,27 +176,8 @@ export default function SCADADashboard() {
   // Live Energy Accumulation over time (P * Δt) with 3 decimal precision
   const [accumulatedEnergyKWh, setAccumulatedEnergyKWh] = React.useState<number>(1.248);
   const lastEnergyTickRef = React.useRef<number>(Date.now());
-  const [currentUser, setCurrentUser] = React.useState<ScadaUser | null>(null);
   const [isPlatformReady, setIsPlatformReady] = React.useState<boolean>(false);
   const handlePlatformReady = React.useCallback(() => setIsPlatformReady(true), []);
-
-  React.useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.authenticated && data.user) {
-          setCurrentUser(data.user);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  const handleLogout = async () => {
-    try {
-      await fetch("/api/auth/logout", { method: "POST" });
-    } catch {}
-    window.location.href = "/login";
-  };
 
   React.useEffect(() => {
     const timer = setInterval(() => {
@@ -550,6 +540,25 @@ export default function SCADADashboard() {
   const isAlarmUnacked = isFault && systemStatus?.operatorAck === false;
   const openTicketsCount = tickets.filter((t) => t.status !== "CLOSED").length;
 
+  // Sync state to global DashboardContext
+  React.useEffect(() => {
+    setGlobalIsFault(isFault);
+    setActiveFaultAnsi(activeFault?.ansiCode || null);
+    setActiveFaultTitle(activeFault?.title || null);
+  }, [isFault, activeFault, setGlobalIsFault, setActiveFaultAnsi, setActiveFaultTitle]);
+
+  React.useEffect(() => {
+    setGlobalNetworkSnapshot(networkSnapshot);
+  }, [networkSnapshot, setGlobalNetworkSnapshot]);
+
+  React.useEffect(() => {
+    setOpenTicketsCount(openTicketsCount);
+  }, [openTicketsCount, setOpenTicketsCount]);
+
+  React.useEffect(() => {
+    setGlobalSystemStatus(systemStatus);
+  }, [systemStatus, setGlobalSystemStatus]);
+
   const p1PowerW = isBreakerTripped || isGatewayOffline ? 0 : (telemetry?.p1?.p ?? 0);
   const p2PowerW = isBreakerTripped || isGatewayOffline ? 0 : (telemetry?.p2?.p ?? 0);
   const feederLoadW = Math.round(p1PowerW);
@@ -663,207 +672,13 @@ export default function SCADADashboard() {
   const isDataReady = Boolean(networkSnapshot && (connectedSSE || telemetry));
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-[#09090b] text-slate-900 dark:text-[#fafafa] flex flex-col p-3 md:p-4 gap-3 select-none transition-colors duration-150">
+    <div className="flex flex-col gap-3 font-mono">
       {!isPlatformReady && (
         <PlatformLoadingOverlay
           isDataReady={isDataReady}
           onFinished={handlePlatformReady}
         />
       )}
-      {/* 1. TOP SCADA HEADER BAR - CLEAN OPERATOR DESK */}
-      <header className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] p-3 rounded-sm flex flex-wrap items-center justify-between gap-3 font-mono shadow-xs dark:shadow-none transition-colors">
-        {/* Left: Branding & Substation Title */}
-        <div className="flex items-center gap-3">
-          <div className="p-2 border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 rounded-sm">
-            <Zap className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-zinc-100">
-                GRIDSENSE ADMS // 415V/230V LT DISTRIBUTION DISPATCH CONSOLE
-              </h1>
-              <Badge
-                variant={isFault ? "destructive" : "healthy"}
-                className="text-[10px] py-0.5"
-              >
-                {isFault ? "FEEDER ALERT" : "FEEDER HEALTHY"}
-              </Badge>
-            </div>
-            <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-zinc-400">
-              <span>{ENTERPRISE_CONFIG.SUBSTATION_NAME} • {ENTERPRISE_CONFIG.FEEDER_NAME} (DTR-01 • 250 kVA)</span>
-              <span className="text-slate-300 dark:text-zinc-700">|</span>
-              <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                <span>{networkSnapshot ? `${networkSnapshot.nodes.filter((n) => n.id !== "DTR-01").length || 28} POLES SUPERVISED` : "28 POLES SUPERVISED"}</span>
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Center: Clean Industrial Enterprise SCADA View Tabs */}
-        <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5 text-xs">
-          <button
-            onClick={() => setActiveView("OPERATOR")}
-            className={`px-3 py-1.5 text-[11px] uppercase rounded-sm transition-colors font-semibold ${
-              activeView === "OPERATOR"
-                ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-            }`}
-          >
-            OPERATIONS DESK
-          </button>
-          <button
-            onClick={() => setActiveView("GIS")}
-            className={`px-2.5 py-1.5 text-[11px] uppercase rounded-sm transition-colors ${
-              activeView === "GIS"
-                ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-            }`}
-          >
-            GEOSPATIAL GIS
-          </button>
-          <button
-            onClick={() => setActiveView("NETWORK")}
-            className={`px-2.5 py-1.5 text-[11px] uppercase rounded-sm transition-colors flex items-center gap-1.5 ${
-              activeView === "NETWORK"
-                ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-            }`}
-          >
-            <Activity className="h-3 w-3" />
-            <span>NETWORK MODEL (3Φ)</span>
-            {networkSnapshot && networkSnapshot.detections.length > 0 && (
-              <span className="bg-rose-500/20 text-rose-500 border border-rose-500/50 px-1 py-0.2 text-[9px] rounded-sm font-bold animate-pulse">
-                {networkSnapshot.detections.length}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveView("WAVEFORMS")}
-            className={`px-2.5 py-1.5 text-[11px] uppercase rounded-sm transition-colors ${
-              activeView === "WAVEFORMS"
-                ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-            }`}
-          >
-            POWER QUALITY &amp; WAVEFORMS
-          </button>
-          <button
-            onClick={() => setActiveView("OMS")}
-            className={`px-2.5 py-1.5 text-[11px] uppercase rounded-sm transition-colors flex items-center gap-1.5 ${
-              activeView === "OMS"
-                ? "bg-white dark:bg-zinc-800 text-amber-700 dark:text-amber-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-            }`}
-          >
-            <Wrench className="h-3 w-3" />
-            <span>OMS &amp; FIELD DISPATCH</span>
-            {openTicketsCount > 0 && (
-              <span className="bg-amber-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/50 px-1 py-0.2 text-[9px] rounded-sm font-bold">
-                {openTicketsCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setActiveView("DIAGNOSTICS")}
-            className={`px-2.5 py-1.5 text-[11px] uppercase rounded-sm transition-colors flex items-center gap-1.5 ${
-              activeView === "DIAGNOSTICS"
-                ? "bg-white dark:bg-zinc-800 text-cyan-700 dark:text-cyan-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-            }`}
-          >
-            <Cpu className="h-3 w-3" />
-            <span>COMMUNICATIONS &amp; RTU</span>
-          </button>
-          <button
-            onClick={() => setActiveView("LOGS")}
-            className={`px-2.5 py-1.5 text-[11px] uppercase rounded-sm transition-colors ${
-              activeView === "LOGS"
-                ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
-                : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-            }`}
-          >
-            SEQUENCE OF EVENTS (SOE)
-          </button>
-        </div>
-
-        {/* Right: Essential Operator Status Indicators & Theme Toggle */}
-        <div className="flex items-center flex-wrap gap-2 text-xs">
-          {systemStatus?.ptwInterlockActive && (
-            <Badge
-              variant="warning"
-              className="flex items-center gap-1.5 py-1 bg-amber-50 dark:bg-amber-950/80 border-amber-500 text-amber-800 dark:text-amber-300 animate-pulse font-bold"
-            >
-              <Lock className="h-3.5 w-3.5 text-amber-500 dark:text-amber-400" />
-              <span>PTW LOCKOUT: ACTIVE</span>
-            </Badge>
-          )}
-
-          <Badge
-            variant={connectedSSE ? "healthy" : "destructive"}
-            className="flex items-center gap-1.5 py-1"
-          >
-            <span
-              className={`h-2 w-2 rounded-full ${
-                connectedSSE ? "bg-emerald-500 dark:bg-emerald-400 animate-ping" : "bg-rose-500"
-              }`}
-            />
-            <span>{connectedSSE ? "SCADA LINK ACTIVE" : "LINK OFFLINE"}</span>
-          </Badge>
-
-          {/* Theme Toggle Button */}
-          <ThemeToggle />
-
-          {/* Dual-Tone Audio Alarm Horn Mute Toggle */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsAudioMuted(!isAudioMuted)}
-            title={isAudioMuted ? "Alarm Horn Silenced (Click to Activate)" : "Alarm Horn Active (Click to Silence)"}
-            className={`h-7 px-2 font-mono text-[11px] flex items-center gap-1.5 ${
-              isAudioMuted
-                ? "bg-amber-950/40 border-amber-600/70 text-amber-300"
-                : "bg-slate-100 dark:bg-zinc-900 border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-300"
-            }`}
-          >
-            {isAudioMuted ? (
-              <>
-                <VolumeX className="h-3.5 w-3.5 text-amber-400" />
-                <span className="hidden sm:inline">ALARM HORN: SILENCED</span>
-              </>
-            ) : (
-              <>
-                <Volume2 className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="hidden sm:inline">ALARM HORN: ACTIVE</span>
-              </>
-            )}
-          </Button>
-
-          <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-2.5 py-1 rounded-sm text-[11px] text-slate-600 dark:text-zinc-400 tabular-nums">
-            CLOCK (IST): <span className="text-slate-900 dark:text-zinc-200">{lastHeartbeat}</span>
-          </div>
-
-          {/* Authenticated Operator Profile Pill & Logout Trigger */}
-          {currentUser && (
-            <div className="flex items-center gap-2 border border-slate-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2.5 py-1 rounded-sm text-[11px] shadow-xs">
-              <div className="h-6 w-6 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-700/60 flex items-center justify-center text-[10px] font-bold">
-                {currentUser.name.charAt(0)}
-              </div>
-              <div className="flex flex-col leading-tight">
-                <span className="font-bold text-slate-800 dark:text-zinc-200 truncate max-w-[130px]">{currentUser.name}</span>
-                <span className="text-[9px] text-slate-500 dark:text-zinc-400 font-mono font-semibold">{currentUser.badgeId} • {currentUser.role}</span>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="ml-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800"
-                title="Logout of SCADA Dispatch Console"
-              >
-                <LogOut className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          )}
-        </div>
-      </header>
 
       {/* SSE STREAM DISCONNECTION HIGH-CONTRAST WARNING */}
       {isStreamDisconnected && (
@@ -1536,7 +1351,7 @@ export default function SCADADashboard() {
         {/* ============================================================== */}
         {/* VIEW E: ENGINEERING & FIRMWARE DIAGNOSTICS */}
         {/* ============================================================== */}
-        {activeView === "DIAGNOSTICS" && (
+        {(activeView === "DIAGNOSTICS" || activeView === "COMMS") && (
           <EngineeringDiagnostics
             telemetry={telemetry}
             networkSnapshot={networkSnapshot}
@@ -1551,7 +1366,7 @@ export default function SCADADashboard() {
         {/* ============================================================== */}
         {/* VIEW F: SEQUENTIAL EVENT RECORDER (SER AUDIT LOG) */}
         {/* ============================================================== */}
-        {activeView === "LOGS" && (
+        {(activeView === "LOGS" || activeView === "SOE") && (
           <Card className="col-span-12 flex-1 flex flex-col font-mono min-h-[500px]">
             <CardHeader className="py-2.5 flex items-center justify-between">
               <div className="flex items-center gap-2">
