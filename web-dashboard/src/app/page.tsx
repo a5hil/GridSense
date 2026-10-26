@@ -28,7 +28,6 @@ import {
   Volume2,
   VolumeX,
   WifiOff,
-  Keyboard,
   Wrench,
   Zap,
   User,
@@ -1443,30 +1442,6 @@ export default function SCADADashboard() {
           </Card>
         )}
       </main>
-
-      {/* 4. FOOTER STATUS BAR */}
-      <footer className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] px-3.5 py-1.5 rounded-sm flex flex-wrap items-center justify-between text-[11px] font-mono text-slate-500 dark:text-zinc-400 shadow-xs dark:shadow-none transition-colors">
-        <div className="flex items-center gap-3">
-          <span>STATION: {ENTERPRISE_CONFIG.CONTROL_CENTER}</span>
-          <span>•</span>
-          <span>FEEDER: {ENTERPRISE_CONFIG.FEEDER_NAME}</span>
-          <span>•</span>
-          <span>TELEMETRY BUS: {ENTERPRISE_CONFIG.TELEMETRY_BUS}</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="hidden md:flex items-center gap-2 text-[10px] text-slate-400 dark:text-zinc-500 border-l border-slate-300 dark:border-zinc-800 pl-3">
-            <Keyboard className="h-3 w-3 text-slate-400 dark:text-zinc-500" />
-            <span>[Esc]: Ack Alarm</span>
-            <span>•</span>
-            <span>[Alt+1..7]: Views</span>
-            <span>•</span>
-            <span>[Space]: Freeze Waveform</span>
-          </div>
-          <div>
-            <span>{ENTERPRISE_CONFIG.COPYRIGHT}</span>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

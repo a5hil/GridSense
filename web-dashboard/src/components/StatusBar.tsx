@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { Keyboard } from "lucide-react";
 import { useDashboard } from "@/context/DashboardContext";
 
 export function StatusBar() {
@@ -33,8 +34,18 @@ export function StatusBar() {
         </div>
       </div>
 
+      {/* CENTER: KEYBOARD SHORTCUTS HINTS */}
+      <div className="hidden lg:flex items-center gap-2 text-[10px] text-slate-400 dark:text-zinc-500">
+        <Keyboard className="h-3 w-3 text-slate-400 dark:text-zinc-500" />
+        <span>[Esc]: Ack Alarm</span>
+        <span>•</span>
+        <span>[Alt+1..7]: Views</span>
+        <span>•</span>
+        <span>[Space]: Freeze Waveform</span>
+      </div>
+
       {/* RIGHT: SECONDARY TELEMETRY STATS */}
-      <div className="hidden md:flex items-center gap-3 text-slate-500 dark:text-zinc-400 shrink-0">
+      <div className="hidden sm:flex items-center gap-3 text-slate-500 dark:text-zinc-400 shrink-0">
         <span className="flex items-center gap-1">
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
           <span>{totalPoles} POLES SUPERVISED</span>
