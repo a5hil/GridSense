@@ -1,18 +1,10 @@
 "use client";
 
 import React from "react";
-import { Sun, Moon, Volume2, VolumeX, Radio, Shield } from "lucide-react";
-import { useTheme } from "@/lib/theme-context";
 import { useDashboard } from "@/context/DashboardContext";
 
 export function StatusBar() {
-  const { theme, toggleTheme } = useTheme();
-  const {
-    connectedSSE,
-    isAudioMuted,
-    toggleAudioMuted,
-    networkSnapshot,
-  } = useDashboard();
+  const { connectedSSE, networkSnapshot } = useDashboard();
 
   const totalPoles = networkSnapshot?.nodes?.filter((n) => n.id !== "DTR-01")?.length || 28;
 
@@ -39,48 +31,6 @@ export function StatusBar() {
             {connectedSSE ? "SCADA LINK ACTIVE" : "LINK OFFLINE"}
           </span>
         </div>
-
-        {/* 2. Environment (Day Light / Night) Toggle Pill */}
-        <button
-          onClick={toggleTheme}
-          title={theme === "dark" ? "Switch to Day Light Mode" : "Switch to SCADA Dark Mode"}
-          className="flex items-center gap-1 px-2 py-0.5 rounded-sm border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-900/60 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300 transition-colors cursor-pointer"
-        >
-          {theme === "dark" ? (
-            <>
-              <Moon className="h-3 w-3 text-indigo-400" />
-              <span>NIGHT DISPATCH</span>
-            </>
-          ) : (
-            <>
-              <Sun className="h-3 w-3 text-amber-500" />
-              <span>DAY LIGHT</span>
-            </>
-          )}
-        </button>
-
-        {/* 3. Alarm Horn Toggle Pill */}
-        <button
-          onClick={toggleAudioMuted}
-          title={isAudioMuted ? "Alarm Horn Silenced (Click to Activate)" : "Alarm Horn Active (Click to Silence)"}
-          className={`flex items-center gap-1 px-2 py-0.5 rounded-sm border transition-colors cursor-pointer ${
-            isAudioMuted
-              ? "bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700/60 text-amber-700 dark:text-amber-300"
-              : "bg-slate-50 dark:bg-zinc-900/60 border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-300"
-          }`}
-        >
-          {isAudioMuted ? (
-            <>
-              <VolumeX className="h-3 w-3 text-amber-500" />
-              <span>ALARM HORN: SILENCED</span>
-            </>
-          ) : (
-            <>
-              <Volume2 className="h-3 w-3 text-emerald-500" />
-              <span>ALARM HORN: ACTIVE</span>
-            </>
-          )}
-        </button>
       </div>
 
       {/* RIGHT: SECONDARY TELEMETRY STATS */}

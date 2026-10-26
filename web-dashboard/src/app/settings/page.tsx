@@ -13,13 +13,17 @@ import {
   CheckCircle2,
   RefreshCw,
   Bell,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { useTheme } from "@/lib/theme-context";
+import { useDashboard } from "@/context/DashboardContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
+  const { isAudioMuted, toggleAudioMuted } = useDashboard();
 
   // Settings form states
   const [refreshRateMs, setRefreshRateMs] = useState<number>(1000);
@@ -128,6 +132,57 @@ export default function SettingsPage() {
 
             <div className="pt-2 text-[11px] text-slate-500 dark:text-zinc-500">
               Current environment mode: <strong className="text-slate-800 dark:text-zinc-200">{theme.toUpperCase()}</strong>. Persisted across browser sessions.
+            </div>
+
+            {/* Alarm Horn Audio Annunciator */}
+            <div className="pt-3 border-t border-slate-200 dark:border-zinc-800/80">
+              <label className="block text-[11px] font-semibold text-slate-600 dark:text-zinc-400 uppercase tracking-wider mb-2">
+                Acoustic Alarm Annunciator Horn
+              </label>
+              <div className="flex items-center justify-between p-3 rounded-sm border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950">
+                <div className="flex items-center gap-3">
+                  {isAudioMuted ? (
+                    <div className="h-8 w-8 rounded-sm bg-amber-500/10 border border-amber-500/30 flex items-center justify-center shrink-0">
+                      <VolumeX className="h-4 w-4 text-amber-500" />
+                    </div>
+                  ) : (
+                    <div className="h-8 w-8 rounded-sm bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                      <Volume2 className="h-4 w-4 text-emerald-400" />
+                    </div>
+                  )}
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-2">
+                      <span>{isAudioMuted ? "ALARM HORN: MUTED / SILENCED" : "ALARM HORN: ACTIVE (ARMED)"}</span>
+                      <span
+                        className={`text-[9px] px-1.5 py-0.2 rounded-xs font-mono font-bold ${
+                          isAudioMuted
+                            ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/40"
+                            : "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40"
+                        }`}
+                      >
+                        {isAudioMuted ? "SILENCED" : "ONLINE"}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                      Audible annunciator sounds when ANSI 87L differential trip or lockout occurs.
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={toggleAudioMuted}
+                  className={`text-xs font-mono font-bold uppercase tracking-wider shrink-0 cursor-pointer ${
+                    isAudioMuted
+                      ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                      : "border-amber-500 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                  }`}
+                >
+                  {isAudioMuted ? "UNMUTE HORN" : "SILENCE HORN"}
+                </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

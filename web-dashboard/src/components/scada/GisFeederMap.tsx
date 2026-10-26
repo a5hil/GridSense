@@ -110,13 +110,28 @@ export const GisFeederMap = React.memo(function GisFeederMap({
 
   const { theme } = useTheme();
   const [mapLoaded, setMapLoaded] = React.useState(false);
-  const [currentStyleKey, setCurrentStyleKey] = React.useState<"DARK" | "SATELLITE" | "STREETS">("DARK");
+  const [mapMode, setMapMode] = React.useState<"NORMAL" | "SATELLITE">("NORMAL");
   const [selectedAsset, setSelectedAsset] = React.useState<any>(null);
   const [mapboxToken, setMapboxToken] = React.useState<string>(DEFAULT_MAPBOX_TOKEN);
-  const [tempTokenInput, setTempTokenInput] = React.useState<string>("");
-  const [showTokenModal, setShowTokenModal] = React.useState(false);
   const [tokenAuthError, setTokenAuthError] = React.useState(false);
   const [isLegendOpen, setIsLegendOpen] = React.useState(false);
+
+  const getMapStyleUrl = React.useCallback(
+    (mode: "NORMAL" | "SATELLITE", activeTheme: string) => {
+      const activeToken = (mapboxToken || DEFAULT_MAPBOX_TOKEN || "").trim();
+      const hasToken = activeToken.length > 0;
+      if (mode === "SATELLITE") {
+        return !hasToken || tokenAuthError
+          ? FALLBACK_STYLES.DARK
+          : MAP_STYLES.SATELLITE.url;
+      }
+      const styleKey = activeTheme === "light" ? "STREETS" : "DARK";
+      return !hasToken || tokenAuthError
+        ? FALLBACK_STYLES[styleKey]
+        : MAP_STYLES[styleKey].url;
+    },
+    [mapboxToken, tokenAuthError]
+  );
 
   const isFault = telemetry?.fault || (telemetry?.idiff ?? 0) >= (telemetry?.trip_limit ?? 0.35);
   const isLastGasp = telemetry?.fault_code === "OUTAGE_LAST_GASP";
@@ -133,14 +148,17 @@ export const GisFeederMap = React.memo(function GisFeederMap({
     }
   }, []);
 
-  // Sync with theme changes
+  // Dynamically update map base style when theme or mapMode changes
   React.useEffect(() => {
-    if (theme === "light" && currentStyleKey === "DARK") {
-      handleStyleChange("STREETS");
-    } else if (theme === "dark" && currentStyleKey === "STREETS") {
-      handleStyleChange("DARK");
+    if (mapInstanceRef.current && mapLoaded) {
+      const styleUrl = getMapStyleUrl(mapMode, theme);
+      mapInstanceRef.current.setStyle(styleUrl);
+      mapInstanceRef.current.once("style.load", () => {
+        renderFeederVectors(mapInstanceRef.current);
+        renderAssetMarkers(mapInstanceRef.current);
+      });
     }
-  }, [theme]);
+  }, [theme, mapMode, mapLoaded, getMapStyleUrl]);
 
   // 1. Dynamically Load Official Mapbox GL JS v3 & CSS
   React.useEffect(() => {
@@ -191,9 +209,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         gl.accessToken = activeToken;
       }
 
-      const styleUrl = (!hasToken || tokenAuthError)
-        ? FALLBACK_STYLES[currentStyleKey === "STREETS" ? "STREETS" : "DARK"]
-        : MAP_STYLES[currentStyleKey].url;
+      const styleUrl = getMapStyleUrl(mapMode, theme);
 
       const map = new gl.Map({
         container: mapContainerRef.current,
@@ -730,16 +746,11 @@ export const GisFeederMap = React.memo(function GisFeederMap({
     };
   }, [mapLoaded]);
 
-  // Handle Style Switch
-  const handleStyleChange = (styleKey: "DARK" | "SATELLITE" | "STREETS") => {
-    setCurrentStyleKey(styleKey);
+  // Handle Mode Switch (NORMAL vs SATELLITE)
+  const handleModeChange = (mode: "NORMAL" | "SATELLITE") => {
+    setMapMode(mode);
     if (mapInstanceRef.current) {
-      const activeToken = (mapboxToken || DEFAULT_MAPBOX_TOKEN || "").trim();
-      const hasToken = activeToken.length > 0;
-      const styleUrl = (!hasToken || tokenAuthError)
-        ? FALLBACK_STYLES[styleKey === "STREETS" ? "STREETS" : "DARK"]
-        : MAP_STYLES[styleKey].url;
-
+      const styleUrl = getMapStyleUrl(mode, theme);
       mapInstanceRef.current.setStyle(styleUrl);
       mapInstanceRef.current.once("style.load", () => {
         renderFeederVectors(mapInstanceRef.current);
@@ -761,43 +772,6 @@ export const GisFeederMap = React.memo(function GisFeederMap({
     }
   };
 
-  // Save Mapbox Access Token
-  const handleSaveToken = () => {
-    const trimmed = tempTokenInput.trim();
-    if (trimmed.length > 0) {
-      setMapboxToken(trimmed);
-      try {
-        localStorage.setItem("gridsense_mapbox_token", trimmed);
-      } catch {
-        // LocalStorage fallback
-      }
-      setShowTokenModal(false);
-      setTokenAuthError(false);
-      if (window.mapboxgl) {
-        window.mapboxgl.accessToken = trimmed;
-        initializeMap();
-      }
-    }
-  };
-
-  // Reset to Default Token
-  const handleResetToken = () => {
-    setMapboxToken(DEFAULT_MAPBOX_TOKEN);
-    try {
-      localStorage.removeItem("gridsense_mapbox_token");
-    } catch {
-      // LocalStorage fallback
-    }
-    setShowTokenModal(false);
-    setTokenAuthError(false);
-    if (window.mapboxgl) {
-      window.mapboxgl.accessToken = DEFAULT_MAPBOX_TOKEN;
-      initializeMap();
-    }
-  };
-
-  const isCustomToken = mapboxToken !== DEFAULT_MAPBOX_TOKEN;
-
   return (
     <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] rounded-sm flex flex-col h-full overflow-hidden transition-colors shadow-xs dark:shadow-none">
       {/* Real Map Header Controls */}
@@ -813,62 +787,35 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Base Layer Switcher */}
+          {/* Base Layer Switcher: NORMAL & SATELLITE */}
           <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5">
             <button
-              onClick={() => handleStyleChange("DARK")}
-              className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
-                currentStyleKey === "DARK"
+              onClick={() => handleModeChange("NORMAL")}
+              className={`px-2.5 py-0.5 text-[10px] rounded-sm transition-colors cursor-pointer ${
+                mapMode === "NORMAL"
                   ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
                   : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
               }`}
             >
-              SCADA NIGHT
+              NORMAL
             </button>
             <button
-              onClick={() => handleStyleChange("STREETS")}
-              className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
-                currentStyleKey === "STREETS"
-                  ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
-                  : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-              }`}
-            >
-              SUBSTATION DAY
-            </button>
-            <button
-              onClick={() => handleStyleChange("SATELLITE")}
-              className={`px-2 py-0.5 text-[10px] rounded-sm transition-colors ${
-                currentStyleKey === "SATELLITE"
+              onClick={() => handleModeChange("SATELLITE")}
+              className={`px-2.5 py-0.5 text-[10px] rounded-sm transition-colors cursor-pointer ${
+                mapMode === "SATELLITE"
                   ? "bg-white dark:bg-zinc-800 text-cyan-700 dark:text-cyan-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
                   : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
               }`}
             >
-              HIGH-RES SATELLITE
+              SATELLITE
             </button>
           </div>
-
-          {/* Mapbox Token Config Trigger */}
-          <Button
-            variant="outline"
-            size="sm"
-            className={`h-6 px-2 text-[10px] font-mono ${
-              tokenAuthError ? "border-amber-500 text-amber-400" : isCustomToken ? "border-sky-500 text-sky-400" : ""
-            }`}
-            onClick={() => {
-              setTempTokenInput(mapboxToken);
-              setShowTokenModal(true);
-            }}
-            title="Configure Geospatial Vector Tile Server API Credentials"
-          >
-            <Key className="h-3 w-3 mr-1" />
-            GIS SERVER
-          </Button>
 
           {/* Reset Camera */}
           <Button
             variant="outline"
             size="sm"
-            className="h-6 px-2 text-[10px] font-mono"
+            className="h-6 px-2 text-[10px] font-mono cursor-pointer"
             onClick={handleResetCamera}
             title="Recenter Camera on Angamaly Substation Bus"
           >
@@ -881,32 +828,6 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       {/* Mapbox Real Map Viewport */}
       <div className="relative flex-1 min-h-[400px] bg-[#070809] overflow-hidden">
         <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
-
-        {/* Token Auth Notice Banner if Mapbox rejected token */}
-        {tokenAuthError && (
-          <div className="absolute top-3 left-3 right-3 sm:right-auto border border-amber-600/60 bg-amber-950/90 backdrop-blur-md p-2.5 rounded-sm shadow-xl flex items-center justify-between gap-3 text-xs font-mono text-amber-200 z-20 max-w-lg">
-            <div className="flex items-center gap-2">
-              <Key className="h-4 w-4 text-amber-400 shrink-0" />
-              <div>
-                <span className="font-bold uppercase tracking-wider block">VECTOR TILE CREDENTIALS REQUIRED</span>
-                <span className="text-[10px] text-amber-300">
-                  Using fallback Carto raster tiles. Enter Mapbox API token (`pk.xxx`) to enable sub-meter vector tiles.
-                </span>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-6 px-2 text-[10px] shrink-0 border-amber-500 text-amber-200 hover:bg-amber-900/50"
-              onClick={() => {
-                setTempTokenInput(mapboxToken);
-                setShowTokenModal(true);
-              }}
-            >
-              CONFIG TILE API
-            </Button>
-          </div>
-        )}
 
         {/* Fault Alert Callout Banner over Map */}
         {isFault && (
@@ -1097,83 +1018,6 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         </div>
       </div>
 
-      {/* Enterprise GIS Vector Tile API Modal */}
-      {showTokenModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-xs p-4">
-          <div className="border border-zinc-700 bg-zinc-900 text-zinc-100 rounded-md max-w-md w-full p-5 font-mono shadow-2xl">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-3 mb-4">
-              <div className="flex items-center gap-2">
-                <Key className="h-4 w-4 text-emerald-400" />
-                <h3 className="text-sm font-bold uppercase tracking-wider text-zinc-100">
-                  GEOSPATIAL VECTOR TILE SERVER CONFIGURATION
-                </h3>
-              </div>
-              <button
-                onClick={() => setShowTokenModal(false)}
-                className="text-zinc-400 hover:text-zinc-200 text-xs"
-              >
-                ✕
-              </button>
-            </div>
-
-            <p className="text-xs text-zinc-400 mb-3 leading-relaxed">
-              Configure official Mapbox API credentials (<code className="text-emerald-400">pk.eyJ1...</code>) or custom utility GIS vector tile endpoints. The access token is securely cached in local storage for continuous SCADA operation.
-            </p>
-
-            <div className="space-y-3">
-              <div>
-                <label className="text-[11px] text-zinc-400 block mb-1 uppercase font-semibold">
-                  PUBLIC ACCESS TOKEN
-                </label>
-                <textarea
-                  value={tempTokenInput}
-                  onChange={(e) => setTempTokenInput(e.target.value)}
-                  placeholder="pk.eyJ1..."
-                  rows={3}
-                  className="w-full bg-zinc-950 border border-zinc-700 rounded-sm p-2 text-xs font-mono text-zinc-200 focus:outline-none focus:border-emerald-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-zinc-800 text-[11px]">
-                <a
-                  href="https://account.mapbox.com/access-tokens/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sky-400 hover:text-sky-300 flex items-center gap-1 underline"
-                >
-                  Mapbox Vector Tile API Documentation <ExternalLink className="h-3 w-3" />
-                </a>
-
-                <button
-                  type="button"
-                  onClick={handleResetToken}
-                  className="text-zinc-400 hover:text-zinc-200 text-[11px] underline"
-                >
-                  Reset Default
-                </button>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs h-8"
-                  onClick={() => setShowTokenModal(false)}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  size="sm"
-                  className="text-xs h-8 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
-                  onClick={handleSaveToken}
-                >
-                  Save &amp; Load Tiles
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 });
