@@ -298,6 +298,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
               const isSelected = selectedPoleId?.toLowerCase() === node.id.toLowerCase();
               const isNodeTripped = node.status === "ALARM";
               const isNodeWarn = node.status === "WARN";
+              const isNodeDeenergized = node.status === "DEENERGIZED" || !node.energized || isPowerCut;
 
               // Check if span to this node has a detection or tripped section
               const spanDetection = networkSnapshot?.detections.find(
@@ -406,7 +407,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                             </span>
                           ) : (
                             <span className="bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[8px] px-1 py-0.2 rounded-xs">
-                              ENERGIZED
+                              {isNodeDeenergized ? "DE-ENERGIZED" : "ENERGIZED"}
                             </span>
                           )}
                         </div>
@@ -416,6 +417,8 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                               ? "bg-rose-500 animate-pulse"
                               : isNodeWarn
                               ? "bg-amber-500 animate-pulse"
+                              : isNodeDeenergized
+                              ? "bg-slate-400 dark:bg-zinc-600"
                               : "bg-emerald-500 dark:bg-emerald-400"
                           }`}
                         />

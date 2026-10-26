@@ -135,6 +135,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
 
   const isFault = telemetry?.fault || (telemetry?.idiff ?? 0) >= (telemetry?.trip_limit ?? 0.35);
   const isLastGasp = telemetry?.fault_code === "OUTAGE_LAST_GASP";
+  const isPowerCut = telemetry?.fault_code === "POWERCUT" || Boolean(telemetry && (telemetry.p1?.v ?? 0) < 50 && (telemetry.p2?.v ?? 0) < 50);
 
   // Load custom token from localStorage if present
   React.useEffect(() => {
@@ -289,9 +290,11 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         const isTripped = networkSnapshot.sections.some(
           (s: any) => s.parentId === n.parentId && s.childIds.includes(n.id) && s.tripped
         );
+        const parentNode = networkSnapshot.nodes.find((x: any) => x.id === n.parentId);
+        const isDeenergized = (!parentNode?.energized || parentNode?.status === "DEENERGIZED") && (!n.energized || n.status === "DEENERGIZED");
 
         const feederDef = networkSnapshot.topology.feeders.find((f: any) => f.id === n.feederId);
-        const color = isTripped ? "#f43f5e" : feederDef?.color || "#10b981";
+        const color = isTripped ? "#f43f5e" : isDeenergized ? "#64748b" : feederDef?.color || "#10b981";
 
         features.push({
           type: "Feature",
@@ -314,7 +317,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
           type: "LineString",
           coordinates: [ASSETS.dtr.coords, ASSETS.pole1.coords],
         },
-        properties: { name: "415V DTR Outgoing LT", color: "#10b981" },
+        properties: { name: "415V DTR Outgoing LT", color: isPowerCut ? "#64748b" : "#10b981" },
       };
 
       const protectedSpanSpec = {
@@ -323,7 +326,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
           type: "LineString",
           coordinates: [ASSETS.pole1.coords, ASSETS.pole2.coords],
         },
-        properties: { name: "Protected Feeder Span (FDIR Zone)", color: isFault ? "#f43f5e" : "#10b981" },
+        properties: { name: "Protected Feeder Span (FDIR Zone)", color: isFault ? "#f43f5e" : isPowerCut ? "#64748b" : "#10b981" },
       };
 
       features.push(ltLeadSpec, protectedSpanSpec);
@@ -622,10 +625,17 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         const isLive = node.isLive;
         const isTripped = node.status === "ALARM";
         const isWarn = node.status === "WARN";
+        const isDeenergized = node.status === "DEENERGIZED" || !node.energized;
 
-        let color = isTripped ? "#f43f5e" : isWarn ? "#f59e0b" : "#10b981";
+        let color = isTripped
+          ? "#f43f5e"
+          : isWarn
+          ? "#f59e0b"
+          : isDeenergized
+          ? "#64748b"
+          : "#10b981";
         const fDef = networkSnapshot.topology.feeders.find((f: any) => f.id === node.feederId);
-        if (!isLive && !isTripped && !isWarn) {
+        if (!isLive && !isTripped && !isWarn && !isDeenergized) {
           color = fDef?.color || "#71717a";
         }
 
@@ -636,7 +646,9 @@ export const GisFeederMap = React.memo(function GisFeederMap({
           : node.label;
 
         const shortId = node.id.split("-").pop() || node.id;
-        const badgeText = isLive
+        const badgeText = isDeenergized
+          ? "0V • OUTAGE"
+          : isLive
           ? `${node.phases.R.v.toFixed(0)}V • ${node.phases.R.i.toFixed(2)}A`
           : `${shortId.replace(/^P0?/, "P")} • ${node.phases.R.i.toFixed(1)}A`;
 
@@ -651,7 +663,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
           isWarn,
           feederName: fDef?.name || node.feederId,
           phases: node.phases,
-          statusText: node.status,
+          statusText: isDeenergized ? "DE-ENERGIZED (0V)" : node.status,
         });
 
         const poleMarker = new gl.Marker({ element: poleEl })
@@ -667,16 +679,16 @@ export const GisFeederMap = React.memo(function GisFeederMap({
     } else {
       // Fallback 2-Pole Hardware Markers
       const p1Current = telemetry ? telemetry.p1.i : 2.45;
-      const p1Color = isFault ? "#f43f5e" : "#10b981";
+      const p1Color = isFault ? "#f43f5e" : isPowerCut ? "#64748b" : "#10b981";
       const p1El = createCircularNodeMarker({
         id: "F1-P01",
         label: "F1-P01 (Live Incomer)",
-        badgeText: `${(telemetry?.p1.v ?? 230).toFixed(0)}V • ${p1Current.toFixed(2)}A`,
+        badgeText: isPowerCut ? "0V • OUTAGE" : `${(telemetry?.p1.v ?? 230).toFixed(0)}V • ${p1Current.toFixed(2)}A`,
         color: p1Color,
         iconType: "LIVE_POLE",
         isLive: true,
         isTripped: isFault,
-        statusText: isFault ? "DIFFERENTIAL FAULT" : "HEALTHY",
+        statusText: isPowerCut ? "DE-ENERGIZED (0V)" : isFault ? "DIFFERENTIAL FAULT" : "HEALTHY",
       });
       const p1Marker = new gl.Marker({ element: p1El })
         .setLngLat(ASSETS.pole1.coords)
@@ -690,16 +702,16 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       markersRef.current.push(p1Marker);
 
       const p2Current = telemetry ? telemetry.p2.i : 2.43;
-      const p2Color = isLastGasp || telemetry?.p2.isOnline === false ? "#f43f5e" : isFault ? "#f43f5e" : "#10b981";
+      const p2Color = isLastGasp || telemetry?.p2.isOnline === false ? "#f43f5e" : isFault ? "#f43f5e" : isPowerCut ? "#64748b" : "#10b981";
       const p2El = createCircularNodeMarker({
         id: "F1-P02",
         label: "F1-P02 (Live Outgoing)",
-        badgeText: telemetry?.p2.isOnline === false ? "OUTAGE" : `${(telemetry?.p2.v ?? 230).toFixed(0)}V • ${p2Current.toFixed(2)}A`,
+        badgeText: telemetry?.p2.isOnline === false ? "OUTAGE" : isPowerCut ? "0V • OUTAGE" : `${(telemetry?.p2.v ?? 230).toFixed(0)}V • ${p2Current.toFixed(2)}A`,
         color: p2Color,
         iconType: "LIVE_POLE",
         isLive: true,
         isTripped: isFault || isLastGasp,
-        statusText: telemetry?.p2.isOnline === false ? "OUTAGE" : isFault ? "TRIPPED" : "HEALTHY",
+        statusText: telemetry?.p2.isOnline === false ? "OUTAGE" : isPowerCut ? "DE-ENERGIZED (0V)" : isFault ? "TRIPPED" : "HEALTHY",
       });
       const p2Marker = new gl.Marker({ element: p2El })
         .setLngLat(ASSETS.pole2.coords)
