@@ -31,6 +31,8 @@ import {
   Keyboard,
   Wrench,
   Zap,
+  User,
+  LogOut,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +60,7 @@ import { FeederAssetTree } from "@/components/scada/FeederAssetTree";
 import { WorkforceOmsPanel } from "@/components/scada/WorkforceOmsPanel";
 import { SingleLinePowerFlow } from "@/components/scada/SingleLinePowerFlow";
 import { EngineeringDiagnostics } from "@/components/scada/EngineeringDiagnostics";
+import { ScadaUser } from "@/lib/auth";
 import { NetworkTwinView } from "@/components/scada/NetworkTwinView";
 import { NetworkSnapshot } from "@/lib/network/types";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -163,6 +166,25 @@ export default function SCADADashboard() {
   // Live Energy Accumulation over time (P * Δt) with 3 decimal precision
   const [accumulatedEnergyKWh, setAccumulatedEnergyKWh] = React.useState<number>(1.248);
   const lastEnergyTickRef = React.useRef<number>(Date.now());
+  const [currentUser, setCurrentUser] = React.useState<ScadaUser | null>(null);
+
+  React.useEffect(() => {
+    fetch("/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.authenticated && data.user) {
+          setCurrentUser(data.user);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
+    window.location.href = "/login";
+  };
 
   React.useEffect(() => {
     const timer = setInterval(() => {
@@ -809,6 +831,26 @@ export default function SCADADashboard() {
           <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-2.5 py-1 rounded-sm text-[11px] text-slate-600 dark:text-zinc-400 tabular-nums">
             CLOCK (IST): <span className="text-slate-900 dark:text-zinc-200">{lastHeartbeat}</span>
           </div>
+
+          {/* Authenticated Operator Profile Pill & Logout Trigger */}
+          {currentUser && (
+            <div className="flex items-center gap-2 border border-slate-300 dark:border-zinc-800 bg-white dark:bg-zinc-950 px-2.5 py-1 rounded-sm text-[11px] shadow-xs">
+              <div className="h-6 w-6 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-700/60 flex items-center justify-center text-[10px] font-bold">
+                {currentUser.name.charAt(0)}
+              </div>
+              <div className="flex flex-col leading-tight">
+                <span className="font-bold text-slate-800 dark:text-zinc-200 truncate max-w-[130px]">{currentUser.name}</span>
+                <span className="text-[9px] text-slate-500 dark:text-zinc-400 font-mono font-semibold">{currentUser.badgeId} • {currentUser.role}</span>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="ml-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors p-1 rounded hover:bg-slate-100 dark:hover:bg-zinc-800"
+                title="Logout of SCADA Dispatch Console"
+              >
+                <LogOut className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
