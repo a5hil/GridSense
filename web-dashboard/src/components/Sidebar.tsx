@@ -100,60 +100,59 @@ export function Sidebar() {
     >
       {/* 1. TOP BRAND LOGO & COLLAPSE TOGGLE */}
       <div>
-        <div className="h-14 border-b border-slate-200 dark:border-zinc-800 flex items-center justify-between px-3.5">
-          {!isSidebarCollapsed && (
-            <Link
-              href="/"
-              onClick={() => setActiveView("OPERATOR")}
-              className="flex items-center gap-2.5 overflow-hidden"
-            >
-              <div className="h-8 w-8 rounded-sm bg-slate-900 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 flex items-center justify-center shrink-0">
-                <Zap className="h-4 w-4 text-emerald-500 fill-emerald-500" />
-              </div>
-              <div className="flex flex-col min-w-0">
-                <span className="text-xs font-black tracking-wider text-slate-900 dark:text-zinc-100 truncate">
-                  GRIDSENSE
-                </span>
-                <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-widest truncate">
-                  ADMS 2.0
-                </span>
-              </div>
-            </Link>
-          )}
+        <div
+          className={`h-14 border-b border-slate-200 dark:border-zinc-800 flex items-center transition-colors ${
+            isSidebarCollapsed ? "justify-center px-0" : "justify-between px-3.5"
+          }`}
+        >
+          {!isSidebarCollapsed ? (
+            <>
+              <Link
+                href="/"
+                onClick={() => setActiveView("OPERATOR")}
+                className="flex items-center gap-2.5 overflow-hidden"
+              >
+                <div className="h-8 w-8 rounded-sm bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                  <Zap className="h-4 w-4 text-emerald-400 fill-emerald-400" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-black tracking-wider text-slate-900 dark:text-zinc-100 truncate">
+                    GRIDSENSE
+                  </span>
+                  <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-widest truncate">
+                    ADMS 2.0
+                  </span>
+                </div>
+              </Link>
 
-          {isSidebarCollapsed && (
-            <Link
-              href="/"
-              onClick={() => setActiveView("OPERATOR")}
-              className="mx-auto h-8 w-8 rounded-sm bg-slate-900 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-700 flex items-center justify-center shrink-0"
-              title="GridSense ADMS"
+              <button
+                onClick={toggleSidebar}
+                className="p-1.5 rounded-sm text-slate-400 hover:text-slate-800 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shrink-0 cursor-pointer"
+                title="Collapse Sidebar"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+            </>
+          ) : (
+            /* Perfectly centered morphing toggle button in collapsed mode */
+            <button
+              onClick={toggleSidebar}
+              className="h-9 w-9 rounded-sm bg-emerald-500/10 border border-emerald-500/30 hover:border-emerald-400/70 hover:bg-emerald-500/20 flex items-center justify-center transition-all group cursor-pointer"
+              title="Expand Sidebar"
             >
-              <Zap className="h-4 w-4 text-emerald-500 fill-emerald-500" />
-            </Link>
+              <Zap className="h-4 w-4 text-emerald-400 fill-emerald-400 group-hover:hidden" />
+              <ChevronRight className="h-4 w-4 text-emerald-400 hidden group-hover:block" />
+            </button>
           )}
-
-          <button
-            onClick={toggleSidebar}
-            className="p-1 rounded text-slate-400 hover:text-slate-800 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors shrink-0"
-            title={isSidebarCollapsed ? "Expand Sidebar (Ctrl+B)" : "Collapse Sidebar"}
-          >
-            {isSidebarCollapsed ? (
-              <ChevronRight className="h-4 w-4" />
-            ) : (
-              <ChevronLeft className="h-4 w-4" />
-            )}
-          </button>
         </div>
 
         {/* 2. PRIMARY NAVIGATION (TOP) */}
-        <div className="py-3 px-2 space-y-1">
-          <div
-            className={`px-2 pb-1 text-[9px] font-bold uppercase tracking-wider text-slate-400 dark:text-zinc-500 ${
-              isSidebarCollapsed ? "text-center" : ""
-            }`}
-          >
-            {isSidebarCollapsed ? "NAV" : "GRID SUPERVISION"}
-          </div>
+        <div className={`py-3 space-y-1.5 ${isSidebarCollapsed ? "px-2" : "px-2.5"}`}>
+          {!isSidebarCollapsed && (
+            <div className="px-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-zinc-500">
+              GRID SUPERVISION
+            </div>
+          )}
 
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -163,11 +162,16 @@ export function Sidebar() {
               <button
                 key={item.id}
                 onClick={() => handleNavClick(item.id)}
-                title={isSidebarCollapsed ? item.label : undefined}
-                className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-sm text-xs font-semibold tracking-wide transition-all duration-150 relative group ${
+                className={`transition-all duration-150 relative group cursor-pointer ${
+                  isSidebarCollapsed
+                    ? "w-10 h-10 mx-auto flex items-center justify-center rounded-sm"
+                    : "w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-xs font-semibold tracking-wide"
+                } ${
                   isActive
-                    ? "bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-300 dark:border-emerald-600/50 shadow-xs"
-                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-900/60 border border-transparent"
+                    ? isSidebarCollapsed
+                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+                      : "bg-emerald-50/70 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 font-bold border-l-2 border-emerald-500 dark:border-emerald-400 shadow-xs"
+                    : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-900/60"
                 }`}
               >
                 <Icon
@@ -184,23 +188,39 @@ export function Sidebar() {
                   </span>
                 )}
 
-                {/* Badges */}
-                {item.badgeCount !== undefined && item.badgeCount > 0 && (
+                {/* Badges in Expanded Mode */}
+                {!isSidebarCollapsed && item.badgeCount !== undefined && item.badgeCount > 0 && (
                   <span
-                    className={`text-[9px] font-bold px-1.5 py-0.2 rounded-xs font-mono shrink-0 ${
+                    className={`ml-auto text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-xs shrink-0 ${
                       item.badgeVariant === "destructive"
                         ? "bg-rose-500/20 text-rose-500 border border-rose-500/40 animate-pulse"
                         : "bg-amber-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/40"
-                    } ${isSidebarCollapsed ? "absolute top-1 right-1 h-2 w-2 p-0 rounded-full" : ""}`}
+                    }`}
                   >
-                    {!isSidebarCollapsed && item.badgeCount}
+                    {item.badgeCount}
                   </span>
                 )}
 
-                {/* Tooltip on collapsed hover */}
+                {/* Indicator Pip in Collapsed Mode */}
+                {isSidebarCollapsed && item.badgeCount !== undefined && item.badgeCount > 0 && (
+                  <span
+                    className={`absolute top-2 right-2 h-2 w-2 rounded-full ring-2 ring-white dark:ring-[#0c0d10] ${
+                      item.badgeVariant === "destructive"
+                        ? "bg-rose-500 animate-pulse"
+                        : "bg-amber-500"
+                    }`}
+                  />
+                )}
+
+                {/* Floating Tooltip in Collapsed Mode */}
                 {isSidebarCollapsed && (
-                  <div className="absolute left-full ml-2 px-2.5 py-1 bg-slate-900 dark:bg-zinc-950 border border-slate-700 dark:border-zinc-700 text-white text-[11px] font-mono rounded shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-                    {item.label}
+                  <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-[#0f1115] border border-zinc-700 text-zinc-100 text-[11px] font-mono rounded-sm shadow-2xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[100] flex items-center gap-2">
+                    <span>{item.label}</span>
+                    {item.badgeCount !== undefined && item.badgeCount > 0 && (
+                      <span className="text-[9px] px-1 bg-amber-500/30 text-amber-300 border border-amber-500/50 rounded-xs">
+                        {item.badgeCount}
+                      </span>
+                    )}
                   </div>
                 )}
               </button>
@@ -210,14 +230,19 @@ export function Sidebar() {
       </div>
 
       {/* 3. SECONDARY NAVIGATION (BOTTOM): SETTINGS */}
-      <div className="p-2 border-t border-slate-200 dark:border-zinc-800 space-y-1">
+      <div className={`p-2 border-t border-slate-200 dark:border-zinc-800 ${isSidebarCollapsed ? "px-2" : "px-2.5"}`}>
         <Link
           href="/settings"
-          title={isSidebarCollapsed ? "System Settings" : undefined}
-          className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-sm text-xs font-semibold tracking-wide transition-all relative group ${
+          className={`transition-all relative group cursor-pointer ${
+            isSidebarCollapsed
+              ? "w-10 h-10 mx-auto flex items-center justify-center rounded-sm"
+              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-xs font-semibold tracking-wide"
+          } ${
             isSettingsPage
-              ? "bg-cyan-50 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-400 border border-cyan-300 dark:border-cyan-600/50 shadow-xs"
-              : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-900/60 border border-transparent"
+              ? isSidebarCollapsed
+                ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.2)]"
+                : "bg-cyan-50/70 dark:bg-cyan-950/30 text-cyan-700 dark:text-cyan-400 font-bold border-l-2 border-cyan-500 dark:border-cyan-400 shadow-xs"
+              : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-900/60"
           }`}
         >
           <Settings
@@ -229,14 +254,20 @@ export function Sidebar() {
           />
 
           {!isSidebarCollapsed && (
-            <span className="truncate flex-1 text-left">
-              Settings &amp; Parameters
-            </span>
+            <>
+              <span className="truncate flex-1 text-left">
+                Settings
+              </span>
+              <span className="text-[9px] font-mono text-slate-400 dark:text-zinc-500">
+                v2.0
+              </span>
+            </>
           )}
 
+          {/* Floating Tooltip in Collapsed Mode */}
           {isSidebarCollapsed && (
-            <div className="absolute left-full ml-2 px-2.5 py-1 bg-slate-900 dark:bg-zinc-950 border border-slate-700 dark:border-zinc-700 text-white text-[11px] font-mono rounded shadow-lg whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-50">
-              Settings &amp; Parameters
+            <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-[#0f1115] border border-zinc-700 text-zinc-100 text-[11px] font-mono rounded-sm shadow-2xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[100]">
+              Settings (v2.0)
             </div>
           )}
         </Link>
