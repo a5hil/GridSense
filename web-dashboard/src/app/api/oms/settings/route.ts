@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { omsManager } from "@/lib/oms-state";
+import { sendTelegramTestPing } from "@/lib/telegram";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,14 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+
+    if (body.action === "test_telegram") {
+      const botToken = body.botToken || omsManager.getSettings().telegramBotToken || "";
+      const chatId = body.chatId || omsManager.getSettings().telegramChatId || "";
+      const pingRes = await sendTelegramTestPing({ botToken, chatId });
+      return NextResponse.json(pingRes);
+    }
+
     const updated = omsManager.updateSettings(body);
     return NextResponse.json({ success: true, settings: updated });
   } catch (err: any) {

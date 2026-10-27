@@ -20,6 +20,7 @@ import {
   Phone,
   MessageSquare,
   AlertTriangle,
+  Send,
 } from "lucide-react";
 import { useTheme } from "@/lib/theme-context";
 import { useDashboard } from "@/context/DashboardContext";
@@ -47,6 +48,10 @@ export default function SettingsPage() {
   const [safetyOverrideEnabled, setSafetyOverrideEnabled] = useState<boolean>(true);
   const [linemanPhone, setLinemanPhone] = useState<string>("+919037129026");
   const [notifyOnEscalation, setNotifyOnEscalation] = useState<boolean>(true);
+  const [telegramBotToken, setTelegramBotToken] = useState<string>("");
+  const [telegramChatId, setTelegramChatId] = useState<string>("");
+  const [telegramEnabled, setTelegramEnabled] = useState<boolean>(true);
+  const [testStatus, setTestStatus] = useState<{ loading: boolean; success?: boolean; message?: string } | null>(null);
 
   // Load existing OMS settings
   React.useEffect(() => {
@@ -66,10 +71,42 @@ export default function SettingsPage() {
           if (typeof data.settings.notifyOnEscalation === "boolean") {
             setNotifyOnEscalation(data.settings.notifyOnEscalation);
           }
+          if (typeof data.settings.telegramBotToken === "string") {
+            setTelegramBotToken(data.settings.telegramBotToken);
+          }
+          if (typeof data.settings.telegramChatId === "string") {
+            setTelegramChatId(data.settings.telegramChatId);
+          }
+          if (typeof data.settings.telegramEnabled === "boolean") {
+            setTelegramEnabled(data.settings.telegramEnabled);
+          }
         }
       })
       .catch((err) => console.error("Failed to load OMS settings:", err));
   }, []);
+
+  const handleTestTelegram = async () => {
+    setTestStatus({ loading: true });
+    try {
+      const res = await fetch("/api/oms/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "test_telegram",
+          botToken: telegramBotToken,
+          chatId: telegramChatId,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTestStatus({ loading: false, success: true, message: `Ping sent! Check your Telegram app.` });
+      } else {
+        setTestStatus({ loading: false, success: false, message: data.error || "Failed to contact Telegram bot" });
+      }
+    } catch (err: any) {
+      setTestStatus({ loading: false, success: false, message: err?.message || "Network error" });
+    }
+  };
 
   const handleSave = async () => {
     try {
@@ -81,6 +118,9 @@ export default function SettingsPage() {
           safetyOverrideEnabled,
           linemanPhone,
           notifyOnEscalation,
+          telegramBotToken,
+          telegramChatId,
+          telegramEnabled,
         }),
       });
       setIsSaved(true);
@@ -467,24 +507,99 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            {/* Lineman WhatsApp Phone Number */}
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
-                Field Lineman WhatsApp Number
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={linemanPhone}
-                  onChange={(e) => setLinemanPhone(e.target.value)}
-                  placeholder="+919447012345"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-sm text-xs font-mono text-slate-900 dark:text-zinc-100 outline-none focus:border-emerald-500"
-                />
-                <Phone className="h-3.5 w-3.5 text-emerald-500 absolute right-3 top-2.5" />
+            {/* Telegram Automated Dispatch Configuration */}
+            <div className="space-y-3 md:col-span-3 border border-slate-200 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-950/40 p-3.5 rounded-sm">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800/80 pb-2">
+                <div className="flex items-center gap-2">
+                  <Send className="h-4 w-4 text-cyan-500" />
+                  <span className="text-xs font-bold text-slate-900 dark:text-zinc-100 uppercase tracking-wider">
+                    KSEB Field Dispatch // Telegram Bot Integration (Automated Alerting)
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] text-slate-500 dark:text-zinc-400">
+                    Silent Background Alerts • No Browser Redirects
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setTelegramEnabled(!telegramEnabled)}
+                    className={`px-2 py-0.5 text-[10px] font-bold rounded-xs border transition-all cursor-pointer ${
+                      telegramEnabled
+                        ? "bg-cyan-600 text-white border-cyan-700"
+                        : "bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 border-slate-300 dark:border-zinc-700"
+                    }`}
+                  >
+                    {telegramEnabled ? "TELEGRAM ACTIVE" : "DISABLED"}
+                  </button>
+                </div>
               </div>
-              <p className="text-[10px] text-slate-500 dark:text-zinc-400">
-                Number used when the SCADA operator clicks &quot;Send via WhatsApp&quot; with GPS navigation coordinates.
-              </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                {/* Bot Token */}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+                    Telegram Bot Token (@BotFather)
+                  </label>
+                  <input
+                    type="password"
+                    value={telegramBotToken}
+                    onChange={(e) => setTelegramBotToken(e.target.value)}
+                    placeholder="e.g. 7489201923:AAHkL78eM..."
+                    className="w-full px-3 py-1.5 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 rounded-sm text-xs font-mono text-slate-900 dark:text-zinc-100 outline-none focus:border-cyan-500"
+                  />
+                  <p className="text-[10px] text-slate-500 dark:text-zinc-400">
+                    Create a free bot on Telegram by messaging <a href="https://t.me/BotFather" target="_blank" rel="noreferrer" className="text-cyan-600 dark:text-cyan-400 underline">@BotFather</a>.
+                  </p>
+                </div>
+
+                {/* Chat ID */}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
+                    Telegram Chat ID / Lineman Group ID
+                  </label>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={telegramChatId}
+                      onChange={(e) => setTelegramChatId(e.target.value)}
+                      placeholder="e.g. 987654321 or -100123456789"
+                      className="w-full px-3 py-1.5 bg-white dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 rounded-sm text-xs font-mono text-slate-900 dark:text-zinc-100 outline-none focus:border-cyan-500"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={handleTestTelegram}
+                      disabled={testStatus?.loading || !telegramBotToken || !telegramChatId}
+                      className="h-8 text-xs shrink-0 border-cyan-500/50 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-950/40"
+                    >
+                      {testStatus?.loading ? "Pinging..." : "Test Bot ➔"}
+                    </Button>
+                  </div>
+                  <p className="text-[10px] text-slate-500 dark:text-zinc-400">
+                    Message <a href="https://t.me/userinfobot" target="_blank" rel="noreferrer" className="text-cyan-600 dark:text-cyan-400 underline">@userinfobot</a> to get your Chat ID or add the bot to a line crew group.
+                  </p>
+                </div>
+              </div>
+
+              {testStatus && (
+                <div
+                  className={`p-2 rounded-xs text-xs flex items-center justify-between border ${
+                    testStatus.success
+                      ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500 text-emerald-800 dark:text-emerald-300"
+                      : "bg-rose-50 dark:bg-rose-950/30 border-rose-500 text-rose-800 dark:text-rose-300"
+                  }`}
+                >
+                  <span>{testStatus.message}</span>
+                  <button
+                    type="button"
+                    onClick={() => setTestStatus(null)}
+                    className="text-[10px] underline ml-2 opacity-70 hover:opacity-100"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Safety Critical Override Toggle */}

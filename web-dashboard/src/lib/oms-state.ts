@@ -1,5 +1,6 @@
 import { PermitToWork, TroubleTicket, OmsSettings } from "./types";
 import { getStoredTickets, saveTicketRecord } from "./db";
+import { sendTelegramDispatchAlert } from "./telegram";
 
 class OmsManager {
   private tickets: TroubleTicket[] = [];
@@ -12,6 +13,9 @@ class OmsManager {
     safetyOverrideEnabled: true,
     linemanPhone: "+919037129026",
     notifyOnEscalation: true,
+    telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
+    telegramChatId: process.env.TELEGRAM_CHAT_ID || "",
+    telegramEnabled: true,
   };
 
   constructor() {
@@ -245,6 +249,26 @@ class OmsManager {
       ticket.workLog.push(`${time} - Directive: "${params.operatorNotes}"`);
     }
 
+    // Automated silent background alert via Telegram Bot API
+    if (this.settings.telegramBotToken && this.settings.telegramChatId && this.settings.telegramEnabled !== false) {
+      sendTelegramDispatchAlert({
+        botToken: this.settings.telegramBotToken,
+        chatId: this.settings.telegramChatId,
+        ticket,
+        crewName: params.crewName,
+        crewType: params.crewType,
+        operatorNotes: params.operatorNotes,
+      }).then((res) => {
+        const timeNow = new Date().toLocaleTimeString();
+        if (res.success) {
+          ticket.workLog.push(`${timeNow} - Telegram Bot Alert delivered to field crew (Message ID: #${res.messageId}).`);
+        } else {
+          ticket.workLog.push(`${timeNow} - Telegram dispatch notice: ${res.error}`);
+        }
+        saveTicketRecord(ticket).catch(() => {});
+      }).catch(() => {});
+    }
+
     saveTicketRecord(ticket).catch(() => {});
     return ticket;
   }
@@ -361,9 +385,23 @@ function initManager(): OmsManager {
         safetyOverrideEnabled: true,
         linemanPhone: "+919037129026",
         notifyOnEscalation: true,
+        telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
+        telegramChatId: process.env.TELEGRAM_CHAT_ID || "",
+        telegramEnabled: true,
       };
-    } else if (existing.settings.linemanPhone === "+919447012345") {
-      existing.settings.linemanPhone = "+919037129026";
+    } else {
+      if (existing.settings.linemanPhone === "+919447012345") {
+        existing.settings.linemanPhone = "+919037129026";
+      }
+      if (existing.settings.telegramEnabled === undefined) {
+        existing.settings.telegramEnabled = true;
+      }
+      if (existing.settings.telegramBotToken === undefined) {
+        existing.settings.telegramBotToken = process.env.TELEGRAM_BOT_TOKEN || "";
+      }
+      if (existing.settings.telegramChatId === undefined) {
+        existing.settings.telegramChatId = process.env.TELEGRAM_CHAT_ID || "";
+      }
     }
     return globalForOms.omsManager;
   }

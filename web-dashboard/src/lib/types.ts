@@ -111,8 +111,11 @@ export interface TroubleTicket {
 export interface OmsSettings {
   soakDurationMinutes: number;
   safetyOverrideEnabled: boolean;
-  linemanPhone: string;
+  linemanPhone?: string;
   notifyOnEscalation: boolean;
+  telegramBotToken?: string;
+  telegramChatId?: string;
+  telegramEnabled?: boolean;
 }
 
 export interface GridTelemetry {

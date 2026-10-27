@@ -55,7 +55,7 @@ interface WorkforceOmsPanelProps {
 export const FIELD_CREWS = [
   {
     id: "QRU-4",
-    name: "Crew Alpha — Designated Field Lineman (Settings)",
+    name: "Crew Alpha — Designated Field Lineman Unit",
     leader: "K. P. Rajesh (Designated Lineman)",
     type: "Primary 11kV Overhead Feeder Patrol",
     phone: "+919037129026",
@@ -94,29 +94,6 @@ export const FIELD_CREWS = [
     status: "ON_STANDBY",
   },
 ];
-
-export function getWhatsAppUrl(
-  ticket: TroubleTicket,
-  phone: string,
-  operatorNotes?: string
-): string {
-  const cleanPhone = phone.replace(/[^\d]/g, "");
-  const mapsUrl = `https://maps.google.com/?q=${ticket.gps.lat},${ticket.gps.lng}`;
-
-  const text = `🚨 *KSEB EMERGENCY OUTAGE DISPATCH* 🚨
-━━━━━━━━━━━━━━━━━━━━━━
-*Ticket ID:* #${ticket.ticketId}
-*Feeder:* ${ticket.feederName}
-*Fault Type:* ${ticket.faultType}
-*Affected Location:* ${ticket.affectedPole}
-*GPS Coordinates:* ${ticket.gps.lat.toFixed(6)}, ${ticket.gps.lng.toFixed(6)}
-*Google Maps Route:* ${mapsUrl}
-*Assigned Crew:* ${ticket.assignedCrew || "Designated Lineman Crew"}
-${operatorNotes ? `*Operator Notes:* ${operatorNotes}\n` : ""}━━━━━━━━━━━━━━━━━━━━━━
-Safety Protocol: Physical line isolation and digital Permit-To-Work (PTW) must be verified before conductor contact.`;
-
-  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
-}
 
 export function getRemainingSoak(soakExpiresAt?: string): {
   minutes: number;
@@ -322,14 +299,6 @@ export function WorkforceOmsPanel({
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  // Launch WhatsApp Chat directly
-  const handleLaunchWhatsApp = (phone?: string) => {
-    if (!effectiveTicket) return;
-    const targetPhone = phone || activeLinemanPhone;
-    const url = getWhatsAppUrl(effectiveTicket, targetPhone, customDispatchNotes);
-    window.open(url, "_blank");
   };
 
   // Early Escalation (Bypass Soak)
@@ -663,7 +632,7 @@ export function WorkforceOmsPanel({
                       className="h-7 px-3 text-[11px] font-bold shadow-sm"
                     >
                       <UserCheck className="h-3.5 w-3.5 mr-1" />
-                      Dispatch Field Crew (WhatsApp) ➔
+                      Dispatch Field Crew (Telegram) ➔
                     </Button>
                   </div>
                 </div>
@@ -680,15 +649,10 @@ export function WorkforceOmsPanel({
                         Lineman Contact: <strong>{effectiveTicket.assignedPhone}</strong> • Status: <strong>{effectiveTicket.status.replace(/_/g, " ")}</strong>
                       </div>
                     </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => handleLaunchWhatsApp(effectiveTicket.assignedPhone)}
-                      className="h-7 text-[10px] border-emerald-500 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-                    >
-                      <MessageSquare className="h-3 w-3 mr-1 text-emerald-500" />
-                      Message on WhatsApp
-                    </Button>
+                    <div className="flex items-center gap-1.5 text-[10px] text-cyan-600 dark:text-cyan-400 font-bold bg-cyan-100/60 dark:bg-cyan-950/60 px-2 py-1 rounded-xs border border-cyan-500/30">
+                      <Send className="h-3 w-3 text-cyan-500" />
+                      Telegram Alert Dispatched
+                    </div>
                   </div>
 
                   {/* PTW Status inside Dispatched Card */}
@@ -904,14 +868,14 @@ export function WorkforceOmsPanel({
         </div>
 
         {/* ------------------------------------------------------------ */}
-        {/* RIGHT PANEL: KSEB FIELD WORKFORCE & WHATSAPP DISPATCH HUB   */}
+        {/* RIGHT PANEL: KSEB FIELD WORKFORCE & TELEGRAM DISPATCH HUB    */}
         {/* ------------------------------------------------------------ */}
         <div className="col-span-12 lg:col-span-5 flex flex-col gap-3 min-h-0 overflow-y-auto">
           {/* Header Card */}
           <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] rounded-sm p-3.5 shadow-sm space-y-3">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-2">
               <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <Users className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
                 <span className="font-bold uppercase tracking-wider text-sm text-slate-900 dark:text-zinc-100">
                   KSEB Field Workforce Roster
                 </span>
@@ -922,7 +886,7 @@ export function WorkforceOmsPanel({
             </div>
 
             <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-              Select any designated line crew to initiate a one-click WhatsApp dispatch order with GPS waypoint coordinates and safety instructions.
+              Select any designated line crew to trigger an automated Telegram dispatch order with GPS waypoint coordinates, live fault data, and safety protocol.
             </p>
 
             {/* Crew Cards */}
@@ -961,18 +925,13 @@ export function WorkforceOmsPanel({
                           size="sm"
                           variant="outline"
                           onClick={() => {
-                            if (effectiveTicket) {
-                              const url = getWhatsAppUrl(effectiveTicket, crew.phone);
-                              window.open(url, "_blank");
-                            } else {
-                              const url = `https://wa.me/${crew.phone.replace(/[^\d]/g, "")}?text=${encodeURIComponent("GridSense SCADA Notice: Feeder 04 is currently healthy. Standing by.")}`;
-                              window.open(url, "_blank");
-                            }
+                            setSelectedCrewId(crew.id);
+                            setIsDispatchModalOpen(true);
                           }}
-                          className="h-6 px-2 text-[10px] border-emerald-500/60 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                          className="h-6 px-2 text-[10px] border-cyan-500/60 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-950/40 flex items-center gap-1"
                         >
-                          <MessageSquare className="h-3 w-3 mr-1 text-emerald-500" />
-                          WhatsApp
+                          <Send className="h-2.5 w-2.5 text-cyan-500" />
+                          Telegram Dispatch
                         </Button>
                       </div>
                     </div>
@@ -1148,18 +1107,10 @@ export function WorkforceOmsPanel({
 
             {/* Action Buttons */}
             <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-zinc-800">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  const chosen = crews.find((c) => c.id === selectedCrewId) || crews[0];
-                  handleLaunchWhatsApp(chosen.phone);
-                }}
-                className="text-xs h-8 border-emerald-500/60 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
-              >
-                <MessageSquare className="h-3.5 w-3.5 mr-1 text-emerald-500" />
-                Open WhatsApp Message ➔
-              </Button>
+              <div className="text-[10px] text-slate-500 dark:text-zinc-400 flex items-center gap-1">
+                <Send className="h-3 w-3 text-cyan-500" />
+                <span>Automated background dispatch via Telegram Bot</span>
+              </div>
 
               <div className="flex gap-2">
                 <Button
@@ -1175,9 +1126,10 @@ export function WorkforceOmsPanel({
                   size="sm"
                   disabled={isSubmitting}
                   onClick={handleConfirmManualDispatch}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs h-8 px-4"
+                  className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs h-8 px-4 flex items-center gap-1.5 shadow-sm"
                 >
-                  Confirm Crew Dispatched
+                  <Send className="h-3.5 w-3.5" />
+                  <span>{isSubmitting ? "Dispatching..." : "Send Telegram Dispatch Alert ➔"}</span>
                 </Button>
               </div>
             </div>
