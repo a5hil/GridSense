@@ -333,14 +333,18 @@ class TelemetryStore extends EventEmitter {
     this.broadcast();
   }
 
-  public ingestRawJson(parsed: any, source: "SERIAL" | "SIMULATOR" = "SERIAL") {
-    // Only accept physical hardware serial packets
+  public ingestRawJson(parsed: any, source: "SERIAL" | "SIMULATOR" | "CLOUD_BRIDGE" = "SERIAL") {
+    // Only accept physical hardware serial and cloud bridge packets
     if (source === "SIMULATOR") {
       return;
     }
 
     this.lastIngestTime = Date.now();
-    if (!this.systemStatus.gatewayConnected || this.systemStatus.activePort === "DISCONNECTED") {
+    if (source === "CLOUD_BRIDGE") {
+      this.systemStatus.gatewayConnected = true;
+      this.systemStatus.isSimulated = false;
+      this.systemStatus.activePort = "COM8 (Bridge)";
+    } else if (!this.systemStatus.gatewayConnected || this.systemStatus.activePort === "DISCONNECTED") {
       this.systemStatus.gatewayConnected = true;
       if (this.systemStatus.activePort === "DISCONNECTED") {
         this.systemStatus.activePort = "COM8";

@@ -33,10 +33,11 @@ async function isTokenValid(token?: string): Promise<boolean> {
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Allow static assets, next internal files, and public auth APIs
+  // Allow static assets, next internal files, and public auth / bridge ingest APIs
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api/auth") ||
+    pathname.startsWith("/api/telemetry/ingest") ||
     pathname.startsWith("/static") ||
     pathname.includes(".") ||
     pathname === "/favicon.ico"

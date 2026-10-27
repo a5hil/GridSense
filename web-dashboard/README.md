@@ -59,7 +59,39 @@ MONGODB_DB=gridsense
 
 # Optional: Hardware USB Serial Port
 SERIAL_PORT=COM8
+
+# Optional: Remote Cloud Bridge Secret Token
+BRIDGE_SECRET=your_secure_bridge_token_here
 ```
+
+---
+
+## ☁️ Deploying to Cloud (Render / Railway / VPS)
+
+1. Create a **Web Service** on [Render](https://render.com) pointing to your Git repository.
+2. Configure Settings:
+   - **Root Directory**: `web-dashboard`
+   - **Build Command**: `npm run build`
+   - **Start Command**: `npm start`
+   - **Environment Variables**:
+     - `NODE_VERSION`: `20`
+     - `AUTH_SECRET`: Any random 32-character string
+     - `BRIDGE_SECRET` *(optional)*: A secure token to protect bridge ingest
+
+---
+
+## 🔌 Streaming Physical COM Port to Render (Cloud Bridge)
+
+When hosted on Render, the cloud server cannot directly access your laptop's USB COM port. GridSense includes a built-in bridge tool that reads your local physical gateway and securely forwards telemetry to your cloud dashboard in real time:
+
+```bash
+# On your local laptop with ESP32 connected to USB:
+npm run bridge -- https://your-gridsense-app.onrender.com COM8
+```
+
+* **Zero configuration**: Seamlessly auto-reconnects if USB is unplugged or internet blinks.
+* **Live protection**: All ANSI 87L differential calculations, FDIR alarms, and OMS tickets trigger instantaneously in the cloud dashboard.
+* **Local Mode untouched**: Running `npm run dev` locally still reads `COM8` directly as normal without needing the bridge.
 
 ---
 
