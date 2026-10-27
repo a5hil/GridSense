@@ -194,7 +194,7 @@ export function WorkforceOmsPanel({
     );
   }, [tickets, selectedTicketId]);
 
-  // If no open ticket in DB but a detection exists in twin, synthesize a view ticket
+  // If no open ticket in DB but a detection exists in twin OR telemetry indicates active fault/powercut, synthesize a view ticket
   const effectiveTicket: TroubleTicket | null = React.useMemo(() => {
     if (activeTicket) return activeTicket;
     if (activeDetections.length > 0) {
@@ -226,8 +226,32 @@ export function WorkforceOmsPanel({
         ],
       };
     }
+    if (isFault || isBreakerTripped) {
+      return {
+        ticketId: "LIVE-SUPERVISORY-EVENT",
+        createdAt: new Date().toISOString(),
+        feederId: "FEEDER_04_SECTOR4",
+        feederName: "Feeder 04 (Angamaly 11kV / DTR-01)",
+        affectedPole: selectedPoleId || "Feeder LT-1: Span F1-P01 ↔ F1-P02",
+        gps: { lat: 10.2325, lng: 76.4095 },
+        faultType: isBreakerTripped ? "ANSI 87L - FEEDER BREAKER TRIP" : "ANSI 27 - FEEDER DE-ENERGIZED (0V SUPPLY)",
+        severity: isBreakerTripped ? "CRITICAL" : "HIGH",
+        status: isBreakerTripped ? "ESCALATED" : "WATCHING",
+        assignedCrew: "",
+        assignedPhone: "+919447012345",
+        estimatedCustomers: 45,
+        ptw: null,
+        soakDurationMinutes: 15,
+        soakExpiresAt: new Date(Date.now() + 15 * 60000).toISOString(),
+        safetyBypassTriggered: isBreakerTripped,
+        workLog: [
+          `SCADA Supervisory Incident Flagged.`,
+          isBreakerTripped ? "Feeder differential protection tripped breaker." : "Zero-voltage power cut / de-energization in progress.",
+        ],
+      };
+    }
     return null;
-  }, [activeTicket, activeDetections]);
+  }, [activeTicket, activeDetections, isFault, isBreakerTripped, selectedPoleId]);
 
   // Calculations for summary metrics
   const watchingTickets = tickets.filter((t) => t.status === "WATCHING");
@@ -349,12 +373,17 @@ export function WorkforceOmsPanel({
   // Filtered closed tickets history
   const filteredClosedTickets = React.useMemo(() => {
     if (historyFilter === "AUTO_CLEARED") {
-      return closedTickets.filter((t) =>
-        t.workLog.some((l) => l.toLowerCase().includes("transient") || l.toLowerCase().includes("auto-cleared"))
+      return closedTickets.filter(
+        (t) =>
+          !t.assignedCrew ||
+          t.assignedCrew.toLowerCase().startsWith("unassigned") ||
+          t.workLog.some((l) => l.toLowerCase().includes("transient") || l.toLowerCase().includes("auto-cleared"))
       );
     }
     if (historyFilter === "FIELD_REPAIRED") {
-      return closedTickets.filter((t) => t.assignedCrew && t.assignedCrew.length > 0);
+      return closedTickets.filter(
+        (t) => Boolean(t.assignedCrew && !t.assignedCrew.toLowerCase().startsWith("unassigned"))
+      );
     }
     return closedTickets;
   }, [closedTickets, historyFilter]);
@@ -374,11 +403,11 @@ export function WorkforceOmsPanel({
             <div className="text-sm font-bold flex items-center gap-1.5 mt-0.5">
               <span
                 className={`inline-block h-2 w-2 rounded-full ${
-                  effectiveTicket ? "bg-rose-500 animate-ping" : "bg-emerald-500"
+                  effectiveTicket || isFault || isBreakerTripped ? "bg-rose-500 animate-ping" : "bg-emerald-500"
                 }`}
               />
-              <span className={effectiveTicket ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}>
-                {effectiveTicket ? "OUTAGE DETECTED" : "100% HEALTHY"}
+              <span className={effectiveTicket || isFault || isBreakerTripped ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}>
+                {effectiveTicket || isFault || isBreakerTripped ? "OUTAGE DETECTED" : "100% HEALTHY"}
               </span>
             </div>
           </div>
@@ -825,12 +854,17 @@ export function WorkforceOmsPanel({
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <Badge
-                        variant={t.assignedCrew ? "healthy" : "secondary"}
-                        className="text-[9px]"
-                      >
-                        {t.assignedCrew ? `REPAIRED (${t.assignedCrew.split(" ")[0]})` : "AUTO-CLEARED"}
-                      </Badge>
+                      {(() => {
+                        const hasCrew = Boolean(t.assignedCrew && !t.assignedCrew.toLowerCase().startsWith("unassigned"));
+                        return (
+                          <Badge
+                            variant={hasCrew ? "healthy" : "secondary"}
+                            className="text-[9px]"
+                          >
+                            {hasCrew ? `REPAIRED (${t.assignedCrew.split(" ")[0].toUpperCase()})` : "AUTO-CLEARED (SOAK)"}
+                          </Badge>
+                        );
+                      })()}
                       <span className="text-[9px] text-slate-400 block mt-0.5">
                         {new Date(t.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </span>

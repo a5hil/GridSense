@@ -157,9 +157,7 @@ class OmsManager {
       faultType: params.faultCode,
       severity: params.severity || "CRITICAL",
       status: initialStatus,
-      assignedCrew: bypassSoak
-        ? "Unassigned (Awaiting Immediate Operator Dispatch)"
-        : "Unassigned (Monitoring in Soak Watchlist)",
+      assignedCrew: "",
       assignedPhone: this.settings.linemanPhone || "+919447012345",
       estimatedCustomers: params.estimatedCustomers ?? 28,
       ptw: null,
@@ -196,8 +194,11 @@ class OmsManager {
   /**
    * If a watched incident restores power before soak timer expires,
    * auto-clear it as a momentary transient outage (no lineman dispatch).
+   * Refuses to clear if power has NOT restored (e.g. still 0V powercut).
    */
-  public autoClearTransientIfRestored(feederId?: string): TroubleTicket | null {
+  public autoClearTransientIfRestored(feederId?: string, isPowerRestored: boolean = true): TroubleTicket | null {
+    if (!isPowerRestored) return null;
+
     const active = this.getActiveTicket();
     if (active && active.status === "WATCHING") {
       const now = new Date();
@@ -205,6 +206,7 @@ class OmsManager {
       const elapsedMins = Math.max(1, Math.round(elapsedMs / 60000));
 
       active.status = "CLOSED";
+      active.assignedCrew = ""; // explicitly empty to reflect zero crew dispatched
       active.workLog.push(
         `${now.toLocaleTimeString()} - Power restored naturally after ~${elapsedMins}m. Auto-cleared as transient outage; zero lineman dispatched.`
       );

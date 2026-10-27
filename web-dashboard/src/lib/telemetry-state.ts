@@ -781,7 +781,40 @@ class TelemetryStore extends EventEmitter {
     });
 
     // 3b. Alarm episode tracking - prevents infinite re-raise loop after operator Acknowledge
-    if (next.fault && next.fault_code !== "NORMAL" && next.fault_code !== "PROTECTION_BLIND") {
+    const isDeenergized = (next.p1.v < 50 && next.p2.v < 50) || next.fault_code === "POWERCUT";
+    const bothEnergized = next.p1.v >= 180 && next.p2.v >= 180;
+
+    if (isDeenergized) {
+      // 0V blackout / power cut: active de-energization outage (ANSI 27)
+      const isNew = !this.alarmOpen || this.systemStatus.activeAlarm?.faultCode !== "POWERCUT";
+      if (isNew) {
+        this.alarmOpen = true;
+        this.systemStatus.operatorAck = false;
+        this.systemStatus.activeAlarm = {
+          active: true,
+          title: "WARNING: FEEDER DE-ENERGIZED (ANSI 27)",
+          description: "Feeder is de-energized across all phases (0V supply / scheduled power cut / blackout).",
+          timestamp: next.timestamp,
+          faultCode: "POWERCUT",
+        };
+
+        // Register in OMS for Soak Watchlist observation (15m soak window applies)
+        omsManager.registerIncidentForObservation({
+          faultCode: "ANSI 27 // OUTAGE_LAST_GASP",
+          affectedPole: "Feeder LT-1: Span F1-P01 ↔ F1-P02",
+          gps: { lat: 10.2325, lng: 76.4095 },
+          idiff: 0,
+          source: "LIVE",
+        });
+
+        this.addEventLog({
+          level: "WARN",
+          source: "FDIR_CORE",
+          message: "FEEDER DE-ENERGIZED: ANSI 27 blackout / power cut",
+          details: `F1-P01=${next.p1.v.toFixed(1)}V, F1-P02=${next.p2.v.toFixed(1)}V`,
+        });
+      }
+    } else if (next.fault && next.fault_code !== "NORMAL" && next.fault_code !== "PROTECTION_BLIND") {
       const isNew = !this.alarmOpen || this.systemStatus.activeAlarm?.faultCode !== next.fault_code;
       if (isNew) {
         this.alarmOpen = true;
@@ -812,14 +845,15 @@ class TelemetryStore extends EventEmitter {
           details: `F1-P01=${next.p1.i.toFixed(2)}A, F1-P02=${next.p2.i.toFixed(2)}A`,
         });
       }
-    } else if (this.alarmOpen && !next.fault) {
+    } else if (this.alarmOpen && !next.fault && bothEnergized) {
+      // ONLY clear alarm and auto-clear soak ticket when supply is genuinely restored (both nodes >= 180V)
       this.alarmOpen = false;
       const clearedCode = this.systemStatus.activeAlarm?.faultCode || "NORMAL";
       if (this.systemStatus.activeAlarm) {
         this.systemStatus.activeAlarm.active = false;
       }
       // If incident was sitting in Soak Watchlist, auto-clear it as a momentary transient
-      omsManager.autoClearTransientIfRestored();
+      omsManager.autoClearTransientIfRestored(undefined, true);
 
       this.addEventLog({
         level: "INFO",
