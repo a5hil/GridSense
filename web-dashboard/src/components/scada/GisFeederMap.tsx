@@ -860,7 +860,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
                   ANSI 87L FAULT LOCALIZED // SPAN F1-P01 ↔ F1-P02
                 </span>
                 <span className="text-[10px] text-rose-300">
-                  Sectionalizer Span (10.2318°N ↔ 10.2325°N) // I_diff = {telemetry?.idiff.toFixed(3)}A
+                  Sectionalizer Span (10.231800°N ↔ 10.232172°N) // I_diff = {telemetry?.idiff.toFixed(3)}A
                 </span>
               </div>
             </div>
@@ -868,7 +868,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
               onClick={() => {
                 if (mapInstanceRef.current) {
                   mapInstanceRef.current.flyTo({
-                    center: [76.4088, 10.2322],
+                    center: [76.408625, 10.231986],
                     zoom: 18.5,
                     pitch: 45,
                     duration: 1200,

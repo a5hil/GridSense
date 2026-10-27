@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { omsManager } from "@/lib/oms-state";
+import { NODE_BY_ID } from "@/lib/network/topology";
 
 export const dynamic = "force-dynamic";
 
@@ -25,14 +26,17 @@ export async function POST(req: NextRequest) {
 
     if (action === "create_ticket") {
       const { faultCode, affectedPole, gps, idiff, severity, feederId, feederName, estimatedCustomers } = body;
+      const targetPole = affectedPole || "F1-P02";
+      const topo = NODE_BY_ID[targetPole] || NODE_BY_ID["F1-P02"];
+      const resolvedGps = gps || (topo ? { lat: topo.lat, lng: topo.lng } : { lat: 10.232172, lng: 76.408750 });
       const created = omsManager.registerIncidentForObservation({
         faultCode: faultCode || "DISTRIBUTION_FAULT",
-        affectedPole: affectedPole || "F1-P01",
-        gps: gps || { lat: 10.2318, lng: 76.4088 },
+        affectedPole: targetPole,
+        gps: resolvedGps,
         idiff: idiff || 0.45,
         severity: severity || "CRITICAL",
-        feederId: feederId || "LT-1",
-        feederName: feederName || "Feeder LT-1",
+        feederId: feederId || topo?.feederId || "LT-1",
+        feederName: feederName || "Feeder LT-1 East (Market Road)",
         estimatedCustomers: estimatedCustomers ?? 35,
       });
       return NextResponse.json({ success: true, ticket: created });

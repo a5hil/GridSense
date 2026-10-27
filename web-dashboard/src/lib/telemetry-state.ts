@@ -74,10 +74,10 @@ class TelemetryStore extends EventEmitter {
       age_ms: 99999,
       isOnline: false,
       lastSeen: new Date().toISOString(),
-      lat: 10.2318,
-      lng: 76.4088,
-        feederId: "FEEDER_04_SECTOR4",
-        dtrId: "DTR_SECTOR4_01",
+      lat: 10.231800,
+      lng: 76.408500,
+      feederId: "FEEDER_04_SECTOR4",
+      dtrId: "DTR_SECTOR4_01",
     };
 
     const initialP2: PoleData = {
@@ -97,10 +97,10 @@ class TelemetryStore extends EventEmitter {
       age_ms: 99999,
       isOnline: false,
       lastSeen: new Date().toISOString(),
-      lat: 10.2325,
-      lng: 76.4095,
-        feederId: "FEEDER_04_SECTOR4",
-        dtrId: "DTR_SECTOR4_01",
+      lat: 10.232172,
+      lng: 76.408750,
+      feederId: "FEEDER_04_SECTOR4",
+      dtrId: "DTR_SECTOR4_01",
     };
 
     // Live clean history (only populated from real packets)
@@ -418,8 +418,8 @@ class TelemetryStore extends EventEmitter {
         age_ms: Number.isFinite(Number(n1.age_ms)) ? Number(n1.age_ms) : 99999,
         isOnline: finiteNum(n1.v) > 10,
         lastSeen: timestamp,
-        lat: 10.2318,
-        lng: 76.4088,
+        lat: 10.231800,
+        lng: 76.408500,
         feederId: "FEEDER_04_SECTOR4",
         dtrId: "DTR_SECTOR4_01",
       };
@@ -441,8 +441,8 @@ class TelemetryStore extends EventEmitter {
         age_ms: Number.isFinite(Number(n2.age_ms)) ? Number(n2.age_ms) : 99999,
         isOnline: finiteNum(n2.v) > 10,
         lastSeen: timestamp,
-        lat: 10.2325,
-        lng: 76.4095,
+        lat: 10.232172,
+        lng: 76.408750,
         feederId: "FEEDER_04_SECTOR4",
         dtrId: "DTR_SECTOR4_01",
       };
@@ -504,8 +504,8 @@ class TelemetryStore extends EventEmitter {
         age_ms: p1Age,
         isOnline: p1Age < 15000,
         lastSeen: timestamp,
-        lat: 10.2318,
-        lng: 76.4088,
+        lat: 10.231800,
+        lng: 76.408500,
         feederId: "FEEDER_04_SECTOR4",
         dtrId: "DTR_SECTOR4_01",
         phases: enforcePhaseMask(parsed.p1.phases, p1Mask, p1V, p1I, p1P, p1Pf),
@@ -538,8 +538,8 @@ class TelemetryStore extends EventEmitter {
         age_ms: p2Age,
         isOnline: p2Age < 15000,
         lastSeen: timestamp,
-        lat: 10.2325,
-        lng: 76.4095,
+        lat: 10.232172,
+        lng: 76.408750,
         feederId: "FEEDER_04_SECTOR4",
         dtrId: "DTR_SECTOR4_01",
         phases: enforcePhaseMask(parsed.p2.phases, p2Mask, p2V, p2I, p2P, p2Pf),
@@ -802,7 +802,7 @@ class TelemetryStore extends EventEmitter {
         omsManager.registerIncidentForObservation({
           faultCode: "ANSI 27 // OUTAGE_LAST_GASP",
           affectedPole: "Feeder LT-1: Span F1-P01 ↔ F1-P02",
-          gps: { lat: 10.2325, lng: 76.4095 },
+          gps: { lat: 10.232172, lng: 76.408750 },
           idiff: 0,
           source: "LIVE",
         });
@@ -833,7 +833,7 @@ class TelemetryStore extends EventEmitter {
         omsManager.registerIncidentForObservation({
           faultCode: next.fault_code,
           affectedPole: "Feeder LT-1: Span F1-P01 ↔ F1-P02",
-          gps: { lat: 10.2325, lng: 76.4095 },
+          gps: { lat: 10.232172, lng: 76.408750 },
           idiff: next.idiff,
           source: "LIVE",
         });

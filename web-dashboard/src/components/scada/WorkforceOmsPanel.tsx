@@ -203,17 +203,17 @@ export function WorkforceOmsPanel({
     if (activeTicket) return activeTicket;
     if (activeDetections.length > 0) {
       const topDet = activeDetections.find((d) => d.severity === "CRITICAL" || d.severity === "HIGH") || activeDetections[0];
-      const targetPole = topDet.nodeId || "P2";
-      const topo = NODE_BY_ID[targetPole];
+      const targetPole = topDet.nodeId || "F1-P02";
+      const topo = NODE_BY_ID[targetPole] || NODE_BY_ID["F1-P02"];
       const isConductorBreak = topDet.ansi === "ANSI 46BC" || topDet.type.includes("BROKEN");
 
       return {
         ticketId: "LIVE-SOAK-EVENT",
         createdAt: new Date().toISOString(),
-        feederId: topDet.feederId || "F4",
-        feederName: "Feeder 04 (Angamaly North 11kV)",
-        affectedPole: targetPole,
-        gps: topo ? { lat: topo.lat, lng: topo.lng } : { lat: 10.232109, lng: 76.406110 },
+        feederId: topDet.feederId || topo?.feederId || "LT-1",
+        feederName: "Feeder LT-1 East (Market Road)",
+        affectedPole: topo?.id || targetPole,
+        gps: topo ? { lat: topo.lat, lng: topo.lng } : { lat: 10.232172, lng: 76.408750 },
         faultType: `${topDet.ansi} - ${topDet.type.replace(/_/g, " ")}`,
         severity: isConductorBreak ? "CRITICAL" : "HIGH",
         status: isConductorBreak ? "ESCALATED" : "WATCHING",
@@ -226,18 +226,20 @@ export function WorkforceOmsPanel({
         safetyBypassTriggered: isConductorBreak,
         workLog: [
           `FDIR Supervisory Alert: ${topDet.message}`,
-          `GPS Coordinate Waypoint: ${topo ? `${topo.lat.toFixed(6)}°N, ${topo.lng.toFixed(6)}°E` : "10.232109°N, 76.406110°E"}`,
+          `GPS Coordinate Waypoint: ${topo ? `${topo.lat.toFixed(6)}°N, ${topo.lng.toFixed(6)}°E` : "10.232172°N, 76.408750°E"}`,
         ],
       };
     }
     if (isFault || isBreakerTripped) {
+      const targetPoleId = selectedPoleId && NODE_BY_ID[selectedPoleId] ? selectedPoleId : "F1-P02";
+      const topo = NODE_BY_ID[targetPoleId] || NODE_BY_ID["F1-P02"];
       return {
         ticketId: "LIVE-SUPERVISORY-EVENT",
         createdAt: new Date().toISOString(),
-        feederId: "FEEDER_04_SECTOR4",
-        feederName: "Feeder 04 (Angamaly 11kV / DTR-01)",
-        affectedPole: selectedPoleId || "Feeder LT-1: Span F1-P01 ↔ F1-P02",
-        gps: { lat: 10.2325, lng: 76.4095 },
+        feederId: topo?.feederId || "LT-1",
+        feederName: "Feeder LT-1 East (Market Road)",
+        affectedPole: targetPoleId,
+        gps: topo ? { lat: topo.lat, lng: topo.lng } : { lat: 10.232172, lng: 76.408750 },
         faultType: isBreakerTripped ? "ANSI 87L - FEEDER BREAKER TRIP" : "ANSI 27 - FEEDER DE-ENERGIZED (0V SUPPLY)",
         severity: isBreakerTripped ? "CRITICAL" : "HIGH",
         status: isBreakerTripped ? "ESCALATED" : "WATCHING",
@@ -251,6 +253,7 @@ export function WorkforceOmsPanel({
         workLog: [
           `SCADA Supervisory Incident Flagged.`,
           isBreakerTripped ? "Feeder differential protection tripped breaker." : "Zero-voltage power cut / de-energization in progress.",
+          `GPS Coordinate Waypoint: ${topo ? `${topo.lat.toFixed(6)}°N, ${topo.lng.toFixed(6)}°E` : "10.232172°N, 76.408750°E"}`,
         ],
       };
     }
@@ -696,12 +699,12 @@ export function WorkforceOmsPanel({
                 <div className="border border-slate-200 dark:border-zinc-800 p-2 rounded-xs bg-slate-50 dark:bg-zinc-900/40">
                   <span className="text-slate-500 dark:text-zinc-400 block text-[10px]">GPS WAYPOINT</span>
                   <a
-                    href={`https://maps.google.com/?q=${effectiveTicket.gps.lat},${effectiveTicket.gps.lng}`}
+                    href={`https://www.google.com/maps/search/?api=1&query=${effectiveTicket.gps.lat.toFixed(6)},${effectiveTicket.gps.lng.toFixed(6)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="font-bold text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1"
                   >
-                    <span>{effectiveTicket.gps.lat.toFixed(4)}, {effectiveTicket.gps.lng.toFixed(4)}</span>
+                    <span>{effectiveTicket.gps.lat.toFixed(6)}°N, {effectiveTicket.gps.lng.toFixed(6)}°E</span>
                     <ExternalLink className="h-2.5 w-2.5" />
                   </a>
                 </div>

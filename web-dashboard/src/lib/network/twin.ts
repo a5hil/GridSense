@@ -542,7 +542,7 @@ class NetworkTwin extends EventEmitter {
         omsManager.registerIncidentForObservation({
           faultCode: `${d.ansi} // ${d.type}`,
           affectedPole: targetNode ? `${targetNode.label} (${targetNode.id})` : d.sectionId ? `Section ${d.sectionId}` : "Distribution Span",
-          gps: targetNode ? { lat: targetNode.lat, lng: targetNode.lng } : { lat: 10.2318, lng: 76.4088 },
+          gps: targetNode ? { lat: targetNode.lat, lng: targetNode.lng } : { lat: 10.232172, lng: 76.408750 },
           idiff: d.unit === "A" ? d.value : 0,
           severity: d.severity,
           feederId: d.feederId || targetNode?.feederId || "FEEDER_04_SECTOR4",
