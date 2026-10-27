@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# GridSense SCADA Web Dashboard ⚡
 
-## Getting Started
+An advanced Next.js SCADA Operations Desk & Outage Management System (OMS) engineered for distribution feeder supervision, fault localization (ANSI 87L, 46BC, 27, 50/51), live GIS mapping, and automated Telegram lineman dispatch.
 
-First, run the development server:
+---
 
+## 🚀 Quick Start (Clone & Run on Any System)
+
+### 1. Prerequisites
+* **Node.js**: v18.17+ or v20+ installed ([nodejs.org](https://nodejs.org/)).
+* **Git**: Installed.
+
+### 2. Installation
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Clone the repository
+git clone https://github.com/a5hil/GridSense.git
+cd GridSense/web-dashboard
+
+# Install all dependencies
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Launch Development Server
+```bash
+npm run dev
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## 🛠️ Portability & Zero-Config Architecture
 
-To learn more about Next.js, take a look at the following resources:
+GridSense was designed to run seamlessly on **any system (Windows, macOS, or Linux)** without requiring external cloud accounts or local databases:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Subsystem | If Configured | Automatic Fallback (Zero Config) |
+|---|---|---|
+| **GIS Feeder Map** | Mapbox GL Satellite & Vector styles (`NEXT_PUBLIC_MAPBOX_TOKEN`) | Carto Dark Matter / Positron vector tiles (100% free, zero token required) |
+| **Telemetry & Log Storage** | Local or Remote MongoDB (`MONGODB_URI`) | In-memory circular buffers (auto-activates if MongoDB service is offline) |
+| **Hardware Serial Bridge** | Physical ESP32 Gateway on USB COM/TTY (`SERIAL_PORT`) | Embedded real-time SCADA simulation engine generating physical line physics |
+| **Telegram Field Dispatch** | Bot Token & Chat ID in Settings UI | Safe no-op with in-app simulation logs |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+---
 
-## Deploy on Vercel
+## ⚙️ Environment Variables (Optional)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Copy `.env.example` to `.env.local` to override defaults:
+```bash
+cp .env.example .env.local
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```env
+# Optional: Mapbox Vector Map Token
+NEXT_PUBLIC_MAPBOX_TOKEN=pk.eyJ1Ijoi...
+
+# Optional: MongoDB Database Connection
+MONGODB_URI=mongodb://127.0.0.1:27017
+MONGODB_DB=gridsense
+
+# Optional: Hardware USB Serial Port
+SERIAL_PORT=COM8
+```
+
+---
+
+## 📦 Production Build
+
+```bash
+# Typecheck
+npx tsc --noEmit
+
+# Production Build
+npm run build
+
+# Start Production Server
+npm start
+```
+Runs at [http://localhost:3000](http://localhost:3000).

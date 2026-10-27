@@ -46,8 +46,13 @@ By combining split-core CT AC energy monitors (**PZEM-004T v4.0**), Sub-GHz LoRa
 ## 📂 Repository Directory Layout
 
 ```
-GridSense/
-├── GridSense_TwoPole_System/          # 🌟 PRIMARY ACTIVE SYSTEM
+├── web-dashboard/                     # 🌐 NEXT.JS SCADA OPERATIONS DESK & OMS
+│   ├── src/app/                       # Next.js App Router (ADMS, Settings, OMS)
+│   ├── src/components/scada/          # GisFeederMap, WorkforceOmsPanel, TrendChart
+│   ├── src/lib/network/               # Physical topology, FDIR engine, ANSI protection
+│   └── README.md                      # Web dashboard operating instructions
+│
+├── GridSense_TwoPole_System/          # 🌟 FIRMWARE & HARDWARE SYSTEM
 │   ├── EdgeNode_Pole/                 # Edge Node Firmware (Pole 1 & Pole 2)
 │   │   ├── EdgeNode_Pole.ino          # Core edge logic & FDIR simulation
 │   │   ├── PZEM004T_Modbus.cpp/.h     # Modbus-RTU driver (RX 17, TX 18)
@@ -60,7 +65,7 @@ GridSense/
 │   │   ├── gridsense_crypto.cpp/.h    # Hardware AES-128 decryption
 │   │   ├── gridsense_packet.cpp/.h    # Frame decoder & deduplicator
 │   │   └── lr1121_rx.cpp/.h           # LR1121 background LoRa receiver
-│   ├── Dashboard/                     # Central FDIR Supervisory Dashboard
+│   ├── Dashboard/                     # Legacy Python Tkinter GUI
 │   │   ├── gridsense_dashboard.py     # Dark-theme Tkinter GUI & demo engine
 │   │   └── run_dashboard.bat          # One-click Windows desktop launcher
 │   └── README.md                      # Detailed system operating instructions
@@ -77,17 +82,25 @@ GridSense/
 
 ## ⚡ Quick Start Guide
 
-### 1. Flashing the Hardware (Arduino IDE)
+### 1. Web SCADA & OMS Dashboard (Recommended)
+```bash
+cd web-dashboard
+npm install
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) in your browser.
+* Zero configuration required (runs with embedded simulation & in-memory database).
+* Connects automatically to the Gateway USB serial port if plugged in.
+
+### 2. Flashing the Hardware (Arduino IDE)
 * **Board:** `ESP32S3 Dev Module` (USB CDC On Boot: *Enabled*, Flash Size: *8MB*)
 * **Flash Gateway:** Open [`GridSense_TwoPole_System/Central_Gateway/Central_Gateway.ino`](GridSense_TwoPole_System/Central_Gateway/Central_Gateway.ino) and upload.
 * **Flash Pole 1 (Repeater):** Open [`GridSense_TwoPole_System/EdgeNode_Pole/EdgeNode_Pole.ino`](GridSense_TwoPole_System/EdgeNode_Pole/EdgeNode_Pole.ino), ensure `#define POLE_ID 1`, and upload.
 * **Flash Pole 2 (Endpoint):** In `EdgeNode_Pole.ino`, set `#define POLE_ID 2`, and upload.
 
-### 2. Launching the Supervisory Dashboard
+### 3. Launching Legacy Desktop GUI (Optional)
 Double-click [`GridSense_TwoPole_System/Dashboard/run_dashboard.bat`](GridSense_TwoPole_System/Dashboard/run_dashboard.bat) or run:
 ```bash
 cd GridSense_TwoPole_System/Dashboard
 python gridsense_dashboard.py
 ```
-* Select the Gateway COM port and click **Connect**.
-* Or click **▶ Demo Mode** for offline simulation.
