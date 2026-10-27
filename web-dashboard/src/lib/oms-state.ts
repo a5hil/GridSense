@@ -10,7 +10,7 @@ class OmsManager {
   private settings: OmsSettings = {
     soakDurationMinutes: 15,
     safetyOverrideEnabled: true,
-    linemanPhone: "+919447012345",
+    linemanPhone: "+919037129026",
     notifyOnEscalation: true,
   };
 
@@ -359,9 +359,11 @@ function initManager(): OmsManager {
       existing.settings = {
         soakDurationMinutes: 15,
         safetyOverrideEnabled: true,
-        linemanPhone: "+919447012345",
+        linemanPhone: "+919037129026",
         notifyOnEscalation: true,
       };
+    } else if (existing.settings.linemanPhone === "+919447012345") {
+      existing.settings.linemanPhone = "+919037129026";
     }
     return globalForOms.omsManager;
   }

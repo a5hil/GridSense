@@ -75,6 +75,7 @@ export default function SCADADashboard() {
   const [logs, setLogs] = React.useState<SCADAEventLog[]>([]);
   const [history, setHistory] = React.useState<HistoricalTelemetryPoint[]>([]);
   const [tickets, setTickets] = React.useState<TroubleTicket[]>([]);
+  const [linemanPhone, setLinemanPhone] = React.useState<string>("+919037129026");
   const {
     activeView,
     setActiveView,
@@ -204,6 +205,9 @@ export default function SCADADashboard() {
       const json = JSON.parse(text);
       if (json && Array.isArray(json.tickets)) {
         setTickets(json.tickets);
+      }
+      if (json && json.settings?.linemanPhone) {
+        setLinemanPhone(json.settings.linemanPhone);
       }
     } catch (err) {
       console.error("Failed to fetch tickets", err);
@@ -1457,6 +1461,7 @@ export default function SCADADashboard() {
               networkSnapshot={networkSnapshot}
               selectedPoleId={selectedPoleId}
               onSelectPole={handlePoleSelect}
+              linemanPhone={linemanPhone}
             />
           </div>
         )}

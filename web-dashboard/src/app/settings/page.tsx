@@ -45,7 +45,7 @@ export default function SettingsPage() {
   // OMS Escalation Policy States (Kerala KSEB Outage Soak Model)
   const [soakDurationMinutes, setSoakDurationMinutes] = useState<number>(15);
   const [safetyOverrideEnabled, setSafetyOverrideEnabled] = useState<boolean>(true);
-  const [linemanPhone, setLinemanPhone] = useState<string>("+919447012345");
+  const [linemanPhone, setLinemanPhone] = useState<string>("+919037129026");
   const [notifyOnEscalation, setNotifyOnEscalation] = useState<boolean>(true);
 
   // Load existing OMS settings

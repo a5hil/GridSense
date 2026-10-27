@@ -49,25 +49,26 @@ interface WorkforceOmsPanelProps {
   networkSnapshot?: NetworkSnapshot | null;
   selectedPoleId?: string;
   onSelectPole?: (poleId: string) => void;
+  linemanPhone?: string;
 }
 
 export const FIELD_CREWS = [
   {
     id: "QRU-4",
-    name: "Crew Alpha — Feeder Patrol (Angamaly)",
-    leader: "K. P. Rajesh (Sr. Lineman)",
-    type: "11kV Overhead Line Patrol",
-    phone: "+919447012345",
+    name: "Crew Alpha — Designated Field Lineman (Settings)",
+    leader: "K. P. Rajesh (Designated Lineman)",
+    type: "Primary 11kV Overhead Feeder Patrol",
+    phone: "+919037129026",
     vehicle: "KL-41-E-4421 (Utility Bolero)",
     baseStation: "Angamaly 33/11kV Substation",
-    status: "ON_STANDBY",
+    status: "PRIMARY_DISPATCH",
   },
   {
     id: "EMERGENCY-102",
     name: "Emergency Line Crew 102",
     leader: "M. S. Anoop (Live-Line Specialist)",
     type: "Hazard & Broken Conductor Response",
-    phone: "+919447098765",
+    phone: "+919037129026",
     vehicle: "KL-07-CD-8812 (Hydraulic Boom)",
     baseStation: "Kalady Section Office",
     status: "ON_STANDBY",
@@ -77,7 +78,7 @@ export const FIELD_CREWS = [
     name: "Lineman Quick-Response Unit #4",
     leader: "V. Babu & Lineman Team",
     type: "Distribution Fuse & LT Restoration",
-    phone: "+919447112233",
+    phone: "+919037129026",
     vehicle: "KL-41-F-1024 (Response Van)",
     baseStation: "Mattoor Electrical Section",
     status: "ON_STANDBY",
@@ -87,7 +88,7 @@ export const FIELD_CREWS = [
     name: "Substation & DTR Maintenance Crew",
     leader: "S. Suresh (Substation In-Charge)",
     type: "Transformer & Switchgear Engineering",
-    phone: "+919447334455",
+    phone: "+919037129026",
     vehicle: "KL-07-K-7711 (Diagnostic Van)",
     baseStation: "Angamaly Control Center",
     status: "ON_STANDBY",
@@ -99,8 +100,7 @@ export function getWhatsAppUrl(
   phone: string,
   operatorNotes?: string
 ): string {
-  const cleanPhone = phone.replace(/[^\d+]/g, "");
-  const targetPhone = cleanPhone.startsWith("+") ? cleanPhone.slice(1) : cleanPhone;
+  const cleanPhone = phone.replace(/[^\d]/g, "");
   const mapsUrl = `https://maps.google.com/?q=${ticket.gps.lat},${ticket.gps.lng}`;
 
   const text = `🚨 *KSEB EMERGENCY OUTAGE DISPATCH* 🚨
@@ -115,7 +115,7 @@ export function getWhatsAppUrl(
 ${operatorNotes ? `*Operator Notes:* ${operatorNotes}\n` : ""}━━━━━━━━━━━━━━━━━━━━━━
 Safety Protocol: Physical line isolation and digital Permit-To-Work (PTW) must be verified before conductor contact.`;
 
-  return `https://wa.me/${targetPhone}?text=${encodeURIComponent(text)}`;
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
 }
 
 export function getRemainingSoak(soakExpiresAt?: string): {
@@ -155,14 +155,41 @@ export function WorkforceOmsPanel({
   networkSnapshot,
   selectedPoleId,
   onSelectPole,
+  linemanPhone,
 }: WorkforceOmsPanelProps) {
+  const [activeLinemanPhone, setActiveLinemanPhone] = React.useState<string>(linemanPhone || "+919037129026");
   const [selectedTicketId, setSelectedTicketId] = React.useState<string | null>(null);
   const [isDispatchModalOpen, setIsDispatchModalOpen] = React.useState(false);
-  const [selectedCrewId, setSelectedCrewId] = React.useState<string>(FIELD_CREWS[0].id);
+  const [selectedCrewId, setSelectedCrewId] = React.useState<string>("QRU-4");
   const [customDispatchNotes, setCustomDispatchNotes] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [historyFilter, setHistoryFilter] = React.useState<"ALL" | "AUTO_CLEARED" | "FIELD_REPAIRED">("ALL");
   const [nowMs, setNowMs] = React.useState(Date.now());
+
+  // Keep phone synced with prop or /api/oms/settings
+  React.useEffect(() => {
+    if (linemanPhone) {
+      setActiveLinemanPhone(linemanPhone);
+    }
+  }, [linemanPhone]);
+
+  React.useEffect(() => {
+    fetch("/api/oms/settings")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.settings?.linemanPhone) {
+          setActiveLinemanPhone(data.settings.linemanPhone);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const crews = React.useMemo(() => {
+    return FIELD_CREWS.map((c) => ({
+      ...c,
+      phone: activeLinemanPhone,
+    }));
+  }, [activeLinemanPhone]);
 
   // 1-second interval to keep soak countdown timer live
   React.useEffect(() => {
@@ -273,7 +300,7 @@ export function WorkforceOmsPanel({
   const handleConfirmManualDispatch = async () => {
     if (!effectiveTicket) return;
     setIsSubmitting(true);
-    const chosenCrew = FIELD_CREWS.find((c) => c.id === selectedCrewId) || FIELD_CREWS[0];
+    const chosenCrew = crews.find((c) => c.id === selectedCrewId) || crews[0];
 
     try {
       await fetch("/api/oms/tickets", {
@@ -300,7 +327,7 @@ export function WorkforceOmsPanel({
   // Launch WhatsApp Chat directly
   const handleLaunchWhatsApp = (phone?: string) => {
     if (!effectiveTicket) return;
-    const targetPhone = phone || effectiveTicket.assignedPhone || "+919447012345";
+    const targetPhone = phone || activeLinemanPhone;
     const url = getWhatsAppUrl(effectiveTicket, targetPhone, customDispatchNotes);
     window.open(url, "_blank");
   };
@@ -900,7 +927,7 @@ export function WorkforceOmsPanel({
 
             {/* Crew Cards */}
             <div className="space-y-2">
-              {FIELD_CREWS.map((crew) => {
+              {crews.map((crew) => {
                 const isAssigned = effectiveTicket?.assignedPhone === crew.phone;
                 return (
                   <div
@@ -1081,7 +1108,7 @@ export function WorkforceOmsPanel({
                 Select Designated KSEB Field Unit
               </label>
               <div className="space-y-1.5">
-                {FIELD_CREWS.map((crew) => (
+                {crews.map((crew) => (
                   <div
                     key={crew.id}
                     onClick={() => setSelectedCrewId(crew.id)}
@@ -1125,7 +1152,7 @@ export function WorkforceOmsPanel({
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const chosen = FIELD_CREWS.find((c) => c.id === selectedCrewId) || FIELD_CREWS[0];
+                  const chosen = crews.find((c) => c.id === selectedCrewId) || crews[0];
                   handleLaunchWhatsApp(chosen.phone);
                 }}
                 className="text-xs h-8 border-emerald-500/60 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
