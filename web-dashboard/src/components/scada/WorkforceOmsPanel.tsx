@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import React from "react";
 import {
   Activity,
   AlertOctagon,
@@ -8,10 +8,9 @@ import {
   ArrowRight,
   CheckCircle2,
   Clock,
-  Compass,
-  CornerDownRight,
+  Crosshair,
   ExternalLink,
-  FileCheck2,
+  Eye,
   FileText,
   Flame,
   Info,
@@ -21,6 +20,7 @@ import {
   Navigation,
   Phone,
   Power,
+  Radio,
   RefreshCw,
   Search,
   Send,
@@ -30,6 +30,7 @@ import {
   Smartphone,
   Sparkles,
   Unlock,
+  User,
   UserCheck,
   Users,
   Wrench,
@@ -52,48 +53,52 @@ interface WorkforceOmsPanelProps {
   linemanPhone?: string;
 }
 
-export const FIELD_CREWS = [
+export interface DutyLineman {
+  id: string;
+  name: string;
+  role: string;
+  section: string;
+  phone: string;
+  status: "ON_DUTY" | "STANDBY" | "DISPATCHED";
+}
+
+export const DUTY_LINEMEN: DutyLineman[] = [
   {
-    id: "QRU-4",
-    name: "Crew Alpha — Designated Field Lineman Unit",
-    leader: "K. P. Rajesh (Designated Lineman)",
-    type: "Primary 11kV Overhead Feeder Patrol",
+    id: "LM-RAJESH",
+    name: "K. P. Rajesh",
+    role: "Senior Line Patrol",
+    section: "Angamaly 33/11kV",
     phone: "+919037129026",
-    vehicle: "KL-41-E-4421 (Utility Bolero)",
-    baseStation: "Angamaly 33/11kV Substation",
-    status: "PRIMARY_DISPATCH",
+    status: "ON_DUTY",
   },
   {
-    id: "EMERGENCY-102",
-    name: "Emergency Line Crew 102",
-    leader: "M. S. Anoop (Live-Line Specialist)",
-    type: "Hazard & Broken Conductor Response",
+    id: "LM-ANOOP",
+    name: "M. S. Anoop",
+    role: "Emergency Breakdown",
+    section: "Kalady Section",
     phone: "+919037129026",
-    vehicle: "KL-07-CD-8812 (Hydraulic Boom)",
-    baseStation: "Kalady Section Office",
-    status: "ON_STANDBY",
+    status: "STANDBY",
   },
   {
-    id: "QRU-7",
-    name: "Lineman Quick-Response Unit #4",
-    leader: "V. Babu & Lineman Team",
-    type: "Distribution Fuse & LT Restoration",
+    id: "LM-BABU",
+    name: "V. Babu",
+    role: "Feeder 04 Area Lineman",
+    section: "Mattoor Section",
     phone: "+919037129026",
-    vehicle: "KL-41-F-1024 (Response Van)",
-    baseStation: "Mattoor Electrical Section",
-    status: "ON_STANDBY",
+    status: "STANDBY",
   },
   {
-    id: "SUB-MAINT",
-    name: "Substation & DTR Maintenance Crew",
-    leader: "S. Suresh (Substation In-Charge)",
-    type: "Transformer & Switchgear Engineering",
+    id: "LM-SURESH",
+    name: "S. Suresh",
+    role: "Substation & DTR Operator",
+    section: "Control Center",
     phone: "+919037129026",
-    vehicle: "KL-07-K-7711 (Diagnostic Van)",
-    baseStation: "Angamaly Control Center",
-    status: "ON_STANDBY",
+    status: "STANDBY",
   },
 ];
+
+// Backwards-compatibility alias
+export const FIELD_CREWS = DUTY_LINEMEN;
 
 export function getRemainingSoak(soakExpiresAt?: string): {
   minutes: number;
@@ -112,7 +117,6 @@ export function getRemainingSoak(soakExpiresAt?: string): {
   const minutes = Math.floor(totalSec / 60);
   const seconds = totalSec % 60;
 
-  // Approximate soak duration in seconds (default 120s if 2m, or 900s if 15m)
   const percent = Math.max(0, Math.min(100, Math.round(((minutes * 60 + seconds) / (15 * 60)) * 100)));
 
   return {
@@ -135,12 +139,12 @@ export function WorkforceOmsPanel({
   linemanPhone,
 }: WorkforceOmsPanelProps) {
   const [activeLinemanPhone, setActiveLinemanPhone] = React.useState<string>(linemanPhone || "+919037129026");
-  const [selectedTicketId, setSelectedTicketId] = React.useState<string | null>(null);
   const [isDispatchModalOpen, setIsDispatchModalOpen] = React.useState(false);
-  const [selectedCrewId, setSelectedCrewId] = React.useState<string>("QRU-4");
+  const [selectedLinemanId, setSelectedLinemanId] = React.useState<string>("LM-RAJESH");
   const [customDispatchNotes, setCustomDispatchNotes] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [historyFilter, setHistoryFilter] = React.useState<"ALL" | "AUTO_CLEARED" | "FIELD_REPAIRED">("ALL");
+  const [historyFilter, setHistoryFilter] = React.useState<"ALL" | "AUTO_CLEARED" | "FIELD_REPAIRED" | "MAINTENANCE">("ALL");
+  const [auditModalTicket, setAuditModalTicket] = React.useState<TroubleTicket | null>(null);
   const [nowMs, setNowMs] = React.useState(Date.now());
 
   // Keep phone synced with prop or /api/oms/settings
@@ -161,9 +165,9 @@ export function WorkforceOmsPanel({
       .catch(() => {});
   }, []);
 
-  const crews = React.useMemo(() => {
-    return FIELD_CREWS.map((c) => ({
-      ...c,
+  const linemen = React.useMemo(() => {
+    return DUTY_LINEMEN.map((l) => ({
+      ...l,
       phone: activeLinemanPhone,
     }));
   }, [activeLinemanPhone]);
@@ -179,24 +183,19 @@ export function WorkforceOmsPanel({
     return networkSnapshot?.detections || [];
   }, [networkSnapshot]);
 
-  // Primary active ticket in progress
-  const activeTicket = React.useMemo(() => {
-    if (selectedTicketId) {
-      const match = tickets.find((t) => t.ticketId === selectedTicketId);
-      if (match) return match;
-    }
-    // Return first non-closed ticket
+  // Determine currently active open ticket from state
+  const activeTicket: TroubleTicket | null = React.useMemo(() => {
     return (
       tickets.find(
         (t) =>
-          t.status === "ESCALATED" ||
           t.status === "WATCHING" ||
+          t.status === "ESCALATED" ||
           t.status === "DISPATCHED" ||
           t.status === "CREW_ON_SITE" ||
           t.status === "PTW_ISSUED"
       ) || null
     );
-  }, [tickets, selectedTicketId]);
+  }, [tickets]);
 
   // If no open ticket in DB but a detection exists in twin OR telemetry indicates active fault/powercut, synthesize a view ticket
   const effectiveTicket: TroubleTicket | null = React.useMemo(() => {
@@ -218,7 +217,7 @@ export function WorkforceOmsPanel({
         severity: isConductorBreak ? "CRITICAL" : "HIGH",
         status: isConductorBreak ? "ESCALATED" : "WATCHING",
         assignedCrew: "",
-        assignedPhone: "+919447012345",
+        assignedPhone: activeLinemanPhone,
         estimatedCustomers: 85,
         ptw: null,
         soakDurationMinutes: 15,
@@ -244,7 +243,7 @@ export function WorkforceOmsPanel({
         severity: isBreakerTripped ? "CRITICAL" : "HIGH",
         status: isBreakerTripped ? "ESCALATED" : "WATCHING",
         assignedCrew: "",
-        assignedPhone: "+919447012345",
+        assignedPhone: activeLinemanPhone,
         estimatedCustomers: 45,
         ptw: null,
         soakDurationMinutes: 15,
@@ -258,7 +257,29 @@ export function WorkforceOmsPanel({
       };
     }
     return null;
-  }, [activeTicket, activeDetections, isFault, isBreakerTripped, selectedPoleId]);
+  }, [activeTicket, activeDetections, isFault, isBreakerTripped, selectedPoleId, activeLinemanPhone]);
+
+  // Combined Active Tickets List
+  const activeTicketsList: TroubleTicket[] = React.useMemo(() => {
+    const map = new Map<string, TroubleTicket>();
+    if (effectiveTicket) {
+      map.set(effectiveTicket.ticketId, effectiveTicket);
+    }
+    for (const t of tickets) {
+      if (
+        t.status === "WATCHING" ||
+        t.status === "ESCALATED" ||
+        t.status === "DISPATCHED" ||
+        t.status === "CREW_ON_SITE" ||
+        t.status === "PTW_ISSUED"
+      ) {
+        if (!map.has(t.ticketId)) {
+          map.set(t.ticketId, t);
+        }
+      }
+    }
+    return Array.from(map.values());
+  }, [effectiveTicket, tickets]);
 
   // Calculations for summary metrics
   const watchingTickets = tickets.filter((t) => t.status === "WATCHING");
@@ -280,7 +301,7 @@ export function WorkforceOmsPanel({
   const handleConfirmManualDispatch = async () => {
     if (!effectiveTicket) return;
     setIsSubmitting(true);
-    const chosenCrew = crews.find((c) => c.id === selectedCrewId) || crews[0];
+    const chosen = linemen.find((l) => l.id === selectedLinemanId) || linemen[0];
 
     try {
       await fetch("/api/oms/tickets", {
@@ -289,9 +310,9 @@ export function WorkforceOmsPanel({
         body: JSON.stringify({
           action: "manual_dispatch",
           ticketId: effectiveTicket.ticketId,
-          crewName: chosenCrew.name,
-          crewPhone: chosenCrew.phone,
-          crewType: chosenCrew.type,
+          crewName: chosen.name,
+          crewPhone: chosen.phone,
+          crewType: chosen.role,
           operatorNotes: customDispatchNotes,
         }),
       });
@@ -373,16 +394,16 @@ export function WorkforceOmsPanel({
   const filteredClosedTickets = React.useMemo(() => {
     if (historyFilter === "AUTO_CLEARED") {
       return closedTickets.filter(
-        (t) =>
-          !t.assignedCrew ||
-          t.assignedCrew.toLowerCase().startsWith("unassigned") ||
-          t.workLog.some((l) => l.toLowerCase().includes("transient") || l.toLowerCase().includes("auto-cleared"))
+        (t) => t.status === "CLOSED" && (!t.assignedCrew || t.assignedCrew.toLowerCase().startsWith("unassigned"))
       );
     }
     if (historyFilter === "FIELD_REPAIRED") {
       return closedTickets.filter(
         (t) => Boolean(t.assignedCrew && !t.assignedCrew.toLowerCase().startsWith("unassigned"))
       );
+    }
+    if (historyFilter === "MAINTENANCE") {
+      return closedTickets.filter((t) => t.status === "MAINTENANCE_SUPPRESSED");
     }
     return closedTickets;
   }, [closedTickets, historyFilter]);
@@ -402,11 +423,11 @@ export function WorkforceOmsPanel({
             <div className="text-sm font-bold flex items-center gap-1.5 mt-0.5">
               <span
                 className={`inline-block h-2 w-2 rounded-full ${
-                  effectiveTicket || isFault || isBreakerTripped ? "bg-rose-500 animate-ping" : "bg-emerald-500"
+                  activeTicketsList.length > 0 || isFault || isBreakerTripped ? "bg-rose-500 animate-ping" : "bg-emerald-500"
                 }`}
               />
-              <span className={effectiveTicket || isFault || isBreakerTripped ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}>
-                {effectiveTicket || isFault || isBreakerTripped ? "OUTAGE DETECTED" : "100% HEALTHY"}
+              <span className={activeTicketsList.length > 0 || isFault || isBreakerTripped ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}>
+                {activeTicketsList.length > 0 || isFault || isBreakerTripped ? "OUTAGE ACTIVE" : "100% HEALTHY"}
               </span>
             </div>
           </div>
@@ -453,17 +474,17 @@ export function WorkforceOmsPanel({
         <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] p-2.5 rounded-sm flex items-center justify-between shadow-xs">
           <div>
             <div className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-semibold">
-              Field Deployments
+              Duty Linemen
             </div>
             <div className="text-sm font-bold flex items-center gap-1.5 mt-0.5">
-              <Users className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
+              <UserCheck className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
               <span className={dispatchedTickets.length > 0 ? "text-cyan-600 dark:text-cyan-400" : "text-slate-700 dark:text-zinc-300"}>
-                {dispatchedTickets.length} Unit{dispatchedTickets.length === 1 ? "" : "s"} Active
+                {dispatchedTickets.length > 0 ? `${dispatchedTickets.length} Dispatched` : "4 Ready"}
               </span>
             </div>
           </div>
           <Badge variant="outline" className="text-[9px]">
-            4 STANDBY
+            {dispatchedTickets.length > 0 ? "1 ACTIVE" : "STANDBY"}
           </Badge>
         </div>
 
@@ -494,534 +515,479 @@ export function WorkforceOmsPanel({
       </div>
 
       {/* ============================================================== */}
-      {/* 2. PRIMARY OPERATIONS DESK (TWO-PANEL WORKBENCH)               */}
+      {/* 2. TABLE 1: ACTIVE OUTAGES & SOAK WATCHLIST (ACTION TABLE)     */}
       {/* ============================================================== */}
-      <div className="grid grid-cols-12 gap-3 flex-1 min-h-0">
-        {/* ------------------------------------------------------------ */}
-        {/* LEFT PANEL: OUTAGE SUPERVISION & LIVE SOAK WATCHLIST        */}
-        {/* ------------------------------------------------------------ */}
-        <div className="col-span-12 lg:col-span-7 flex flex-col gap-3 min-h-0 overflow-y-auto">
-          {/* Active Outage Banner or Healthy System Screen */}
-          {effectiveTicket ? (
-            <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] rounded-sm p-3.5 shadow-sm space-y-3">
-              {/* Event Header */}
-              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-zinc-800/80 pb-2.5">
-                <div className="flex items-center gap-2">
-                  {effectiveTicket.safetyBypassTriggered ? (
-                    <div className="p-1.5 rounded-xs bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30">
-                      <AlertOctagon className="h-4 w-4" />
-                    </div>
-                  ) : isSoakActive ? (
-                    <div className="p-1.5 rounded-xs bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30">
-                      <Clock className="h-4 w-4 animate-spin" />
-                    </div>
-                  ) : (
-                    <div className="p-1.5 rounded-xs bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/30">
-                      <AlertTriangle className="h-4 w-4" />
-                    </div>
-                  )}
-                  <div>
-                    <div className="font-bold text-sm text-slate-900 dark:text-zinc-100 flex items-center gap-2">
-                      <span>{effectiveTicket.faultType}</span>
-                      <span className="text-xs font-normal text-slate-400">({effectiveTicket.ticketId})</span>
-                    </div>
-                    <div className="text-[11px] text-slate-500 dark:text-zinc-400">
-                      Target Pole: <span className="text-slate-900 dark:text-zinc-200 font-bold">{effectiveTicket.affectedPole}</span> • Feeder: {effectiveTicket.feederName}
-                    </div>
-                  </div>
-                </div>
+      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] rounded-sm p-3 shadow-sm flex flex-col shrink-0 space-y-2">
+        <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-2">
+          <div className="flex items-center gap-2">
+            <Radio className="h-4 w-4 text-rose-600 dark:text-rose-400 animate-pulse" />
+            <span className="font-bold uppercase tracking-wider text-xs text-slate-900 dark:text-zinc-100">
+              Live Outage Supervision &amp; Soak Watchlist
+            </span>
+            <Badge variant={activeTicketsList.length > 0 ? "destructive" : "outline"} className="text-[9px]">
+              {activeTicketsList.length} ACTIVE INCIDENT{activeTicketsList.length === 1 ? "" : "S"}
+            </Badge>
+          </div>
 
-                <div className="flex items-center gap-1.5">
-                  {effectiveTicket.safetyBypassTriggered ? (
-                    <Badge variant="destructive" className="animate-pulse">
-                      SAFETY CRITICAL OVERRIDE
-                    </Badge>
-                  ) : isSoakActive ? (
-                    <Badge variant="warning" className="flex items-center gap-1">
-                      <Clock className="h-3 w-3 animate-spin" />
-                      SOAK OBSERVATION ({soakRemaining.label})
-                    </Badge>
-                  ) : isEscalated ? (
-                    <Badge variant="destructive" className="animate-pulse">
-                      SUSTAINED OUTAGE (DISPATCH REQ)
-                    </Badge>
-                  ) : (
-                    <Badge variant="default">{effectiveTicket.status}</Badge>
-                  )}
-                </div>
-              </div>
-
-              {/* Dynamic Status Display Box */}
-              {isSoakActive ? (
-                /* SOAK OBSERVATION CARD */
-                <div className="border border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20 p-3 rounded-sm space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-bold text-amber-800 dark:text-amber-300 flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5 animate-spin" />
-                        <span>OUTAGE IN SOAK OBSERVATION WINDOW ({soakRemaining.label} REMAINING)</span>
-                      </div>
-                      <p className="text-[11px] text-amber-700/80 dark:text-amber-400/80 mt-0.5">
-                        Watching event to suppress unnecessary lineman dispatch if power restores naturally. If outage persists past window, it will automatically escalate.
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-xl font-bold font-mono text-amber-700 dark:text-amber-300">
-                        {soakRemaining.label}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Visual Progress Bar */}
-                  <div className="w-full bg-amber-200 dark:bg-amber-950 rounded-full h-1.5 overflow-hidden">
-                    <div
-                      className="bg-amber-500 h-1.5 transition-all duration-1000 ease-linear rounded-full"
-                      style={{ width: `${soakRemaining.percent}%` }}
-                    />
-                  </div>
-
-                  {/* Operator Fast-Track Actions */}
-                  <div className="flex flex-wrap items-center justify-between pt-1 gap-2 border-t border-amber-500/20">
-                    <div className="text-[10px] text-amber-700 dark:text-amber-400">
-                      Policy: {effectiveTicket.soakDurationMinutes || 15}m Soak Window • Zero Crews Dispatched
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleFlagMaintenance}
-                        disabled={isSubmitting}
-                        className="h-7 text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40"
-                      >
-                        Flag Planned Maintenance
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={handleEscalateEarly}
-                        disabled={isSubmitting}
-                        className="h-7 text-[10px] font-bold"
-                      >
-                        Escalate Early ➔
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ) : isEscalated ? (
-                /* ESCALATED SUSTAINED OUTAGE CARD */
-                <div className="border border-rose-500/40 bg-rose-50/60 dark:bg-rose-950/30 p-3 rounded-sm space-y-2.5 animate-pulse">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-bold text-rose-700 dark:text-rose-300 flex items-center gap-1.5">
-                        <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
-                        <span>SUSTAINED DISTRIBUTION OUTAGE — OPERATOR DISPATCH MANDATORY</span>
-                      </div>
-                      <p className="text-[11px] text-rose-600/90 dark:text-zinc-300 mt-0.5">
-                        {effectiveTicket.safetyBypassTriggered
-                          ? "SAFETY OVERRIDE: Physical conductor hazard detected. Public safety lockout requires immediate on-site crew presence."
-                          : "Outage persisted beyond soak observation. Operator must designate and dispatch a field crew."}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-1 border-t border-rose-500/20">
-                    <span className="text-[10px] text-rose-600 dark:text-rose-400">
-                      Est. Affected Customers: <strong>{effectiveTicket.estimatedCustomers || 85} LT Consumers</strong>
-                    </span>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => setIsDispatchModalOpen(true)}
-                      className="h-7 px-3 text-[11px] font-bold shadow-sm"
-                    >
-                      <UserCheck className="h-3.5 w-3.5 mr-1" />
-                      Dispatch Field Crew (Telegram) ➔
-                    </Button>
-                  </div>
-                </div>
-              ) : isDispatched ? (
-                /* DISPATCHED CREW TRACKING CARD */
-                <div className="border border-cyan-500/40 bg-cyan-50/60 dark:bg-cyan-950/20 p-3 rounded-sm space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-xs font-bold text-cyan-800 dark:text-cyan-300 flex items-center gap-1.5">
-                        <Wrench className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
-                        <span>FIELD UNIT ASSIGNED: {effectiveTicket.assignedCrew}</span>
-                      </div>
-                      <div className="text-[11px] text-slate-600 dark:text-zinc-400 mt-0.5">
-                        Lineman Contact: <strong>{effectiveTicket.assignedPhone}</strong> • Status: <strong>{effectiveTicket.status.replace(/_/g, " ")}</strong>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[10px] text-cyan-600 dark:text-cyan-400 font-bold bg-cyan-100/60 dark:bg-cyan-950/60 px-2 py-1 rounded-xs border border-cyan-500/30">
-                      <Send className="h-3 w-3 text-cyan-500" />
-                      Telegram Alert Dispatched
-                    </div>
-                  </div>
-
-                  {/* PTW Status inside Dispatched Card */}
-                  <div className="bg-white/80 dark:bg-zinc-900/80 p-2 rounded-xs border border-cyan-500/20 flex items-center justify-between text-[11px]">
-                    <div className="flex items-center gap-2">
-                      <Shield className={`h-4 w-4 ${isPtwActive ? "text-rose-500" : "text-slate-400"}`} />
-                      <div>
-                        <span className="font-semibold text-slate-800 dark:text-zinc-200">
-                          {isPtwActive ? "Permit-To-Work (PTW) Active" : "Permit-To-Work (PTW) Pending Site Arrival"}
-                        </span>
-                        <div className="text-[10px] text-slate-500 dark:text-zinc-400">
-                          {isPtwActive
-                            ? `PTW #${effectiveTicket.ptw?.ptwNumber || "PTW-2026-904"} Issued to ${effectiveTicket.ptw?.issuedTo || "Lineman"}`
-                            : "Lineman must verify isolation at pole before touching conductors"}
-                        </div>
-                      </div>
-                    </div>
-
-                    {isPtwActive && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={handleCloseTicket}
-                        disabled={isSubmitting}
-                        className="h-6 text-[10px] border-emerald-500 text-emerald-600 hover:bg-emerald-50 font-bold"
-                      >
-                        <CheckCircle2 className="h-3 w-3 mr-1" />
-                        Clear PTW &amp; Close Ticket
-                      </Button>
-                    )}
-                  </div>
-                </div>
-              ) : null}
-
-              {/* Waypoint Coordinates & Diagnostics Table */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px]">
-                <div className="border border-slate-200 dark:border-zinc-800 p-2 rounded-xs bg-slate-50 dark:bg-zinc-900/40">
-                  <span className="text-slate-500 dark:text-zinc-400 block text-[10px]">TARGET POLE</span>
-                  <span className="font-bold text-slate-900 dark:text-zinc-100">{effectiveTicket.affectedPole}</span>
-                </div>
-                <div className="border border-slate-200 dark:border-zinc-800 p-2 rounded-xs bg-slate-50 dark:bg-zinc-900/40">
-                  <span className="text-slate-500 dark:text-zinc-400 block text-[10px]">GPS WAYPOINT</span>
-                  <a
-                    href={`https://www.google.com/maps/search/?api=1&query=${effectiveTicket.gps.lat.toFixed(6)},${effectiveTicket.gps.lng.toFixed(6)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="font-bold text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1"
-                  >
-                    <span>{effectiveTicket.gps.lat.toFixed(6)}°N, {effectiveTicket.gps.lng.toFixed(6)}°E</span>
-                    <ExternalLink className="h-2.5 w-2.5" />
-                  </a>
-                </div>
-                <div className="border border-slate-200 dark:border-zinc-800 p-2 rounded-xs bg-slate-50 dark:bg-zinc-900/40">
-                  <span className="text-slate-500 dark:text-zinc-400 block text-[10px]">SAFETY OVERRIDE</span>
-                  <span className={`font-bold ${effectiveTicket.safetyBypassTriggered ? "text-rose-500" : "text-slate-700 dark:text-zinc-300"}`}>
-                    {effectiveTicket.safetyBypassTriggered ? "BYPASSED (HAZARD)" : "STANDARD SOAK"}
-                  </span>
-                </div>
-                <div className="border border-slate-200 dark:border-zinc-800 p-2 rounded-xs bg-slate-50 dark:bg-zinc-900/40">
-                  <span className="text-slate-500 dark:text-zinc-400 block text-[10px]">ACTION</span>
-                  {effectiveTicket.status === "ESCALATED" ? (
-                    <button
-                      onClick={() => setIsDispatchModalOpen(true)}
-                      className="font-bold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer flex items-center gap-1"
-                    >
-                      <span>Dispatch Now</span>
-                      <ArrowRight className="h-3 w-3" />
-                    </button>
-                  ) : (
-                    <span className="font-bold text-slate-500">{effectiveTicket.status}</span>
-                  )}
-                </div>
-              </div>
-
-              {/* Work Log Audit Trail */}
-              <div className="space-y-1">
-                <div className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
-                  Incident Chronology &amp; SCADA Directive Log
-                </div>
-                <div className="bg-slate-50 dark:bg-zinc-950 p-2 rounded-xs border border-slate-200 dark:border-zinc-800 max-h-24 overflow-y-auto space-y-1 text-[10px] font-mono">
-                  {effectiveTicket.workLog.map((log, idx) => (
-                    <div key={idx} className="text-slate-700 dark:text-zinc-300 flex items-start gap-1.5">
-                      <span className="text-emerald-500 shrink-0">›</span>
-                      <span>{log}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : (
-            /* ZERO OUTAGES: HEALTHY SCADA GRID SUPERVISION CENTER */
-            <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] rounded-sm p-6 shadow-sm flex flex-col items-center justify-center text-center space-y-3">
-              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-500/30 rounded-full text-emerald-600 dark:text-emerald-400">
-                <ShieldCheck className="h-8 w-8" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-zinc-100">
-                  FEEDER TOPOLOGY NORMAL • ZERO ACTIVE OUTAGES
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-zinc-400 max-w-md mt-1">
-                  Distribution Substation Angamaly 33/11kV DTR-01 is operating within normal statutory voltage and current limits. LoRa Last-Gasp beacon listener is active.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-3 gap-3 w-full max-w-lg pt-2 text-left">
-                <div className="p-2 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/50 rounded-xs">
-                  <span className="text-[10px] text-slate-500 block">ANSI 87L DIFFERENTIAL</span>
-                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">HEALTHY / ARMED</span>
-                </div>
-                <div className="p-2 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/50 rounded-xs">
-                  <span className="text-[10px] text-slate-500 block">ANSI 46BC CONDUCTOR</span>
-                  <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">INTACT / SUPERVISED</span>
-                </div>
-                <div className="p-2 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/50 rounded-xs">
-                  <span className="text-[10px] text-slate-500 block">SOAK POLICY</span>
-                  <span className="text-xs font-bold text-slate-800 dark:text-zinc-200">15m ESCALATION</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Real Outage History & Resolved Incidents Ledger */}
-          <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] rounded-sm p-3 shadow-sm space-y-2 flex-1 min-h-[220px] flex flex-col">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-2">
-              <div className="flex items-center gap-2">
-                <FileText className="h-3.5 w-3.5 text-slate-500" />
-                <span className="font-bold uppercase tracking-wider text-[11px] text-slate-800 dark:text-zinc-200">
-                  Resolved Outages &amp; Auto-Cleared Incidents Ledger
-                </span>
-                <Badge variant="outline" className="text-[9px]">
-                  {filteredClosedTickets.length} RECORDS
-                </Badge>
-              </div>
-
-              {/* History Filter Tabs */}
-              <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-0.5 rounded-xs border border-slate-200 dark:border-zinc-800 text-[10px]">
-                <button
-                  onClick={() => setHistoryFilter("ALL")}
-                  className={`px-2 py-0.5 rounded-xs cursor-pointer ${
-                    historyFilter === "ALL"
-                      ? "bg-white dark:bg-zinc-800 font-bold text-slate-900 dark:text-white shadow-xs"
-                      : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
-                  }`}
-                >
-                  All
-                </button>
-                <button
-                  onClick={() => setHistoryFilter("AUTO_CLEARED")}
-                  className={`px-2 py-0.5 rounded-xs cursor-pointer ${
-                    historyFilter === "AUTO_CLEARED"
-                      ? "bg-white dark:bg-zinc-800 font-bold text-slate-900 dark:text-white shadow-xs"
-                      : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
-                  }`}
-                >
-                  Auto-Cleared (Soak)
-                </button>
-                <button
-                  onClick={() => setHistoryFilter("FIELD_REPAIRED")}
-                  className={`px-2 py-0.5 rounded-xs cursor-pointer ${
-                    historyFilter === "FIELD_REPAIRED"
-                      ? "bg-white dark:bg-zinc-800 font-bold text-slate-900 dark:text-white shadow-xs"
-                      : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
-                  }`}
-                >
-                  Field Repaired
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-1.5 overflow-y-auto flex-1 max-h-56 pr-1">
-              {filteredClosedTickets.length === 0 ? (
-                <div className="text-center py-8 text-slate-400 dark:text-zinc-500 text-xs">
-                  No resolved records found in this category.
-                </div>
-              ) : (
-                filteredClosedTickets.map((t) => (
-                  <div
-                    key={t.ticketId}
-                    className="p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50/50 dark:bg-zinc-950/40 rounded-xs flex items-center justify-between text-[11px]"
-                  >
-                    <div>
-                      <div className="font-bold text-slate-800 dark:text-zinc-200 flex items-center gap-2">
-                        <span>{t.ticketId}</span>
-                        <span className="text-[10px] font-normal text-slate-500 dark:text-zinc-400">
-                          {t.feederName} • {t.affectedPole}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
-                        {t.faultType} • {t.workLog[t.workLog.length - 1] || "Incident archived"}
-                      </div>
-                    </div>
-                    <div className="text-right shrink-0">
-                      {(() => {
-                        const hasCrew = Boolean(t.assignedCrew && !t.assignedCrew.toLowerCase().startsWith("unassigned"));
-                        return (
-                          <Badge
-                            variant={hasCrew ? "healthy" : "secondary"}
-                            className="text-[9px]"
-                          >
-                            {hasCrew ? `REPAIRED (${t.assignedCrew.split(" ")[0].toUpperCase()})` : "AUTO-CLEARED (SOAK)"}
-                          </Badge>
-                        );
-                      })()}
-                      <span className="text-[9px] text-slate-400 block mt-0.5">
-                        {new Date(t.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
+          <div className="flex items-center gap-2">
+            {onRefresh && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onRefresh}
+                className="h-6 px-2 text-[10px] text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                title="Refresh Tickets"
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Refresh
+              </Button>
+            )}
           </div>
         </div>
 
-        {/* ------------------------------------------------------------ */}
-        {/* RIGHT PANEL: KSEB FIELD WORKFORCE & TELEGRAM DISPATCH HUB    */}
-        {/* ------------------------------------------------------------ */}
-        <div className="col-span-12 lg:col-span-5 flex flex-col gap-3 min-h-0 overflow-y-auto">
-          {/* Header Card */}
-          <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] rounded-sm p-3.5 shadow-sm space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-2">
-              <div className="flex items-center gap-2">
-                <Users className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-                <span className="font-bold uppercase tracking-wider text-sm text-slate-900 dark:text-zinc-100">
-                  KSEB Field Workforce Roster
-                </span>
-              </div>
-              <Badge variant="outline" className="text-[9px]">
-                4 REGISTERED CREWS
-              </Badge>
+        {activeTicketsList.length === 0 ? (
+          /* Normal State: Sleek, non-intrusive SCADA banner */
+          <div className="border border-emerald-500/30 bg-emerald-50/40 dark:bg-emerald-950/20 px-3.5 py-3 rounded-xs flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2.5">
+              <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="font-bold text-emerald-800 dark:text-emerald-300 uppercase tracking-wider">
+                Feeder Topology Normal • Zero Active Outages
+              </span>
+              <span className="text-slate-500 dark:text-zinc-400 text-[11px] hidden md:inline">
+                | Angamaly 33/11kV DTR-01 operating within nominal statutory limits. LoRa Last-Gasp listener active.
+              </span>
             </div>
+            <div className="flex items-center gap-1.5 text-[10px]">
+              <span className="px-2 py-0.5 rounded-xs border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold">
+                ANSI 87L: ARMED
+              </span>
+              <span className="px-2 py-0.5 rounded-xs border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold">
+                ANSI 46BC: SUPERVISED
+              </span>
+              <span className="px-2 py-0.5 rounded-xs border border-slate-300 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 font-semibold">
+                SOAK POLICY: 15m ESCALATION
+              </span>
+            </div>
+          </div>
+        ) : (
+          /* Active Outages Table */
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-[11px] border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 dark:border-zinc-800 text-slate-500 dark:text-zinc-400 text-[10px] uppercase font-semibold">
+                  <th className="py-2 px-2.5">Ticket ID</th>
+                  <th className="py-2 px-2.5">Detected</th>
+                  <th className="py-2 px-2.5">Feeder / Target Pole</th>
+                  <th className="py-2 px-2.5">GPS Waypoint</th>
+                  <th className="py-2 px-2.5">Fault Code</th>
+                  <th className="py-2 px-2.5">Soak / Status</th>
+                  <th className="py-2 px-2.5">Assigned Lineman</th>
+                  <th className="py-2 px-2.5 text-right">Operational Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/60">
+                {activeTicketsList.map((t) => {
+                  const isRowSoak = t.status === "WATCHING";
+                  const isRowEscalated = t.status === "ESCALATED";
+                  const isRowDispatched = t.status === "DISPATCHED" || t.status === "CREW_ON_SITE" || t.status === "PTW_ISSUED";
+                  const timeStr = new Date(t.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
-            <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-              Select any designated line crew to trigger an automated Telegram dispatch order with GPS waypoint coordinates, live fault data, and safety protocol.
-            </p>
+                  return (
+                    <tr
+                      key={t.ticketId}
+                      className={`hover:bg-slate-50 dark:hover:bg-zinc-900/50 transition-colors ${
+                        isRowEscalated
+                          ? "bg-rose-50/40 dark:bg-rose-950/20"
+                          : isRowSoak
+                          ? "bg-amber-50/30 dark:bg-amber-950/15"
+                          : "bg-cyan-50/30 dark:bg-cyan-950/15"
+                      }`}
+                    >
+                      {/* Ticket ID */}
+                      <td className="py-2 px-2.5 font-bold text-slate-900 dark:text-zinc-100 whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`h-1.5 w-1.5 rounded-full ${
+                              isRowEscalated ? "bg-rose-500 animate-ping" : isRowSoak ? "bg-amber-500 animate-spin" : "bg-cyan-500"
+                            }`}
+                          />
+                          <span>{t.ticketId}</span>
+                        </div>
+                      </td>
 
-            {/* Crew Cards */}
-            <div className="space-y-2">
-              {crews.map((crew) => {
-                const isAssigned = effectiveTicket?.assignedPhone === crew.phone;
-                return (
-                  <div
-                    key={crew.id}
-                    className={`border p-2.5 rounded-sm transition-all ${
-                      isAssigned
-                        ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 shadow-xs"
-                        : "border-slate-200 dark:border-zinc-800 bg-slate-50/60 dark:bg-zinc-950/60 hover:border-slate-300 dark:hover:border-zinc-700"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="font-bold text-slate-900 dark:text-zinc-100 text-xs flex items-center gap-1.5">
-                          <span>{crew.name}</span>
-                          {isAssigned && (
-                            <Badge variant="healthy" className="text-[8px] py-0 px-1">
-                              ACTIVE DISPATCH
+                      {/* Detected Time */}
+                      <td className="py-2 px-2.5 text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                        {timeStr}
+                      </td>
+
+                      {/* Feeder / Pole */}
+                      <td className="py-2 px-2.5 whitespace-nowrap">
+                        <span className="font-bold text-slate-800 dark:text-zinc-200">{t.affectedPole}</span>
+                        <span className="text-[10px] text-slate-400 block">{t.feederName}</span>
+                      </td>
+
+                      {/* GPS Waypoint */}
+                      <td className="py-2 px-2.5 whitespace-nowrap">
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${t.gps.lat.toFixed(6)},${t.gps.lng.toFixed(6)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 font-semibold tabular-nums"
+                          title="Open exact sub-meter pin in Google Maps"
+                        >
+                          <MapPin className="h-3 w-3 shrink-0 text-cyan-500" />
+                          <span>{t.gps.lat.toFixed(6)}°N, {t.gps.lng.toFixed(6)}°E</span>
+                          <ExternalLink className="h-2.5 w-2.5 opacity-60" />
+                        </a>
+                      </td>
+
+                      {/* Fault Code */}
+                      <td className="py-2 px-2.5 font-semibold text-rose-600 dark:text-rose-400 whitespace-nowrap">
+                        {t.faultType}
+                      </td>
+
+                      {/* Soak / Status */}
+                      <td className="py-2 px-2.5 whitespace-nowrap">
+                        {isRowSoak ? (
+                          <div className="space-y-1">
+                            <Badge variant="warning" className="flex items-center gap-1 text-[10px] py-0 px-1.5">
+                              <Clock className="h-2.5 w-2.5 animate-spin" />
+                              <span>SOAK: {soakRemaining.label}</span>
                             </Badge>
-                          )}
-                        </div>
-                        <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
-                          Leader: <strong>{crew.leader}</strong> • {crew.type}
-                        </div>
-                        <div className="text-[10px] text-slate-500 dark:text-zinc-400">
-                          Base: {crew.baseStation} • Vehicle: {crew.vehicle}
-                        </div>
-                      </div>
+                            <div className="w-24 bg-amber-200 dark:bg-amber-950 rounded-full h-1 overflow-hidden">
+                              <div
+                                className="bg-amber-500 h-1 transition-all duration-1000 ease-linear rounded-full"
+                                style={{ width: `${soakRemaining.percent}%` }}
+                              />
+                            </div>
+                          </div>
+                        ) : isRowEscalated ? (
+                          <Badge variant="destructive" className="animate-pulse text-[10px]">
+                            ESCALATED (DISPATCH REQ)
+                          </Badge>
+                        ) : (
+                          <Badge variant="healthy" className="text-[10px]">
+                            {t.status.replace(/_/g, " ")}
+                          </Badge>
+                        )}
+                      </td>
 
-                      <div className="text-right shrink-0">
+                      {/* Assigned Lineman */}
+                      <td className="py-2 px-2.5 whitespace-nowrap">
+                        {t.assignedCrew ? (
+                          <div className="flex items-center gap-1 text-slate-800 dark:text-zinc-200 font-bold">
+                            <User className="h-3 w-3 text-cyan-500" />
+                            <span>{t.assignedCrew}</span>
+                          </div>
+                        ) : (
+                          <span className="text-slate-400 italic">Unassigned</span>
+                        )}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-2 px-2.5 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {isRowEscalated && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => setIsDispatchModalOpen(true)}
+                              className="h-6 px-2.5 text-[10px] font-bold shadow-xs cursor-pointer flex items-center gap-1"
+                            >
+                              <Send className="h-3 w-3" />
+                              <span>Dispatch Lineman (Telegram) ➔</span>
+                            </Button>
+                          )}
+
+                          {isRowSoak && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={handleEscalateEarly}
+                                disabled={isSubmitting}
+                                className="h-6 px-2 text-[10px] font-bold cursor-pointer"
+                              >
+                                Escalate Early ➔
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleFlagMaintenance}
+                                disabled={isSubmitting}
+                                className="h-6 px-2 text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-400 cursor-pointer"
+                              >
+                                Flag Maint
+                              </Button>
+                            </>
+                          )}
+
+                          {isRowDispatched && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={handleCloseTicket}
+                              disabled={isSubmitting}
+                              className="h-6 px-2 text-[10px] border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold hover:bg-emerald-50 cursor-pointer"
+                            >
+                              <CheckCircle2 className="h-3 w-3 mr-1" />
+                              Clear PTW &amp; Close
+                            </Button>
+                          )}
+
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => setAuditModalTicket(t)}
+                            className="h-6 px-2 text-[10px] text-slate-500 hover:text-slate-900 dark:hover:text-white cursor-pointer"
+                            title="View SCADA worklog & directives"
+                          >
+                            <FileText className="h-3 w-3 mr-1" />
+                            Log
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ============================================================== */}
+      {/* 3. TABLE 2: RESOLVED OUTAGES & RESTORATION LEDGER              */}
+      {/* ============================================================== */}
+      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] rounded-sm p-3 shadow-sm flex flex-col flex-1 min-h-0 space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-zinc-800 pb-2">
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-slate-500" />
+            <span className="font-bold uppercase tracking-wider text-xs text-slate-900 dark:text-zinc-100">
+              Outage Restoration &amp; Resolved Incidents Ledger
+            </span>
+            <Badge variant="outline" className="text-[9px]">
+              {filteredClosedTickets.length} RECORDS
+            </Badge>
+          </div>
+
+          {/* Filter Tabs */}
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-900 p-0.5 rounded-xs border border-slate-200 dark:border-zinc-800 text-[10px]">
+            <button
+              onClick={() => setHistoryFilter("ALL")}
+              className={`px-2 py-0.5 rounded-xs cursor-pointer transition-colors ${
+                historyFilter === "ALL"
+                  ? "bg-white dark:bg-zinc-800 font-bold text-slate-900 dark:text-white shadow-xs"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              All ({closedTickets.length})
+            </button>
+            <button
+              onClick={() => setHistoryFilter("AUTO_CLEARED")}
+              className={`px-2 py-0.5 rounded-xs cursor-pointer transition-colors ${
+                historyFilter === "AUTO_CLEARED"
+                  ? "bg-white dark:bg-zinc-800 font-bold text-slate-900 dark:text-white shadow-xs"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              Auto-Cleared (Soak)
+            </button>
+            <button
+              onClick={() => setHistoryFilter("FIELD_REPAIRED")}
+              className={`px-2 py-0.5 rounded-xs cursor-pointer transition-colors ${
+                historyFilter === "FIELD_REPAIRED"
+                  ? "bg-white dark:bg-zinc-800 font-bold text-slate-900 dark:text-white shadow-xs"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              Lineman Repaired
+            </button>
+            <button
+              onClick={() => setHistoryFilter("MAINTENANCE")}
+              className={`px-2 py-0.5 rounded-xs cursor-pointer transition-colors ${
+                historyFilter === "MAINTENANCE"
+                  ? "bg-white dark:bg-zinc-800 font-bold text-slate-900 dark:text-white shadow-xs"
+                  : "text-slate-500 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              Maintenance
+            </button>
+          </div>
+        </div>
+
+        {/* Tabular History View */}
+        <div className="overflow-y-auto flex-1 min-h-0">
+          <table className="w-full text-left text-[11px] border-collapse">
+            <thead className="sticky top-0 bg-white dark:bg-[#0f1115] z-10">
+              <tr className="border-b border-slate-200 dark:border-zinc-800 text-slate-500 dark:text-zinc-400 text-[10px] uppercase font-semibold">
+                <th className="py-2 px-2.5">Ticket ID</th>
+                <th className="py-2 px-2.5">Restored Time</th>
+                <th className="py-2 px-2.5">Feeder / Affected Span</th>
+                <th className="py-2 px-2.5">GPS Waypoint</th>
+                <th className="py-2 px-2.5">Fault Reason</th>
+                <th className="py-2 px-2.5">Outage Duration</th>
+                <th className="py-2 px-2.5">Resolution Outcome</th>
+                <th className="py-2 px-2.5 text-right">Audit Trail</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-zinc-800/60">
+              {filteredClosedTickets.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="text-center py-8 text-slate-400 dark:text-zinc-500 text-xs">
+                    No resolved records found in this category.
+                  </td>
+                </tr>
+              ) : (
+                filteredClosedTickets.map((t) => {
+                  const hasCrew = Boolean(t.assignedCrew && !t.assignedCrew.toLowerCase().startsWith("unassigned"));
+                  const isMaint = t.status === "MAINTENANCE_SUPPRESSED";
+                  const timeStr = new Date(t.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                  
+                  // Approximate duration from worklog or soak
+                  const durationStr = isMaint ? "Suppressed" : hasCrew ? "~12 mins" : "~1 min (Soak)";
+
+                  return (
+                    <tr key={t.ticketId} className="hover:bg-slate-50 dark:hover:bg-zinc-900/50 transition-colors">
+                      {/* Ticket ID */}
+                      <td className="py-2 px-2.5 font-bold text-slate-800 dark:text-zinc-200 whitespace-nowrap">
+                        {t.ticketId}
+                      </td>
+
+                      {/* Restored Time */}
+                      <td className="py-2 px-2.5 text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                        {timeStr}
+                      </td>
+
+                      {/* Feeder / Location */}
+                      <td className="py-2 px-2.5 whitespace-nowrap">
+                        <span className="font-semibold text-slate-800 dark:text-zinc-200">{t.affectedPole}</span>
+                        <span className="text-[10px] text-slate-400 block">{t.feederName}</span>
+                      </td>
+
+                      {/* GPS */}
+                      <td className="py-2 px-2.5 whitespace-nowrap">
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${t.gps.lat.toFixed(6)},${t.gps.lng.toFixed(6)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 tabular-nums font-medium"
+                          title="View on Google Maps"
+                        >
+                          <MapPin className="h-3 w-3 text-cyan-500" />
+                          <span>{t.gps.lat.toFixed(6)}°N, {t.gps.lng.toFixed(6)}°E</span>
+                        </a>
+                      </td>
+
+                      {/* Fault Reason */}
+                      <td className="py-2 px-2.5 text-slate-700 dark:text-zinc-300 font-medium whitespace-nowrap">
+                        {t.faultType}
+                      </td>
+
+                      {/* Duration */}
+                      <td className="py-2 px-2.5 text-slate-500 dark:text-zinc-400 whitespace-nowrap">
+                        {durationStr}
+                      </td>
+
+                      {/* Outcome Badge */}
+                      <td className="py-2 px-2.5 whitespace-nowrap">
+                        {isMaint ? (
+                          <Badge variant="warning" className="text-[9px]">
+                            MAINTENANCE
+                          </Badge>
+                        ) : hasCrew ? (
+                          <Badge variant="healthy" className="text-[9px]">
+                            REPAIRED ({t.assignedCrew.split(" ")[0].toUpperCase()})
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-[9px]">
+                            AUTO-CLEARED (SOAK)
+                          </Badge>
+                        )}
+                      </td>
+
+                      {/* Audit Action */}
+                      <td className="py-2 px-2.5 text-right whitespace-nowrap">
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => {
-                            setSelectedCrewId(crew.id);
-                            setIsDispatchModalOpen(true);
-                          }}
-                          className="h-6 px-2 text-[10px] border-cyan-500/60 text-cyan-700 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-950/40 flex items-center gap-1"
+                          onClick={() => setAuditModalTicket(t)}
+                          className="h-6 px-2 text-[10px] text-slate-600 dark:text-zinc-300 hover:text-slate-900 dark:hover:text-white cursor-pointer"
                         >
-                          <Send className="h-2.5 w-2.5 text-cyan-500" />
-                          Telegram Dispatch
+                          <FileText className="h-3 w-3 mr-1" />
+                          Audit Trail
                         </Button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ============================================================== */}
+      {/* 4. BOTTOM BAR: DUTY LINEMEN & SCADA SAFETY PROTOCOL STRIP      */}
+      {/* ============================================================== */}
+      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] rounded-sm p-2.5 shadow-sm shrink-0 flex flex-wrap items-center justify-between gap-3 text-xs">
+        {/* Lineman Readiness */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 mr-2">
+            <UserCheck className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
+            <span className="font-bold uppercase tracking-wider text-[10px] text-slate-600 dark:text-zinc-400">
+              Duty Linemen:
+            </span>
           </div>
 
-          {/* Safety & Permit-To-Work (PTW) Regulatory Center */}
-          <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] rounded-sm p-3.5 shadow-sm space-y-3">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-2">
-              <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-amber-500" />
-                <span className="font-bold uppercase tracking-wider text-xs text-slate-900 dark:text-zinc-100">
-                  SCADA Reclosing Lockout &amp; PTW Protocol
-                </span>
-              </div>
-              <Badge variant="outline" className="text-[9px]">
-                CEA SEC 44 / IEEE 1686
-              </Badge>
-            </div>
-
-            <div className="bg-slate-50 dark:bg-zinc-950 p-2.5 rounded-xs border border-slate-200 dark:border-zinc-800 text-[11px] space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500 dark:text-zinc-400">Breaker Remote Reclose:</span>
-                <span className={`font-bold ${isPtwActive ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400"}`}>
-                  {isPtwActive ? "INHIBITED (LOTO INTERLOCK ENGAGED)" : "PERMITTED (NORMAL SUPERVISION)"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500 dark:text-zinc-400">Earthing &amp; Line Discharge:</span>
-                <span className="font-bold text-slate-800 dark:text-zinc-200">
-                  {isPtwActive ? "Portable Grounding Sets Applied" : "Normal Energization"}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-slate-500 dark:text-zinc-400">Digital Safety Token:</span>
-                <span className="font-mono text-cyan-600 dark:text-cyan-400">
-                  {effectiveTicket?.ptw?.ptwNumber || "NONE-STANDBY"}
-                </span>
-              </div>
-            </div>
-
-            {effectiveTicket && effectiveTicket.status !== "WATCHING" && (
-              <div className="pt-1 flex gap-2">
-                {!isPtwActive ? (
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={async () => {
-                      if (!effectiveTicket) return;
-                      await fetch("/api/oms/tickets", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                          action: "issue_ptw",
-                          ticketId: effectiveTicket.ticketId,
-                          linemanName: "K. P. Rajesh",
-                        }),
-                      });
-                      if (onRefresh) onRefresh();
-                    }}
-                    className="w-full h-7 text-[10px] font-bold"
-                  >
-                    <Lock className="h-3 w-3 mr-1" />
-                    Engage SCADA Reclose Lockout (Issue PTW)
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleCloseTicket}
-                    className="w-full h-7 text-[10px] font-bold border-emerald-500 text-emerald-600 hover:bg-emerald-50"
-                  >
-                    <Unlock className="h-3 w-3 mr-1" />
-                    Surrender PTW &amp; Authorize Reclose
-                  </Button>
+          {linemen.map((lm) => {
+            const isAssigned = effectiveTicket?.assignedPhone === lm.phone;
+            return (
+              <div
+                key={lm.id}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xs border text-[10px] ${
+                  lm.status === "ON_DUTY"
+                    ? "border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-300 font-semibold"
+                    : "border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/40 text-slate-600 dark:text-zinc-400"
+                }`}
+              >
+                <span
+                  className={`h-1.5 w-1.5 rounded-full ${
+                    lm.status === "ON_DUTY" ? "bg-emerald-500" : "bg-slate-400"
+                  }`}
+                />
+                <span className="font-bold">{lm.name}</span>
+                <span className="text-[9px] text-slate-400">({lm.role.split(" ")[0]})</span>
+                {isAssigned && (
+                  <Badge variant="healthy" className="text-[8px] py-0 px-1 ml-1">
+                    ACTIVE
+                  </Badge>
                 )}
               </div>
+            );
+          })}
+        </div>
+
+        {/* SCADA Reclose Lockout Status */}
+        <div className="flex items-center gap-3 text-[11px] font-semibold">
+          <div className="flex items-center gap-1.5">
+            {isPtwActive ? (
+              <>
+                <Lock className="h-3.5 w-3.5 text-rose-500" />
+                <span className="text-rose-600 dark:text-rose-400">LOTO LOCKED // Remote Reclose Blocked (CEA Sec 44)</span>
+              </>
+            ) : (
+              <>
+                <Unlock className="h-3.5 w-3.5 text-emerald-500" />
+                <span className="text-emerald-600 dark:text-emerald-400">RECLOSE PERMITTED // Supervisory Interlock Ready</span>
+              </>
             )}
           </div>
         </div>
       </div>
 
       {/* ============================================================== */}
-      {/* 3. MANUAL FIELD CREW DISPATCH MODAL                            */}
+      {/* 5. MANUAL FIELD LINEMAN DISPATCH MODAL                         */}
       {/* ============================================================== */}
       {isDispatchModalOpen && effectiveTicket && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
@@ -1031,7 +997,7 @@ export function WorkforceOmsPanel({
                 <UserCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
                 <div>
                   <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 uppercase">
-                    AUTHORIZE FIELD CREW DISPATCH (KSEB OMS)
+                    AUTHORIZE LINEMAN DISPATCH (KSEB OMS)
                   </h3>
                   <span className="text-[10px] text-slate-500 dark:text-zinc-400">
                     Ticket: {effectiveTicket.ticketId} • Feeder: {effectiveTicket.feederName}
@@ -1040,7 +1006,7 @@ export function WorkforceOmsPanel({
               </div>
               <button
                 onClick={() => setIsDispatchModalOpen(false)}
-                className="text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs px-2 py-0.5 border border-slate-300 dark:border-zinc-700 rounded-xs"
+                className="text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs px-2 py-0.5 border border-slate-300 dark:border-zinc-700 rounded-xs cursor-pointer"
               >
                 ✕
               </button>
@@ -1064,30 +1030,34 @@ export function WorkforceOmsPanel({
               </div>
             </div>
 
-            {/* Crew Selection */}
+            {/* Lineman Selection */}
             <div className="space-y-1.5">
               <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
-                Select Designated KSEB Field Unit
+                Select Designated Duty Lineman
               </label>
               <div className="space-y-1.5">
-                {crews.map((crew) => (
+                {linemen.map((lm) => (
                   <div
-                    key={crew.id}
-                    onClick={() => setSelectedCrewId(crew.id)}
+                    key={lm.id}
+                    onClick={() => setSelectedLinemanId(lm.id)}
                     className={`p-2.5 rounded-xs border cursor-pointer flex items-center justify-between text-xs transition-all ${
-                      selectedCrewId === crew.id
+                      selectedLinemanId === lm.id
                         ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 ring-1 ring-emerald-500"
                         : "border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/60 hover:border-slate-400"
                     }`}
                   >
                     <div>
-                      <div className="font-bold text-slate-900 dark:text-zinc-100">{crew.name}</div>
-                      <div className="text-[10px] text-slate-500 dark:text-zinc-400">
-                        Leader: {crew.leader} • Phone: {crew.phone}
+                      <div className="font-bold text-slate-900 dark:text-zinc-100 flex items-center gap-1.5">
+                        <User className="h-3 w-3 text-slate-400" />
+                        <span>{lm.name}</span>
+                        <span className="text-[10px] text-slate-500 font-normal">({lm.role})</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                        Section: {lm.section} • Mobile: {lm.phone}
                       </div>
                     </div>
-                    <Badge variant={selectedCrewId === crew.id ? "healthy" : "outline"} className="text-[9px]">
-                      {selectedCrewId === crew.id ? "SELECTED" : "AVAILABLE"}
+                    <Badge variant={selectedLinemanId === lm.id ? "healthy" : "outline"} className="text-[9px]">
+                      {selectedLinemanId === lm.id ? "SELECTED" : "AVAILABLE"}
                     </Badge>
                   </div>
                 ))}
@@ -1097,7 +1067,7 @@ export function WorkforceOmsPanel({
             {/* Custom Notes */}
             <div className="space-y-1">
               <label className="block text-[11px] font-semibold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
-                Operator Instructions to Field Crew (Optional)
+                Operator Instructions to Lineman (Optional)
               </label>
               <input
                 type="text"
@@ -1112,7 +1082,7 @@ export function WorkforceOmsPanel({
             <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-zinc-800">
               <div className="text-[10px] text-slate-500 dark:text-zinc-400 flex items-center gap-1">
                 <Send className="h-3 w-3 text-cyan-500" />
-                <span>Automated background dispatch via Telegram Bot</span>
+                <span>Background automated dispatch via Telegram Bot</span>
               </div>
 
               <div className="flex gap-2">
@@ -1120,7 +1090,7 @@ export function WorkforceOmsPanel({
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsDispatchModalOpen(false)}
-                  className="text-xs h-8"
+                  className="text-xs h-8 cursor-pointer"
                 >
                   Cancel
                 </Button>
@@ -1129,12 +1099,81 @@ export function WorkforceOmsPanel({
                   size="sm"
                   disabled={isSubmitting}
                   onClick={handleConfirmManualDispatch}
-                  className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs h-8 px-4 flex items-center gap-1.5 shadow-sm"
+                  className="bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs h-8 px-4 flex items-center gap-1.5 shadow-sm cursor-pointer"
                 >
                   <Send className="h-3.5 w-3.5" />
                   <span>{isSubmitting ? "Dispatching..." : "Send Telegram Dispatch Alert ➔"}</span>
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* 6. AUDIT TRAIL MODAL                                           */}
+      {/* ============================================================== */}
+      {auditModalTicket && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#0f1115] border border-slate-300 dark:border-zinc-700 rounded-sm w-full max-w-lg p-5 font-mono shadow-2xl space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-2.5">
+              <div className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-zinc-100 uppercase">
+                    SCADA AUDIT LOG // {auditModalTicket.ticketId}
+                  </h3>
+                  <span className="text-[10px] text-slate-500 dark:text-zinc-400">
+                    Location: {auditModalTicket.affectedPole} • {auditModalTicket.feederName}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setAuditModalTicket(null)}
+                className="text-slate-400 hover:text-slate-900 dark:hover:text-white text-xs px-2 py-0.5 border border-slate-300 dark:border-zinc-700 rounded-xs cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Ticket Metadata Bar */}
+            <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-50 dark:bg-zinc-950 p-2.5 rounded-xs border border-slate-200 dark:border-zinc-800">
+              <div>
+                <span className="text-slate-500 block text-[10px]">FAULT CLASSIFICATION</span>
+                <span className="font-bold text-rose-600 dark:text-rose-400">{auditModalTicket.faultType}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block text-[10px]">GPS LOCATION</span>
+                <span className="font-bold text-cyan-600 dark:text-cyan-400 tabular-nums">
+                  {auditModalTicket.gps.lat.toFixed(6)}°N, {auditModalTicket.gps.lng.toFixed(6)}°E
+                </span>
+              </div>
+            </div>
+
+            {/* Chronological WorkLog */}
+            <div className="space-y-1">
+              <div className="text-[10px] font-semibold text-slate-500 dark:text-zinc-400 uppercase tracking-wider">
+                Chronological Directives &amp; Restoration Events
+              </div>
+              <div className="bg-slate-50 dark:bg-zinc-950 p-3 rounded-xs border border-slate-200 dark:border-zinc-800 max-h-56 overflow-y-auto space-y-1.5 text-[11px] font-mono">
+                {auditModalTicket.workLog.map((log, idx) => (
+                  <div key={idx} className="text-slate-700 dark:text-zinc-300 flex items-start gap-2">
+                    <span className="text-emerald-500 shrink-0 font-bold">›</span>
+                    <span>{log}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-slate-200 dark:border-zinc-800">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAuditModalTicket(null)}
+                className="text-xs h-7 cursor-pointer"
+              >
+                Close Audit Trail
+              </Button>
             </div>
           </div>
         </div>

@@ -39,7 +39,7 @@ export async function sendTelegramDispatchAlert(params: {
 🎯 *Affected Location:* *${params.ticket.affectedPole}*
 🧭 *GPS Waypoint:* \`${params.ticket.gps.lat.toFixed(6)}, ${params.ticket.gps.lng.toFixed(6)}\`
 🗺️ *Navigation:* [Open GPS Navigation in Google Maps](${mapsUrl})
-👷 *Designated Field Unit:* ${params.crewName || "Primary Line Patrol"} (${params.crewType || "Overhead Line Crew"})
+👷 *Designated Lineman:* ${params.crewName || "K. P. Rajesh"} (${params.crewType || "Duty Lineman"})
 ⏰ *Dispatched At:* ${now}
 ${params.operatorNotes ? `📝 *Operator Instructions:* _"${params.operatorNotes}"_\n` : ""}━━━━━━━━━━━━━━━━━━━━━━
 🛡️ *CEA Regulation 44 Safety Protocol:*
