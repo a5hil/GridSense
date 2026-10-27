@@ -65,24 +65,14 @@ By combining split-core CT AC energy monitors (**PZEM-004T v4.0**), Sub-GHz LoRa
 │   │   ├── gridsense_crypto.cpp/.h    # Hardware AES-128 decryption
 │   │   ├── gridsense_packet.cpp/.h    # Frame decoder & deduplicator
 │   │   └── lr1121_rx.cpp/.h           # LR1121 background LoRa receiver
-│   ├── Dashboard/                     # Legacy Python Tkinter GUI
-│   │   ├── gridsense_dashboard.py     # Dark-theme Tkinter GUI & demo engine
-│   │   └── run_dashboard.bat          # One-click Windows desktop launcher
-│   └── README.md                      # Detailed system operating instructions
-│
-├── ESP32-S3-LR1121-XF-main/           # 📘 Board Schematics & Hardware Datasheets
-└── archive/                           # 📦 Preserved Legacy Prototypes
-    ├── GridSense_EdgeNode_Legacy/     # Early single-pole prototype
-    ├── GridSense_Gateway_Legacy/      # Early single-receiver sketch
-    ├── Waveshare_LoRa_Communication_HF/# Vendor SPI RF sample tests
-    └── README.md                      # Archive index
+│   └── README.md                      # Detailed firmware flashing & wiring instructions
 ```
 
 ---
 
 ## ⚡ Quick Start Guide
 
-### 1. Web SCADA & OMS Dashboard (Recommended)
+### 1. Web SCADA & OMS Dashboard
 ```bash
 cd web-dashboard
 npm install
@@ -90,17 +80,17 @@ npm run dev
 ```
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 * Zero configuration required (runs with embedded simulation & in-memory database).
-* Connects automatically to the Gateway USB serial port if plugged in.
+* Connects automatically to the Gateway USB serial port (`COM8` or auto-detected) if plugged in.
 
 ### 2. Flashing the Hardware (Arduino IDE)
-* **Board:** `ESP32S3 Dev Module` (USB CDC On Boot: *Enabled*, Flash Size: *8MB*)
+* **Board:** `ESP32S3 Dev Module` (USB CDC On Boot: *Enabled*, Flash Size: *4MB*)
 * **Flash Gateway:** Open [`GridSense_TwoPole_System/Central_Gateway/Central_Gateway.ino`](GridSense_TwoPole_System/Central_Gateway/Central_Gateway.ino) and upload.
 * **Flash Pole 1 (Repeater):** Open [`GridSense_TwoPole_System/EdgeNode_Pole/EdgeNode_Pole.ino`](GridSense_TwoPole_System/EdgeNode_Pole/EdgeNode_Pole.ino), ensure `#define POLE_ID 1`, and upload.
 * **Flash Pole 2 (Endpoint):** In `EdgeNode_Pole.ino`, set `#define POLE_ID 2`, and upload.
 
-### 3. Launching Legacy Desktop GUI (Optional)
-Double-click [`GridSense_TwoPole_System/Dashboard/run_dashboard.bat`](GridSense_TwoPole_System/Dashboard/run_dashboard.bat) or run:
+### 3. Remote Cloud Hosting (Render)
+To stream local physical hardware to a cloud-deployed dashboard:
 ```bash
-cd GridSense_TwoPole_System/Dashboard
-python gridsense_dashboard.py
+cd web-dashboard
+npm run bridge -- https://your-gridsense-app.onrender.com
 ```

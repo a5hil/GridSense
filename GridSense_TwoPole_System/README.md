@@ -53,25 +53,28 @@ GridSense demonstrates an IoT-based Fault Detection, Isolation, and Restoration 
 
 ---
 
-## 3. Running the Python Supervisory Dashboard
+## 3. Running the SCADA Web Dashboard
 
-A standalone Python dashboard is provided in [`Dashboard/`](Dashboard/).
+The primary supervisory control and outage management desk is built in Next.js in [`web-dashboard/`](../web-dashboard/).
 
-1. Simply double-click [`run_dashboard.bat`](run_dashboard.bat) or run:
+1. Navigate to the web dashboard directory:
    ```bash
-   python Dashboard/gridsense_dashboard.py
+   cd web-dashboard
+   npm install
+   npm run dev
    ```
-2. In the top-right corner of the dashboard:
-   - Select the COM Port of the **Central Gateway** (Board 3).
-   - Click **Connect**.
-3. Live telemetry from Pole 1 and Pole 2 will populate the dashboard, showing:
+2. Open [http://localhost:3000](http://localhost:3000) in your browser.
+3. Plug the Central Gateway (Board 3) into your PC via USB. The dashboard automatically connects to `COM8` (or auto-detects your port) and streams live telemetry, showing:
    - Real-time Voltages, Currents, Active Power, Frequency, PF, Energy.
    - RF Link Quality (RSSI in dBm, SNR in dB, Packet Sequence, Age).
    - Dynamic **Differential Current Gauge** ($|I_1 - I_2|$) with safety limit marker at $0.350\text{ A}$.
-   - Central FDIR Protection Decision banner.
+   - Central FDIR Protection Decision banner & Outage Management System (OMS).
    - Live timestamped event and packet log.
 
-> **Offline Demonstration:** Click **▶ Demo Mode** in the dashboard to simulate both poles and live FDIR fault injections without needing hardware plugged in.
+> **Remote Cloud Hosting:** If hosting the dashboard on Render, simply run the serial bridge on your laptop:
+> ```bash
+> npm run bridge -- https://your-app.onrender.com
+> ```
 
 ---
 
