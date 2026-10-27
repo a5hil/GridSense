@@ -24,7 +24,7 @@ const targetUrl = (
   "http://localhost:3000"
 ).replace(/\/+$/, "");
 
-const targetPort =
+const configuredPort =
   process.argv[3] || process.env.SERIAL_PORT || "COM8";
 
 const bridgeSecret =
@@ -39,11 +39,13 @@ console.log("  ⚡ GridSense SCADA Cloud Serial Bridge");
 console.log("============================================================");
 console.log(`  Target Cloud URL : ${targetUrl}`);
 console.log(`  Ingest Endpoint  : ${INGEST_URL}`);
-console.log(`  Local COM Port   : ${targetPort} @ ${BAUD_RATE} baud`);
+console.log(`  Configured Port  : ${configuredPort} (Auto-detection enabled)`);
+console.log(`  Baud Rate        : ${BAUD_RATE}`);
 console.log(`  Auth Token       : ${bridgeSecret ? "Configured (Secure)" : "None (Public Mode)"}`);
 console.log("============================================================\n");
 
 let activePort = null;
+let currentConnectedPort = null;
 let parser = null;
 let pollTimer = null;
 let packetCount = 0;
@@ -86,7 +88,7 @@ async function forwardTelemetry(payload) {
 
     const enhancedPayload = {
       ...payload,
-      __port: `${targetPort} (Bridge)`,
+      __port: `${currentConnectedPort || configuredPort} (Bridge)`,
     };
 
     const res = await fetch(INGEST_URL, {
@@ -193,13 +195,52 @@ function handleIncomingLine(raw) {
   }
 }
 
-function connectPort() {
+async function resolveTargetPort() {
+  const available = await listPorts();
+  if (available.length === 0) return configuredPort;
+
+  // 1. If configured port is present, use it directly
+  const exact = available.find(
+    (p) => p.path.toUpperCase() === configuredPort.toUpperCase()
+  );
+  if (exact) return exact.path;
+
+  // 2. Otherwise auto-detect ESP32 / Gateway serial chipset
+  const likely = available.find(
+    (p) =>
+      p.manufacturer?.toLowerCase().includes("espressif") ||
+      p.manufacturer?.toLowerCase().includes("silicon") ||
+      p.manufacturer?.toLowerCase().includes("wch") ||
+      p.manufacturer?.toLowerCase().includes("ch340") ||
+      p.friendlyName?.toLowerCase().includes("cp210") ||
+      p.friendlyName?.toLowerCase().includes("ch340") ||
+      p.friendlyName?.toLowerCase().includes("usb-serial") ||
+      (p.friendlyName?.toLowerCase().includes("usb") &&
+        !p.manufacturer?.toLowerCase().includes("microsoft"))
+  );
+
+  if (likely) {
+    console.log(`[Serial] Auto-detected ESP32 Gateway on ${likely.path} (${likely.friendlyName || likely.manufacturer})`);
+    return likely.path;
+  }
+
+  // 3. If only one COM port is available on the machine, select it
+  if (available.length === 1) {
+    console.log(`[Serial] Auto-selected single available port: ${available[0].path}`);
+    return available[0].path;
+  }
+
+  return configuredPort;
+}
+
+async function connectPort() {
   if (isReconnecting) return;
 
-  console.log(`[Serial] Connecting to ${targetPort}...`);
+  const activePortPath = await resolveTargetPort();
+  console.log(`[Serial] Connecting to ${activePortPath}...`);
 
   activePort = new SerialPort({
-    path: targetPort,
+    path: activePortPath,
     baudRate: BAUD_RATE,
     autoOpen: false,
     hupcl: false,
@@ -209,13 +250,14 @@ function connectPort() {
 
   activePort.open(async (err) => {
     if (err) {
-      console.error(`[Serial] Could not open ${targetPort}: ${err.message}`);
+      console.error(`[Serial] Could not open ${activePortPath}: ${err.message}`);
       const available = await listPorts();
       if (available.length > 0) {
         console.log("Available COM Ports on this machine:");
         available.forEach((p) => {
           console.log(`  - ${p.path} (${p.manufacturer || "Generic"} - ${p.friendlyName || ""})`);
         });
+        console.log(`\n💡 Tip: You can specify any port: npm run bridge -- ${targetUrl} <PORT_NAME>\n`);
       } else {
         console.log("No COM ports currently detected. Please plug in the ESP32 Gateway USB cable.");
       }
@@ -227,7 +269,8 @@ function connectPort() {
       activePort.set({ dtr: false, rts: false }, () => {});
     } catch {}
 
-    console.log(`[Serial] ✓ Connected to ${targetPort} @ ${BAUD_RATE} baud.`);
+    currentConnectedPort = activePortPath;
+    console.log(`[Serial] ✓ Connected to ${activePortPath} @ ${BAUD_RATE} baud.`);
     console.log("[Bridge] Listening for ESP32 packets and forwarding to Cloud...\n");
 
     parser.on("data", (line) => {
@@ -243,7 +286,7 @@ function connectPort() {
     }, 3000);
 
     activePort.on("close", () => {
-      console.warn(`[Serial] Connection to ${targetPort} closed.`);
+      console.warn(`[Serial] Connection to ${currentConnectedPort || configuredPort} closed.`);
       cleanup();
       scheduleReconnect();
     });
@@ -267,13 +310,14 @@ function cleanup() {
     } catch {}
     activePort = null;
   }
+  currentConnectedPort = null;
   parser = null;
 }
 
 function scheduleReconnect() {
   if (isReconnecting) return;
   isReconnecting = true;
-  console.log(`[Serial] Retrying connection to ${targetPort} in 3 seconds...`);
+  console.log(`[Serial] Retrying connection in 3 seconds...`);
   setTimeout(() => {
     isReconnecting = false;
     connectPort();
