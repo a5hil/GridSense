@@ -359,10 +359,12 @@ class OmsManager {
 
   public clearPtw(ticketId: string, notes: string): boolean {
     const ticket = this.tickets.find((t) => t.ticketId === ticketId);
-    if (!ticket || !ticket.ptw) return false;
+    if (!ticket) return false;
 
-    ticket.ptw.reclosingInterlockActive = false;
-    ticket.ptw.clearedAt = new Date().toISOString();
+    if (ticket.ptw) {
+      ticket.ptw.reclosingInterlockActive = false;
+      ticket.ptw.clearedAt = new Date().toISOString();
+    }
     ticket.status = "CLOSED";
     ticket.workLog.push(
       `${new Date().toLocaleTimeString()} - PTW Cleared. Repairs: "${notes}". Safety interlock removed. Ticket CLOSED.`

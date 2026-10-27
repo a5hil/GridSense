@@ -326,8 +326,9 @@ export function WorkforceOmsPanel({
   };
 
   // Early Escalation (Bypass Soak)
-  const handleEscalateEarly = async () => {
-    if (!effectiveTicket) return;
+  const handleEscalateEarly = async (ticketId?: string) => {
+    const targetId = typeof ticketId === "string" ? ticketId : effectiveTicket?.ticketId;
+    if (!targetId) return;
     setIsSubmitting(true);
     try {
       await fetch("/api/oms/tickets", {
@@ -335,7 +336,7 @@ export function WorkforceOmsPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "escalate_early",
-          ticketId: effectiveTicket.ticketId,
+          ticketId: targetId,
         }),
       });
       if (onRefresh) onRefresh();
@@ -347,8 +348,9 @@ export function WorkforceOmsPanel({
   };
 
   // Flag as Scheduled Maintenance
-  const handleFlagMaintenance = async () => {
-    if (!effectiveTicket) return;
+  const handleFlagMaintenance = async (ticketId?: string) => {
+    const targetId = typeof ticketId === "string" ? ticketId : effectiveTicket?.ticketId;
+    if (!targetId) return;
     setIsSubmitting(true);
     try {
       await fetch("/api/oms/tickets", {
@@ -356,7 +358,7 @@ export function WorkforceOmsPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "flag_maintenance",
-          ticketId: effectiveTicket.ticketId,
+          ticketId: targetId,
           reason: "Scheduled Local Line & Vegetation Maintenance (Operator Suppressed)",
         }),
       });
@@ -369,8 +371,9 @@ export function WorkforceOmsPanel({
   };
 
   // Close Ticket & Release Interlock
-  const handleCloseTicket = async () => {
-    if (!effectiveTicket) return;
+  const handleCloseTicket = async (ticketId?: string) => {
+    const targetId = typeof ticketId === "string" ? ticketId : effectiveTicket?.ticketId;
+    if (!targetId) return;
     setIsSubmitting(true);
     try {
       await fetch("/api/oms/tickets", {
@@ -378,7 +381,7 @@ export function WorkforceOmsPanel({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "clear_ptw",
-          ticketId: effectiveTicket.ticketId,
+          ticketId: targetId,
           notes: "Repairs verified safe by operator. Feeder re-energized.",
         }),
       });
@@ -704,7 +707,7 @@ export function WorkforceOmsPanel({
                               <Button
                                 size="sm"
                                 variant="destructive"
-                                onClick={handleEscalateEarly}
+                                onClick={() => handleEscalateEarly(t.ticketId)}
                                 disabled={isSubmitting}
                                 className="h-6 px-2 text-[10px] font-bold cursor-pointer"
                               >
@@ -713,7 +716,7 @@ export function WorkforceOmsPanel({
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={handleFlagMaintenance}
+                                onClick={() => handleFlagMaintenance(t.ticketId)}
                                 disabled={isSubmitting}
                                 className="h-6 px-2 text-[10px] border-amber-500/40 text-amber-700 dark:text-amber-400 cursor-pointer"
                               >
@@ -726,7 +729,7 @@ export function WorkforceOmsPanel({
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={handleCloseTicket}
+                              onClick={() => handleCloseTicket(t.ticketId)}
                               disabled={isSubmitting}
                               className="h-6 px-2 text-[10px] border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold hover:bg-emerald-50 cursor-pointer"
                             >
