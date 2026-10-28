@@ -153,7 +153,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
   React.useEffect(() => {
     if (mapInstanceRef.current && mapLoaded) {
       const styleUrl = getMapStyleUrl(mapMode, theme);
-      mapInstanceRef.current.setStyle(styleUrl);
+      mapInstanceRef.current.setStyle(styleUrl, { diff: false });
       mapInstanceRef.current.once("style.load", () => {
         renderFeederVectors(mapInstanceRef.current);
         renderAssetMarkers(mapInstanceRef.current);
@@ -790,7 +790,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
     setMapMode(mode);
     if (mapInstanceRef.current) {
       const styleUrl = getMapStyleUrl(mode, theme);
-      mapInstanceRef.current.setStyle(styleUrl);
+      mapInstanceRef.current.setStyle(styleUrl, { diff: false });
       mapInstanceRef.current.once("style.load", () => {
         renderFeederVectors(mapInstanceRef.current);
         renderAssetMarkers(mapInstanceRef.current);
