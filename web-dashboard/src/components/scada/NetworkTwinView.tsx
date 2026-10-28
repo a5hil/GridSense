@@ -287,11 +287,11 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
           </div>
           <div className="mt-1 grid grid-cols-2 gap-2">
             <div>
-              <div className="text-[10px] text-slate-400">VOLTAGE</div>
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">VOLTAGE</div>
               <div className="text-base font-bold text-slate-900 dark:text-zinc-100">{dtr.voltage.R.toFixed(1)} V</div>
             </div>
             <div>
-              <div className="text-[10px] text-slate-400">TOTAL CURRENT</div>
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">TOTAL CURRENT</div>
               <div className="text-base font-bold text-rose-600 dark:text-rose-400">{dtr.current.R.toFixed(1)} A</div>
             </div>
           </div>
@@ -299,46 +299,46 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
 
         {/* Phase Y (Yellow Phase) */}
         <div className="border border-amber-500/30 bg-amber-500/5 dark:bg-amber-950/20 p-3 rounded-sm flex flex-col justify-between">
-          <div className="text-[11px] text-amber-600 dark:text-amber-400 font-bold flex items-center justify-between">
+          <div className="text-[11px] text-amber-700 dark:text-amber-400 font-bold flex items-center justify-between">
             <span className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-amber-400" />
               PHASE Y
             </span>
-            <Badge variant="outline" className="text-[9px] border-amber-500/50 text-amber-500 py-0 font-normal">
+            <Badge variant="outline" className="text-[9px] border-amber-500/50 text-amber-700 dark:text-amber-500 py-0 font-normal">
               120° LAG
             </Badge>
           </div>
           <div className="mt-1 grid grid-cols-2 gap-2">
             <div>
-              <div className="text-[10px] text-slate-400">VOLTAGE</div>
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">VOLTAGE</div>
               <div className="text-base font-bold text-slate-900 dark:text-zinc-100">{dtr.voltage.Y.toFixed(1)} V</div>
             </div>
             <div>
-              <div className="text-[10px] text-slate-400">TOTAL CURRENT</div>
-              <div className="text-base font-bold text-amber-600 dark:text-amber-400">{dtr.current.Y.toFixed(1)} A</div>
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">TOTAL CURRENT</div>
+              <div className="text-base font-bold text-amber-700 dark:text-amber-400">{dtr.current.Y.toFixed(1)} A</div>
             </div>
           </div>
         </div>
 
         {/* Phase B (Blue Phase) */}
         <div className="border border-cyan-500/30 bg-cyan-500/5 dark:bg-cyan-950/20 p-3 rounded-sm flex flex-col justify-between">
-          <div className="text-[11px] text-cyan-600 dark:text-cyan-400 font-bold flex items-center justify-between">
+          <div className="text-[11px] text-blue-700 dark:text-cyan-400 font-bold flex items-center justify-between">
             <span className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-cyan-400" />
+              <span className="h-2 w-2 rounded-full bg-blue-500 dark:bg-cyan-400" />
               PHASE B
             </span>
-            <Badge variant="outline" className="text-[9px] border-cyan-500/50 text-cyan-500 py-0 font-normal">
+            <Badge variant="outline" className="text-[9px] border-cyan-500/50 text-blue-700 dark:text-cyan-500 py-0 font-normal">
               240° LAG
             </Badge>
           </div>
           <div className="mt-1 grid grid-cols-2 gap-2">
             <div>
-              <div className="text-[10px] text-slate-400">VOLTAGE</div>
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">VOLTAGE</div>
               <div className="text-base font-bold text-slate-900 dark:text-zinc-100">{dtr.voltage.B.toFixed(1)} V</div>
             </div>
             <div>
-              <div className="text-[10px] text-slate-400">TOTAL CURRENT</div>
-              <div className="text-base font-bold text-cyan-600 dark:text-cyan-400">{dtr.current.B.toFixed(1)} A</div>
+              <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">TOTAL CURRENT</div>
+              <div className="text-base font-bold text-blue-700 dark:text-cyan-400">{dtr.current.B.toFixed(1)} A</div>
             </div>
           </div>
         </div>
@@ -550,10 +550,10 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                 key={d.key}
                 className={`p-2.5 rounded-sm border flex flex-col justify-between ${
                   d.severity === "CRITICAL"
-                    ? "bg-rose-900/40 border-rose-500 text-rose-100 ring-1 ring-rose-500/40"
+                    ? "bg-rose-50 dark:bg-rose-900/40 border-rose-300 dark:border-rose-500 text-rose-900 dark:text-rose-100 ring-1 ring-rose-400 dark:ring-rose-500/40"
                     : d.severity === "HIGH"
-                    ? "bg-amber-900/30 border-amber-500 text-amber-100"
-                    : "bg-slate-900/40 border-slate-700 text-slate-200"
+                    ? "bg-amber-50 dark:bg-amber-900/30 border-amber-300 dark:border-amber-500 text-amber-900 dark:text-amber-100"
+                    : "bg-slate-100 dark:bg-slate-900/40 border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-200"
                 }`}
               >
                 <div className="flex items-center justify-between mb-1">
@@ -561,7 +561,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                     <Badge variant="destructive" className="text-[9px] py-0 font-bold">
                       {d.ansi}
                     </Badge>
-                    <Badge variant="outline" className="text-[9px] py-0 border-slate-600">
+                    <Badge variant="outline" className="text-[9px] py-0 border-slate-400 dark:border-slate-600">
                       {d.source}
                     </Badge>
                     {d.phase && (
@@ -571,23 +571,23 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                             ? "bg-rose-500 text-white"
                             : d.phase === "Y"
                             ? "bg-amber-400 text-black"
-                            : "bg-cyan-500 text-white"
+                            : "bg-blue-600 dark:bg-cyan-500 text-white"
                         }`}
                       >
                         PHASE {d.phase}
                       </span>
                     )}
                   </div>
-                  <span className="text-[10px] text-slate-400">{d.feederId}</span>
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">{d.feederId}</span>
                 </div>
 
                 <div className="text-[11px] font-bold leading-tight my-1">{d.message}</div>
 
                 {d.isolate && (
-                  <div className="text-[10px] text-amber-300/90 bg-black/40 px-1.5 py-1 rounded-xs mt-1 border border-amber-500/30">
-                    <span className="font-bold text-amber-400">FLISR ISOLATION:</span> Open switch at {d.isolate.upstream} ➔ isolate downstream {d.isolate.downstream.join(", ")}
+                  <div className="text-[10px] text-amber-900 dark:text-amber-300/90 bg-amber-100/70 dark:bg-black/40 px-1.5 py-1 rounded-xs mt-1 border border-amber-300 dark:border-amber-500/30">
+                    <span className="font-bold text-amber-700 dark:text-amber-400">FLISR ISOLATION:</span> Open switch at {d.isolate.upstream} ➔ isolate downstream {d.isolate.downstream.join(", ")}
                     {d.customersAffected !== undefined && (
-                      <span className="text-slate-400 ml-1">({d.customersAffected} customers isolated)</span>
+                      <span className="text-slate-600 dark:text-slate-400 ml-1">({d.customersAffected} customers isolated)</span>
                     )}
                   </div>
                 )}
@@ -709,18 +709,18 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
         <div className="overflow-x-auto flex-1">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-slate-200 dark:border-zinc-800 text-[10px] text-slate-400 uppercase tracking-wider">
+              <tr className="border-b border-slate-200 dark:border-zinc-800 text-[10px] text-slate-600 dark:text-slate-400 font-bold uppercase tracking-wider">
                 <th className="py-2 px-2.5">NODE / DISTRIBUTION POLE</th>
                 <th className="py-2 px-2.5">FEEDER CORRIDOR</th>
                 <th className="py-2 px-2.5">METERING CLASS</th>
                 <th className="py-2 px-2.5">
-                  <span className="text-rose-500">PHASE R (LIVE CT/PT)</span>
+                  <span className="text-rose-600 dark:text-rose-500 font-bold">PHASE R (LIVE CT/PT)</span>
                 </th>
                 <th className="py-2 px-2.5">
-                  <span className="text-amber-500">PHASE Y</span>
+                  <span className="text-amber-700 dark:text-amber-500 font-bold">PHASE Y</span>
                 </th>
                 <th className="py-2 px-2.5">
-                  <span className="text-cyan-500">PHASE B</span>
+                  <span className="text-blue-700 dark:text-cyan-500 font-bold">PHASE B</span>
                 </th>
                 <th className="py-2 px-2.5">DIFFERENTIAL CURRENT (I_diff)</th>
                 <th className="py-2 px-2.5 text-right">STATUS</th>
@@ -800,7 +800,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                       <div className="font-bold text-rose-600 dark:text-rose-400">
                         {n.phases.R.v.toFixed(1)}V • {n.phases.R.i.toFixed(3)}A
                       </div>
-                      <div className="text-[10px] text-slate-400">
+                      <div className="text-[10px] text-slate-500 dark:text-slate-400">
                         {n.phases.R.p.toFixed(0)}W • PF {n.phases.R.pf.toFixed(2)}
                       </div>
                     </td>
@@ -808,13 +808,13 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                     {/* Phase Y */}
                     <td className="py-2.5 px-2.5">
                       {n.phases.Y.source === "NOT_INSTRUMENTED" ? (
-                        <span className="text-[10px] text-slate-400 font-normal">-- UNMONITORED</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">-- UNMONITORED</span>
                       ) : (
                         <>
-                          <div className="font-bold text-amber-600 dark:text-amber-400">
+                          <div className="font-bold text-amber-700 dark:text-amber-400">
                             {n.phases.Y.v.toFixed(1)}V • {n.phases.Y.i.toFixed(3)}A
                           </div>
-                          <div className="text-[10px] text-slate-400">
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400">
                             {(n.phases.Y.p > 0
                               ? n.phases.Y.p
                               : n.phases.Y.i > 0
@@ -822,7 +822,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                               : 0
                             ).toFixed(0)}W
                             {n.phases.Y.source === "SIM" && n.isLive && (
-                              <span className="ml-1 text-[9px] text-amber-500">(EST)</span>
+                              <span className="ml-1 text-[9px] text-amber-600 dark:text-amber-500 font-semibold">(EST)</span>
                             )}
                           </div>
                         </>
@@ -832,13 +832,13 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                     {/* Phase B */}
                     <td className="py-2.5 px-2.5">
                       {n.phases.B.source === "NOT_INSTRUMENTED" ? (
-                        <span className="text-[10px] text-slate-400 font-normal">-- UNMONITORED</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">-- UNMONITORED</span>
                       ) : (
                         <>
-                          <div className="font-bold text-cyan-600 dark:text-cyan-400">
+                          <div className="font-bold text-blue-700 dark:text-cyan-400">
                             {n.phases.B.v.toFixed(1)}V • {n.phases.B.i.toFixed(3)}A
                           </div>
-                          <div className="text-[10px] text-slate-400">
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400">
                             {(n.phases.B.p > 0
                               ? n.phases.B.p
                               : n.phases.B.i > 0
@@ -846,7 +846,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                               : 0
                             ).toFixed(0)}W
                             {n.phases.B.source === "SIM" && n.isLive && (
-                              <span className="ml-1 text-[9px] text-cyan-500">(EST)</span>
+                              <span className="ml-1 text-[9px] text-blue-600 dark:text-cyan-500 font-semibold">(EST)</span>
                             )}
                           </div>
                         </>
@@ -856,7 +856,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                     {/* Section KCL Leakage */}
                     <td className="py-2.5 px-2.5">
                       {rSec.length === 0 ? (
-                        <span className="text-[10px] text-slate-400 font-normal">RADIAL TERMINAL</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal">RADIAL TERMINAL</span>
                       ) : (
                         <div className="flex flex-col gap-0.5">
                           {rSec.map((s) => (
@@ -864,8 +864,8 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                               key={s.phase}
                               className={`text-[10px] font-mono flex items-center gap-1 ${
                                 s.tripped
-                                  ? "text-rose-500 font-bold bg-rose-500/10 px-1 py-0.2 rounded-xs"
-                                  : "text-slate-500 dark:text-zinc-400"
+                                  ? "text-rose-600 dark:text-rose-500 font-bold bg-rose-50 dark:bg-rose-500/10 px-1 py-0.2 rounded-xs"
+                                  : "text-slate-600 dark:text-zinc-400"
                               }`}
                             >
                               <span className="font-bold">[{s.phase}]</span>
@@ -888,7 +888,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                           WARN
                         </Badge>
                       ) : n.status === "DEENERGIZED" || !n.energized || n.phases.R.v < 50 ? (
-                        <Badge variant="outline" className="text-[9px] py-0 border-zinc-700 text-zinc-400 bg-zinc-900/60">
+                        <Badge variant="outline" className="text-[9px] py-0 border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-900/60 font-semibold">
                           DE-ENERGIZED
                         </Badge>
                       ) : (

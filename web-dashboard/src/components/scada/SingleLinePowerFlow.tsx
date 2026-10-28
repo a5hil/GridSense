@@ -366,10 +366,10 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                       <div
                         className={`mt-1 px-1.5 py-0.5 rounded-xs text-[9px] font-bold text-center border w-full ${
                           isFault || isDifferentialFault
-                            ? "bg-rose-500/20 text-rose-500 border-rose-500 animate-pulse"
+                            ? "bg-rose-50 dark:bg-rose-500/20 text-rose-700 dark:text-rose-500 border-rose-400 dark:border-rose-500 animate-pulse"
                             : isPowerCut
-                            ? "bg-zinc-900/60 text-zinc-400 border-zinc-700/60"
-                            : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                            ? "bg-slate-100 dark:bg-zinc-900/60 text-slate-600 dark:text-zinc-400 border-slate-300 dark:border-zinc-700/60"
+                            : "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-800 dark:text-emerald-400 border-emerald-300 dark:border-emerald-500/30"
                         }`}
                       >
                         <div className="flex items-center justify-center gap-1">
@@ -438,7 +438,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                         : isNodeWarn
                         ? "border-amber-500/80 bg-amber-50/20 dark:bg-amber-950/20"
                         : isNodeDeenergized
-                        ? "border-zinc-700/80 bg-zinc-950/60 opacity-80"
+                        ? "border-slate-300 dark:border-zinc-700/80 bg-slate-100 dark:bg-zinc-950/60 text-slate-700 dark:text-zinc-300 opacity-90"
                         : "border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 hover:border-slate-300 dark:hover:border-zinc-700"
                     }`}
                   >
@@ -449,7 +449,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                           <span className="font-bold text-slate-800 dark:text-zinc-200">{node.id}</span>
                           {node.isLive ? (
                             isNodeDeenergized ? (
-                              <span className="bg-zinc-800 text-zinc-400 border border-zinc-700 text-[8px] px-1 py-0.2 rounded-xs font-bold">
+                              <span className="bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700 text-[8px] px-1 py-0.2 rounded-xs font-bold">
                                 {isP1 ? "INCOMER (0V)" : "BOUNDARY (0V)"}
                               </span>
                             ) : (
@@ -458,7 +458,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                               </span>
                             )
                           ) : (
-                            <span className="bg-slate-200 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 text-[8px] px-1 py-0.2 rounded-xs">
+                            <span className="bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700 text-[8px] px-1 py-0.2 rounded-xs font-semibold">
                               {isNodeDeenergized ? "DE-ENERGIZED" : "ENERGIZED"}
                             </span>
                           )}
@@ -479,29 +479,29 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                       {/* 3-Phase Voltages */}
                       <div className="mt-1.5 space-y-0.5 text-[10px] font-mono">
                         <div className="flex justify-between items-baseline">
-                          <span className="text-rose-500 font-bold">VR:</span>
+                          <span className="text-rose-600 dark:text-rose-500 font-bold">VR:</span>
                           <span className="text-slate-800 dark:text-zinc-200 font-bold tabular-nums">
                             {liveV.toFixed(1)}V
                           </span>
-                          <span className="text-slate-500 dark:text-zinc-400 tabular-nums">
+                          <span className="text-slate-600 dark:text-zinc-400 tabular-nums">
                             {liveI.toFixed(2)}A
                           </span>
                         </div>
                         <div className="flex justify-between items-baseline">
-                          <span className="text-amber-500 font-bold">VY:</span>
+                          <span className="text-amber-700 dark:text-amber-500 font-bold">VY:</span>
                           <span className="text-slate-800 dark:text-zinc-200 font-bold tabular-nums">
                             {node.phases.Y.v.toFixed(1)}V
                           </span>
-                          <span className="text-slate-500 dark:text-zinc-400 tabular-nums">
+                          <span className="text-slate-600 dark:text-zinc-400 tabular-nums">
                             {node.phases.Y.i.toFixed(2)}A
                           </span>
                         </div>
                         <div className="flex justify-between items-baseline">
-                          <span className="text-cyan-500 font-bold">VB:</span>
+                          <span className="text-blue-700 dark:text-cyan-500 font-bold">VB:</span>
                           <span className="text-slate-800 dark:text-zinc-200 font-bold tabular-nums">
                             {node.phases.B.v.toFixed(1)}V
                           </span>
-                          <span className="text-slate-500 dark:text-zinc-400 tabular-nums">
+                          <span className="text-slate-600 dark:text-zinc-400 tabular-nums">
                             {node.phases.B.i.toFixed(2)}A
                           </span>
                         </div>
@@ -556,7 +556,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
       <div
         className={`border px-3 py-2 rounded-sm text-xs flex flex-wrap items-center justify-between gap-2 font-mono transition-colors ${
           selectedNode
-            ? "border-cyan-500/50 bg-cyan-950/20 text-cyan-200"
+            ? "border-cyan-500/50 bg-cyan-50 dark:bg-cyan-950/20 text-cyan-900 dark:text-cyan-200"
             : (viewScope === "LT-1" && isFault) || isFeederFaulted
             ? "border-rose-500/80 bg-rose-50/70 dark:bg-rose-950/40 text-rose-800 dark:text-rose-200 ring-1 ring-rose-500"
             : "border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 text-slate-700 dark:text-zinc-300"
@@ -565,16 +565,16 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
         {selectedNode ? (
           <>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className="border-cyan-500 text-cyan-400 font-bold text-[10px]">
+              <Badge variant="outline" className="border-cyan-500 text-cyan-700 dark:text-cyan-400 font-bold text-[10px]">
                 ASSET: {selectedNode.label === selectedNode.id ? selectedNode.label : `${selectedNode.label} (${selectedNode.id})`}
               </Badge>
-              <span className="text-slate-500 dark:text-zinc-400 text-[11px]">
+              <span className="text-slate-600 dark:text-zinc-400 text-[11px]">
                 Feeder <strong className="text-slate-800 dark:text-zinc-200">{selectedNode.feederId || "DTR"}</strong>
               </span>
               <span className="text-slate-300 dark:text-zinc-700">|</span>
               <div className="flex items-center gap-2 tabular-nums text-[11px]">
                 <span>
-                  <strong className="text-rose-400">R:</strong>{" "}
+                  <strong className="text-rose-600 dark:text-rose-400">R:</strong>{" "}
                   <span className="text-slate-800 dark:text-zinc-200">
                     {selectedNode.isLive
                       ? `${(selectedNode.id === "F1-P01" ? (v1 > 0 ? v1 : selectedNode.phases.R.v) : (v2 > 0 ? v2 : selectedNode.phases.R.v)).toFixed(1)}V/${(selectedNode.id === "F1-P01" ? (i1 > 0 ? i1 : selectedNode.phases.R.i) : (i2 > 0 ? i2 : selectedNode.phases.R.i)).toFixed(2)}A`
@@ -582,19 +582,19 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                   </span>
                 </span>
                 <span>
-                  <strong className="text-amber-400">Y:</strong>{" "}
+                  <strong className="text-amber-700 dark:text-amber-400">Y:</strong>{" "}
                   <span className="text-slate-800 dark:text-zinc-200">
                     {selectedNode.phases.Y.v.toFixed(1)}V/{selectedNode.phases.Y.i.toFixed(2)}A
                   </span>
                 </span>
                 <span>
-                  <strong className="text-cyan-400">B:</strong>{" "}
+                  <strong className="text-blue-700 dark:text-cyan-400">B:</strong>{" "}
                   <span className="text-slate-800 dark:text-zinc-200">
                     {selectedNode.phases.B.v.toFixed(1)}V/{selectedNode.phases.B.i.toFixed(2)}A
                   </span>
                 </span>
                 {selectedNode.isLive && (
-                  <span className="text-emerald-400 font-bold ml-1">
+                  <span className="text-emerald-700 dark:text-emerald-400 font-bold ml-1">
                     ΔI: {idiff.toFixed(3)}A • PF: {(selectedNode.id === "F1-P01" ? pf1 : pf2).toFixed(2)}
                   </span>
                 )}
@@ -616,7 +616,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
               </Badge>
               <button
                 onClick={() => onSelectPole?.("")}
-                className="text-[10px] text-slate-400 hover:text-slate-100 px-1 py-0.5 rounded border border-slate-700 hover:border-slate-500 transition-colors"
+                className="text-[10px] text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 px-1 py-0.5 rounded border border-slate-300 dark:border-slate-700 transition-colors"
                 title="Clear selection"
               >
                 ✕ Close

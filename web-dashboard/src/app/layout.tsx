@@ -34,6 +34,24 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                var stored = localStorage.getItem('gridsense-theme');
+                if (stored === 'light') {
+                  document.documentElement.classList.remove('dark');
+                  document.documentElement.classList.add('light');
+                } else if (stored === 'dark') {
+                  document.documentElement.classList.remove('light');
+                  document.documentElement.classList.add('dark');
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
+      </head>
       <body className="h-full overflow-hidden bg-slate-100 dark:bg-[#09090b] text-slate-900 dark:text-[#fafafa] font-mono transition-colors duration-150">
         <ThemeProvider>
           <ToastProvider>

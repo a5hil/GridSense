@@ -440,12 +440,12 @@ export function WorkforceOmsPanel({
         {/* Metric 2: Soak Observation Watchlist */}
         <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] p-2.5 rounded-sm flex items-center justify-between shadow-xs">
           <div>
-            <div className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-semibold">
+            <div className="text-[10px] text-slate-600 dark:text-zinc-400 uppercase tracking-wider font-semibold">
               Soak Watchlist
             </div>
             <div className="text-sm font-bold flex items-center gap-1.5 mt-0.5">
               <Clock className={`h-3.5 w-3.5 ${isSoakActive ? "text-amber-500 animate-spin" : "text-slate-400 dark:text-zinc-500"}`} />
-              <span className={isSoakActive ? "text-amber-600 dark:text-amber-400" : "text-slate-700 dark:text-zinc-300"}>
+              <span className={isSoakActive ? "text-amber-700 dark:text-amber-400 font-bold" : "text-slate-800 dark:text-zinc-300 font-bold"}>
                 {watchingTickets.length > 0 || isSoakActive ? `${Math.max(1, watchingTickets.length)} In Observation` : "0 Monitoring"}
               </span>
             </div>
@@ -458,12 +458,12 @@ export function WorkforceOmsPanel({
         {/* Metric 3: Sustained Outages / Escalated */}
         <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] p-2.5 rounded-sm flex items-center justify-between shadow-xs">
           <div>
-            <div className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-semibold">
+            <div className="text-[10px] text-slate-600 dark:text-zinc-400 uppercase tracking-wider font-semibold">
               Action Required
             </div>
             <div className="text-sm font-bold flex items-center gap-1.5 mt-0.5">
-              <AlertTriangle className={`h-3.5 w-3.5 ${isEscalated ? "text-rose-500 animate-bounce" : "text-slate-400 dark:text-zinc-500"}`} />
-              <span className={isEscalated ? "text-rose-600 dark:text-rose-400" : "text-slate-700 dark:text-zinc-300"}>
+              <AlertTriangle className={`h-3.5 w-3.5 ${isEscalated ? "text-rose-600 dark:text-rose-500 animate-bounce" : "text-slate-400 dark:text-zinc-500"}`} />
+              <span className={isEscalated ? "text-rose-600 dark:text-rose-400 font-bold" : "text-slate-800 dark:text-zinc-300 font-bold"}>
                 {escalatedTickets.length > 0 || isEscalated ? `${Math.max(1, escalatedTickets.length)} Escalated` : "0 Pending"}
               </span>
             </div>
@@ -476,12 +476,12 @@ export function WorkforceOmsPanel({
         {/* Metric 4: Field Crews Dispatched */}
         <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] p-2.5 rounded-sm flex items-center justify-between shadow-xs">
           <div>
-            <div className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-semibold">
+            <div className="text-[10px] text-slate-600 dark:text-zinc-400 uppercase tracking-wider font-semibold">
               Duty Linemen
             </div>
             <div className="text-sm font-bold flex items-center gap-1.5 mt-0.5">
               <UserCheck className="h-3.5 w-3.5 text-cyan-600 dark:text-cyan-400" />
-              <span className={dispatchedTickets.length > 0 ? "text-cyan-600 dark:text-cyan-400" : "text-slate-700 dark:text-zinc-300"}>
+              <span className={dispatchedTickets.length > 0 ? "text-cyan-700 dark:text-cyan-400 font-bold" : "text-slate-800 dark:text-zinc-300 font-bold"}>
                 {dispatchedTickets.length > 0 ? `${dispatchedTickets.length} Dispatched` : "4 Ready"}
               </span>
             </div>
@@ -494,19 +494,19 @@ export function WorkforceOmsPanel({
         {/* Metric 5: SCADA Safety Interlocks */}
         <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] p-2.5 rounded-sm flex items-center justify-between shadow-xs col-span-2 sm:col-span-1">
           <div>
-            <div className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-semibold">
+            <div className="text-[10px] text-slate-600 dark:text-zinc-400 uppercase tracking-wider font-semibold">
               SCADA Safety Interlock
             </div>
             <div className="text-sm font-bold flex items-center gap-1.5 mt-0.5">
               {isPtwActive ? (
                 <>
                   <Lock className="h-3.5 w-3.5 text-rose-500" />
-                  <span className="text-rose-600 dark:text-rose-400">LOTO LOCKED</span>
+                  <span className="text-rose-600 dark:text-rose-400 font-bold">LOTO LOCKED</span>
                 </>
               ) : (
                 <>
-                  <Unlock className="h-3.5 w-3.5 text-emerald-500" />
-                  <span className="text-emerald-600 dark:text-emerald-400">RECLOSE READY</span>
+                  <Unlock className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-500" />
+                  <span className="text-emerald-700 dark:text-emerald-400 font-bold">RECLOSE READY</span>
                 </>
               )}
             </div>
@@ -577,7 +577,7 @@ export function WorkforceOmsPanel({
           <div className="overflow-x-auto">
             <table className="w-full text-left text-[11px] border-collapse">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-zinc-800 text-slate-500 dark:text-zinc-400 text-[10px] uppercase font-semibold">
+                <tr className="border-b border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] uppercase font-bold">
                   <th className="py-2 px-2.5">Ticket ID</th>
                   <th className="py-2 px-2.5">Detected</th>
                   <th className="py-2 px-2.5">Feeder / Target Pole</th>
@@ -626,7 +626,7 @@ export function WorkforceOmsPanel({
                       {/* Feeder / Pole */}
                       <td className="py-2 px-2.5 whitespace-nowrap">
                         <span className="font-bold text-slate-800 dark:text-zinc-200">{t.affectedPole}</span>
-                        <span className="text-[10px] text-slate-400 block">{t.feederName}</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block">{t.feederName}</span>
                       </td>
 
                       {/* GPS Waypoint */}
@@ -635,10 +635,10 @@ export function WorkforceOmsPanel({
                           href={`https://www.google.com/maps/search/?api=1&query=${t.gps.lat.toFixed(6)},${t.gps.lng.toFixed(6)}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="text-cyan-600 dark:text-cyan-400 hover:underline flex items-center gap-1 font-semibold tabular-nums"
+                          className="text-cyan-700 dark:text-cyan-400 hover:underline flex items-center gap-1 font-bold tabular-nums"
                           title="Open exact sub-meter pin in Google Maps"
                         >
-                          <MapPin className="h-3 w-3 shrink-0 text-cyan-500" />
+                          <MapPin className="h-3 w-3 shrink-0 text-cyan-600 dark:text-cyan-500" />
                           <span>{t.gps.lat.toFixed(6)}°N, {t.gps.lng.toFixed(6)}°E</span>
                           <ExternalLink className="h-2.5 w-2.5 opacity-60" />
                         </a>
@@ -950,8 +950,8 @@ export function WorkforceOmsPanel({
                 key={lm.id}
                 className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xs border text-[10px] ${
                   lm.status === "ON_DUTY"
-                    ? "border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-800 dark:text-emerald-300 font-semibold"
-                    : "border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/40 text-slate-600 dark:text-zinc-400"
+                    ? "border-emerald-500/40 bg-emerald-50/70 dark:bg-emerald-950/20 text-emerald-900 dark:text-emerald-300 font-semibold"
+                    : "border-slate-300 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/40 text-slate-800 dark:text-zinc-400 font-medium"
                 }`}
               >
                 <span
@@ -960,7 +960,7 @@ export function WorkforceOmsPanel({
                   }`}
                 />
                 <span className="font-bold">{lm.name}</span>
-                <span className="text-[9px] text-slate-400">({lm.role.split(" ")[0]})</span>
+                <span className="text-[9px] text-slate-500 dark:text-slate-400">({lm.role.split(" ")[0]})</span>
                 {isAssigned && (
                   <Badge variant="healthy" className="text-[8px] py-0 px-1 ml-1">
                     ACTIVE

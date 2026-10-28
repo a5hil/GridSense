@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronRight, LogOut, ShieldCheck, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useDashboard } from "@/context/DashboardContext";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export function Header() {
   const {
@@ -69,8 +70,10 @@ export function Header() {
         </Badge>
       </div>
 
-      {/* 2. RIGHT ACTIONS: DIGITAL CLOCK (IST) & OPERATOR PROFILE */}
-      <div className="flex items-center gap-3 shrink-0">
+      {/* 2. RIGHT ACTIONS: THEME TOGGLE, DIGITAL CLOCK (IST) & OPERATOR PROFILE */}
+      <div className="flex items-center gap-2.5 shrink-0">
+        <ThemeToggle />
+
         {/* Live IST Digital Clock */}
         <div
           suppressHydrationWarning

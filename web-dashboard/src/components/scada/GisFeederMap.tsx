@@ -446,6 +446,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       };
       statusText?: string;
     }) => {
+      const isLight = theme === "light";
       const el = document.createElement("div");
       el.className = "relative flex flex-col items-center cursor-pointer group select-none";
       el.style.zIndex = spec.isLive ? "45" : spec.iconType === "SUBSTATION" || spec.iconType === "DTR" ? "42" : "35";
@@ -475,7 +476,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       if (isSub) {
         // Transmission Grid Tower
         iconSvg = `
-          <svg viewBox="0 0 24 24" class="w-5 h-5 text-sky-400 stroke-current fill-none stroke-[2.2]">
+          <svg viewBox="0 0 24 24" class="w-5 h-5 text-sky-500 dark:text-sky-400 stroke-current fill-none stroke-[2.2]">
             <path d="M4 22h16M12 2v20M8 8h8M6 14h12M9 4l6 18M15 4L9 22"/>
           </svg>
         `;
@@ -487,11 +488,11 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         const offset = circ * (1 - pct / 100);
         iconSvg = `
           <svg class="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 44 44">
-            <circle cx="22" cy="22" r="19" stroke="rgba(255,255,255,0.12)" stroke-width="2.5" fill="none"/>
+            <circle cx="22" cy="22" r="19" stroke="${isLight ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.12)"}" stroke-width="2.5" fill="none"/>
             <circle cx="22" cy="22" r="19" stroke="${strokeColor}" stroke-width="2.5" stroke-linecap="round" fill="none"
               stroke-dasharray="${circ}" stroke-dashoffset="${offset}"/>
           </svg>
-          <svg viewBox="0 0 24 24" class="w-5 h-5 text-emerald-400 stroke-current fill-none stroke-[2] relative z-10">
+          <svg viewBox="0 0 24 24" class="w-5 h-5 text-emerald-600 dark:text-emerald-400 stroke-current fill-none stroke-[2] relative z-10">
             <circle cx="9" cy="12" r="4.5" />
             <circle cx="15" cy="12" r="4.5" />
           </svg>
@@ -499,11 +500,11 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       } else if (isLive) {
         // Live Hardware Node with Bolt + P1/P2
         const shortNum = spec.id === "F1-P01" || spec.id === "POLE-A" || spec.id === "Pole-A" ? "P1" : "P2";
-        const boltColor = spec.isDeenergized ? "text-zinc-500" : spec.isTripped ? "text-rose-400" : "text-emerald-400";
+        const boltColor = spec.isDeenergized ? (isLight ? "text-slate-400" : "text-zinc-500") : spec.isTripped ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400";
         iconSvg = `
           <div class="flex flex-col items-center justify-center leading-none">
             <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 ${boltColor} fill-current"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-            <span class="text-[9px] font-black text-white font-mono mt-0.5">${shortNum}</span>
+            <span class="text-[9px] font-black ${isLight ? "text-slate-900" : "text-white"} font-mono mt-0.5">${shortNum}</span>
           </div>
         `;
       } else {
@@ -519,9 +520,13 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       // Live tag badge above live nodes
       const liveBadgeHtml = isLive
         ? spec.isDeenergized
-          ? `<div class="absolute -top-3.5 bg-zinc-800 text-zinc-400 border border-zinc-700 text-[8px] font-black font-mono px-1.5 py-0.2 rounded-full uppercase tracking-tighter flex items-center gap-1 shadow-md">
-              <span class="h-1.5 w-1.5 rounded-full bg-zinc-500"></span>0V DEAD
-             </div>`
+          ? isLight
+            ? `<div class="absolute -top-3.5 bg-slate-200 text-slate-800 border border-slate-300 text-[8px] font-black font-mono px-1.5 py-0.2 rounded-full uppercase tracking-tighter flex items-center gap-1 shadow-sm">
+                <span class="h-1.5 w-1.5 rounded-full bg-slate-500"></span>0V DEAD
+               </div>`
+            : `<div class="absolute -top-3.5 bg-zinc-800 text-zinc-400 border border-zinc-700 text-[8px] font-black font-mono px-1.5 py-0.2 rounded-full uppercase tracking-tighter flex items-center gap-1 shadow-md">
+                <span class="h-1.5 w-1.5 rounded-full bg-zinc-500"></span>0V DEAD
+               </div>`
           : `<div class="absolute -top-3.5 bg-emerald-500 text-black text-[8px] font-black font-mono px-1.5 py-0.2 rounded-full uppercase tracking-tighter flex items-center gap-1 shadow-md shadow-emerald-500/30">
               <span class="h-1.5 w-1.5 rounded-full bg-black animate-pulse"></span>LIVE
              </div>`
@@ -530,23 +535,36 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       // Quick hover preview tooltip
       const hoverTooltipHtml = spec.phases
         ? `
-        <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none absolute bottom-full mb-2 w-52 bg-[#090a0f]/95 border border-zinc-700/80 rounded-sm p-2.5 shadow-2xl text-[10px] font-mono z-50 backdrop-blur-md left-1/2 -translate-x-1/2">
-          <div class="flex items-center justify-between border-b border-zinc-800 pb-1 mb-1.5 text-zinc-100 font-bold">
+        <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none absolute bottom-full mb-2 w-52 ${
+          isLight
+            ? "bg-white/95 border border-slate-300 text-slate-800 shadow-xl"
+            : "bg-[#090a0f]/95 border border-zinc-700/80 text-zinc-300 shadow-2xl"
+        } rounded-sm p-2.5 text-[10px] font-mono z-50 backdrop-blur-md left-1/2 -translate-x-1/2">
+          <div class="flex items-center justify-between border-b ${isLight ? "border-slate-200 text-slate-900" : "border-zinc-800 text-zinc-100"} pb-1 mb-1.5 font-bold">
             <span>${spec.label}</span>
             <span class="text-[9px]" style="color: ${spec.color}">${spec.feederName || spec.id}</span>
           </div>
-          <div class="space-y-1 text-zinc-300">
-            <div class="flex justify-between items-center"><span class="text-rose-400 font-bold">[R]</span><span class="text-zinc-200 tabular-nums">${spec.phases.R.v.toFixed(1)}V • ${spec.phases.R.i.toFixed(2)}A</span><span class="text-zinc-400">${spec.phases.R.p.toFixed(0)}W</span></div>
-            <div class="flex justify-between items-center"><span class="text-amber-400 font-bold">[Y]</span>${spec.phases.Y.source === "NOT_INSTRUMENTED" ? '<span class="text-[9px] text-amber-500 italic">NOT INSTR</span>' : `<span class="text-zinc-200 tabular-nums">${spec.phases.Y.v.toFixed(1)}V • ${spec.phases.Y.i.toFixed(2)}A</span><span class="text-zinc-400">${spec.phases.Y.p.toFixed(0)}W</span>`}</div>
-            <div class="flex justify-between items-center"><span class="text-cyan-400 font-bold">[B]</span>${spec.phases.B.source === "NOT_INSTRUMENTED" ? '<span class="text-[9px] text-cyan-500 italic">NOT INSTR</span>' : `<span class="text-zinc-200 tabular-nums">${spec.phases.B.v.toFixed(1)}V • ${spec.phases.B.i.toFixed(2)}A</span><span class="text-zinc-400">${spec.phases.B.p.toFixed(0)}W</span>`}</div>
+          <div class="space-y-1">
+            <div class="flex justify-between items-center"><span class="text-rose-600 dark:text-rose-400 font-bold">[R]</span><span class="${isLight ? "text-slate-800" : "text-zinc-200"} tabular-nums">${spec.phases.R.v.toFixed(1)}V • ${spec.phases.R.i.toFixed(2)}A</span><span class="${isLight ? "text-slate-500" : "text-zinc-400"}">${spec.phases.R.p.toFixed(0)}W</span></div>
+            <div class="flex justify-between items-center"><span class="text-amber-700 dark:text-amber-400 font-bold">[Y]</span>${spec.phases.Y.source === "NOT_INSTRUMENTED" ? '<span class="text-[9px] text-amber-600 dark:text-amber-500 italic">NOT INSTR</span>' : `<span class="${isLight ? "text-slate-800" : "text-zinc-200"} tabular-nums">${spec.phases.Y.v.toFixed(1)}V • ${spec.phases.Y.i.toFixed(2)}A</span><span class="${isLight ? "text-slate-500" : "text-zinc-400"}">${spec.phases.Y.p.toFixed(0)}W</span>`}</div>
+            <div class="flex justify-between items-center"><span class="text-blue-700 dark:text-cyan-400 font-bold">[B]</span>${spec.phases.B.source === "NOT_INSTRUMENTED" ? '<span class="text-[9px] text-blue-600 dark:text-cyan-500 italic">NOT INSTR</span>' : `<span class="${isLight ? "text-slate-800" : "text-zinc-200"} tabular-nums">${spec.phases.B.v.toFixed(1)}V • ${spec.phases.B.i.toFixed(2)}A</span><span class="${isLight ? "text-slate-500" : "text-zinc-400"}">${spec.phases.B.p.toFixed(0)}W</span>`}</div>
           </div>
-          <div class="mt-1.5 pt-1 border-t border-zinc-800 text-[9px] flex justify-between text-zinc-400">
+          <div class="mt-1.5 pt-1 border-t ${isLight ? "border-slate-200 text-slate-500" : "border-zinc-800 text-zinc-400"} text-[9px] flex justify-between">
             <span>STATUS:</span>
-            <span class="${spec.isTripped ? "text-rose-400 font-bold animate-pulse" : "text-emerald-400 font-bold"}">${spec.statusText || "NORMAL"}</span>
+            <span class="${spec.isTripped ? "text-rose-600 dark:text-rose-400 font-bold animate-pulse" : "text-emerald-600 dark:text-emerald-400 font-bold"}">${spec.statusText || "NORMAL"}</span>
           </div>
         </div>
       `
         : "";
+
+      const circleBg = isLight ? "#ffffff" : "#090a0f";
+      const circleShadow = isLight
+        ? `0 2px 8px rgba(0,0,0,0.18), 0 0 ${isLive ? "12px" : "6px"} ${spec.color}66`
+        : `0 0 ${isLive ? "16px" : "8px"} ${spec.color}55, 0 4px 10px rgba(0,0,0,0.85)`;
+      const badgeBg = isLight ? "rgba(255, 255, 255, 0.95)" : "rgba(9, 10, 15, 0.92)";
+      const badgeBorder = isLight ? "1px solid #cbd5e1" : "1px solid rgba(255, 255, 255, 0.14)";
+      const badgeColor = isLight ? "#0f172a" : "#fafafa";
+      const badgeShadow = isLight ? "0 1px 4px rgba(0,0,0,0.12)" : "0 2px 6px rgba(0,0,0,0.7)";
 
       el.innerHTML = `
         ${haloHtml}
@@ -556,9 +574,9 @@ export const GisFeederMap = React.memo(function GisFeederMap({
           width: ${size}px;
           height: ${size}px;
           border-radius: 50%;
-          background: #090a0f;
+          background: ${circleBg};
           border: ${isLive ? "3px" : "2.5px"} solid ${spec.color};
-          box-shadow: 0 0 ${isLive ? "16px" : "8px"} ${spec.color}55, 0 4px 10px rgba(0,0,0,0.85);
+          box-shadow: ${circleShadow};
           display: flex;
           align-items: center;
           justify-content: center;
@@ -569,16 +587,16 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         </div>
         <div style="
           margin-top: 3px;
-          background: rgba(9, 10, 15, 0.92);
-          border: 1px solid rgba(255, 255, 255, 0.14);
-          color: #fafafa;
+          background: ${badgeBg};
+          border: ${badgeBorder};
+          color: ${badgeColor};
           font-family: monospace;
           font-size: 9px;
           font-weight: 700;
           padding: 0.5px 5px;
           border-radius: 9999px;
           white-space: nowrap;
-          box-shadow: 0 2px 6px rgba(0,0,0,0.7);
+          box-shadow: ${badgeShadow};
           letter-spacing: -0.02em;
         ">
           ${spec.badgeText}
@@ -741,7 +759,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       renderFeederVectors(mapInstanceRef.current);
       renderAssetMarkers(mapInstanceRef.current);
     }
-  }, [telemetry, networkSnapshot, isFault, mapLoaded]);
+  }, [telemetry, networkSnapshot, isFault, mapLoaded, theme]);
 
   // Handle container resize & ensure markers are drawn on tab switches
   React.useEffect(() => {
@@ -847,19 +865,19 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       </div>
 
       {/* Mapbox Real Map Viewport */}
-      <div className="relative flex-1 min-h-[400px] bg-[#070809] overflow-hidden">
+      <div className="relative flex-1 min-h-[400px] bg-slate-100 dark:bg-[#070809] overflow-hidden">
         <div ref={mapContainerRef} className="absolute inset-0 w-full h-full" />
 
         {/* Fault Alert Callout Banner over Map */}
         {isFault && (
-          <div className="absolute top-14 left-3 border border-rose-600 bg-zinc-950/95 p-2.5 rounded-sm shadow-2xl flex items-center justify-between gap-3 text-xs font-mono text-rose-200 animate-pulse z-10 max-w-md">
+          <div className="absolute top-14 left-3 border border-rose-500 bg-rose-50/95 dark:bg-zinc-950/95 p-2.5 rounded-sm shadow-2xl flex items-center justify-between gap-3 text-xs font-mono text-rose-900 dark:text-rose-200 animate-pulse z-10 max-w-md">
             <div className="flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-rose-500 animate-bounce shrink-0" />
+              <ShieldAlert className="h-4 w-4 text-rose-600 dark:text-rose-500 animate-bounce shrink-0" />
               <div>
                 <span className="font-bold uppercase tracking-wider block">
                   ANSI 87L FAULT LOCALIZED // SPAN F1-P01 ↔ F1-P02
                 </span>
-                <span className="text-[10px] text-rose-300">
+                <span className="text-[10px] text-rose-700 dark:text-rose-300">
                   Sectionalizer Span (10.231800°N ↔ 10.232172°N) // I_diff = {telemetry?.idiff.toFixed(3)}A
                 </span>
               </div>
@@ -886,39 +904,39 @@ export const GisFeederMap = React.memo(function GisFeederMap({
 
         {/* Selected Asset Telemetry HUD Popover */}
         {selectedAsset && (
-          <div className="absolute bottom-3 left-3 border border-zinc-700 bg-zinc-950/95 p-3 rounded-sm shadow-2xl max-w-xs font-mono text-xs z-10">
-            <div className="flex items-center justify-between border-b border-zinc-800 pb-1 mb-2">
-              <span className="font-bold text-zinc-100 uppercase">
+          <div className="absolute bottom-3 left-3 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 p-3 rounded-sm shadow-2xl max-w-xs font-mono text-xs z-10">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-1 mb-2">
+              <span className="font-bold text-slate-900 dark:text-zinc-100 uppercase">
                 {selectedAsset.name || selectedAsset.label}
               </span>
               <button
                 onClick={() => setSelectedAsset(null)}
-                className="text-zinc-500 hover:text-zinc-300 text-xs"
+                className="text-slate-400 hover:text-slate-800 dark:text-zinc-500 dark:hover:text-zinc-300 text-xs"
               >
                 ✕
               </button>
             </div>
 
             {selectedAsset.phases ? (
-              <div className="space-y-1.5 text-[11px] text-zinc-300">
-                <div className="flex items-center justify-between pb-1 border-b border-zinc-800 text-[10px]">
-                  <span className="text-zinc-400">FEEDER: {selectedAsset.feederId}</span>
+              <div className="space-y-1.5 text-[11px] text-slate-700 dark:text-zinc-300">
+                <div className="flex items-center justify-between pb-1 border-b border-slate-200 dark:border-zinc-800 text-[10px]">
+                  <span className="text-slate-500 dark:text-zinc-400">FEEDER: {selectedAsset.feederId}</span>
                   <Badge variant={selectedAsset.isLive ? "healthy" : "outline"} className="text-[9px] py-0">
                     {selectedAsset.isLive ? "CLASS 0.5S RTU" : "WLS ESTIMATED NODE"}
                   </Badge>
                 </div>
                 {/* Phase R */}
                 <div className="flex items-center justify-between font-mono">
-                  <span className="text-rose-400 font-bold">[R]</span>
+                  <span className="text-rose-600 dark:text-rose-400 font-bold">[R]</span>
                   <span>{selectedAsset.phases.R.v.toFixed(1)}V</span>
                   <span>{selectedAsset.phases.R.i.toFixed(3)}A</span>
                   <span>{selectedAsset.phases.R.p.toFixed(0)}W</span>
                 </div>
                 {/* Phase Y */}
                 <div className="flex items-center justify-between font-mono">
-                  <span className="text-amber-400 font-bold">[Y]</span>
+                  <span className="text-amber-700 dark:text-amber-400 font-bold">[Y]</span>
                   {selectedAsset.phases.Y.source === "NOT_INSTRUMENTED" ? (
-                    <span className="text-[9px] text-amber-500 italic">UNINSTRUMENTED</span>
+                    <span className="text-[9px] text-amber-600 dark:text-amber-500 italic">UNINSTRUMENTED</span>
                   ) : (
                     <>
                       <span>{selectedAsset.phases.Y.v.toFixed(1)}V</span>
@@ -929,9 +947,9 @@ export const GisFeederMap = React.memo(function GisFeederMap({
                 </div>
                 {/* Phase B */}
                 <div className="flex items-center justify-between font-mono">
-                  <span className="text-cyan-400 font-bold">[B]</span>
+                  <span className="text-blue-700 dark:text-cyan-400 font-bold">[B]</span>
                   {selectedAsset.phases.B.source === "NOT_INSTRUMENTED" ? (
-                    <span className="text-[9px] text-cyan-500 italic">UNINSTRUMENTED</span>
+                    <span className="text-[9px] text-blue-600 dark:text-cyan-500 italic">UNINSTRUMENTED</span>
                   ) : (
                     <>
                       <span>{selectedAsset.phases.B.v.toFixed(1)}V</span>
@@ -940,48 +958,48 @@ export const GisFeederMap = React.memo(function GisFeederMap({
                     </>
                   )}
                 </div>
-                <div className="text-[10px] text-zinc-400 pt-1 border-t border-zinc-800 flex items-center justify-between">
+                <div className="text-[10px] text-slate-500 dark:text-zinc-400 pt-1 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between">
                   <span>PARENT: {selectedAsset.parentId || "ROOT"}</span>
-                  <span className={selectedAsset.status === "ALARM" ? "text-rose-400 font-bold" : "text-emerald-400"}>
+                  <span className={selectedAsset.status === "ALARM" ? "text-rose-600 dark:text-rose-400 font-bold" : "text-emerald-600 dark:text-emerald-400 font-semibold"}>
                     {selectedAsset.status}
                   </span>
                 </div>
               </div>
             ) : selectedAsset.v !== undefined ? (
-              <div className="grid grid-cols-2 gap-2 text-[11px] text-zinc-300">
+              <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700 dark:text-zinc-300">
                 <div>
-                  <span className="text-zinc-500">VOLTAGE:</span>{" "}
+                  <span className="text-slate-500 dark:text-zinc-500">VOLTAGE:</span>{" "}
                   <span className="tabular-nums font-semibold">{selectedAsset.v.toFixed(1)}V</span>
                 </div>
                 <div>
-                  <span className="text-zinc-500">CURRENT:</span>{" "}
+                  <span className="text-slate-500 dark:text-zinc-500">CURRENT:</span>{" "}
                   <span className="tabular-nums font-semibold">{selectedAsset.i.toFixed(3)}A</span>
                 </div>
                 <div>
-                  <span className="text-zinc-500">ACTIVE P:</span>{" "}
+                  <span className="text-slate-500 dark:text-zinc-500">ACTIVE P:</span>{" "}
                   <span className="tabular-nums font-semibold">
                     {selectedAsset.p ? selectedAsset.p.toFixed(1) : (selectedAsset.v * selectedAsset.i * 0.96).toFixed(1)}W
                   </span>
                 </div>
                 <div>
-                  <span className="text-zinc-500">RSSI/SNR:</span>{" "}
+                  <span className="text-slate-500 dark:text-zinc-500">RSSI/SNR:</span>{" "}
                   <span className="tabular-nums font-semibold">
                     {selectedAsset.rssi}dBm / +{selectedAsset.snr}dB
                   </span>
                 </div>
-                <div className="col-span-2 text-[10px] text-zinc-400 mt-1 pt-1 border-t border-zinc-800">
+                <div className="col-span-2 text-[10px] text-slate-500 dark:text-zinc-400 mt-1 pt-1 border-t border-slate-200 dark:border-zinc-800">
                   GPS: {selectedAsset.lat?.toFixed(5)}°N, {selectedAsset.lng?.toFixed(5)}°E
                 </div>
               </div>
             ) : (
-              <div className="text-[11px] text-zinc-300 space-y-1">
+              <div className="text-[11px] text-slate-700 dark:text-zinc-300 space-y-1">
                 <div>
-                  <span className="text-zinc-500">TYPE:</span> {selectedAsset.type || "INFRASTRUCTURE"}
+                  <span className="text-slate-500 dark:text-zinc-500">TYPE:</span> {selectedAsset.type || "INFRASTRUCTURE"}
                 </div>
                 <div>
-                  <span className="text-zinc-500">GRID SECTION:</span> 11kV Feeder 04
+                  <span className="text-slate-500 dark:text-zinc-500">GRID SECTION:</span> 11kV Feeder 04
                 </div>
-                <div className="text-[10px] text-zinc-400 pt-1 border-t border-zinc-800">
+                <div className="text-[10px] text-slate-500 dark:text-zinc-400 pt-1 border-t border-slate-200 dark:border-zinc-800">
                   COORDS: {selectedAsset.coords?.[1]?.toFixed(4)}°N, {selectedAsset.coords?.[0]?.toFixed(4)}°E
                 </div>
               </div>
@@ -992,37 +1010,37 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         {/* Collapsible Formal IEEE/IEC Map Legend */}
         <div className="absolute bottom-3 right-3 z-10 font-mono">
           {isLegendOpen ? (
-            <div className="border border-zinc-800 bg-zinc-950/95 p-3 rounded-sm text-[10px] space-y-2 shadow-xl backdrop-blur-xs max-w-xs">
-              <div className="text-[9px] uppercase tracking-wider text-zinc-400 font-bold border-b border-zinc-800 pb-1.5 flex items-center justify-between gap-4">
+            <div className="border border-slate-300 dark:border-zinc-800 bg-white/95 dark:bg-zinc-950/95 p-3 rounded-sm text-[10px] space-y-2 shadow-xl backdrop-blur-xs max-w-xs">
+              <div className="text-[9px] uppercase tracking-wider text-slate-600 dark:text-zinc-400 font-bold border-b border-slate-200 dark:border-zinc-800 pb-1.5 flex items-center justify-between gap-4">
                 <span>IEEE / IEC ELECTRICAL SYMBOLS</span>
                 <button
                   onClick={() => setIsLegendOpen(false)}
-                  className="text-zinc-400 hover:text-white px-1.5 py-0.5 rounded border border-zinc-800 hover:border-zinc-700 text-[9px]"
+                  className="text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white px-1.5 py-0.5 rounded border border-slate-300 dark:border-zinc-800 hover:border-slate-400 dark:hover:border-zinc-700 text-[9px]"
                 >
                   ✕ Close
                 </button>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-3.5 w-3.5 rounded-xs border border-sky-400 bg-sky-950/60 flex items-center justify-center text-[8px] font-bold text-sky-400">⌁</span>
-                <span className="text-zinc-200">33/11 kV Grid Substation (GSS Incomer)</span>
+                <span className="h-3.5 w-3.5 rounded-xs border border-sky-400 bg-sky-50 dark:bg-sky-950/60 flex items-center justify-center text-[8px] font-bold text-sky-600 dark:text-sky-400">⌁</span>
+                <span className="text-slate-800 dark:text-zinc-200">33/11 kV Grid Substation (GSS Incomer)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-3.5 w-3.5 rounded-xs border border-emerald-400 bg-emerald-950/60 flex items-center justify-center text-[8px] font-bold text-emerald-400">⧇</span>
-                <span className="text-zinc-200">250 kVA Pad-Mounted Transformer (DTR-01)</span>
+                <span className="h-3.5 w-3.5 rounded-xs border border-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-[8px] font-bold text-emerald-600 dark:text-emerald-400">⧇</span>
+                <span className="text-slate-800 dark:text-zinc-200">250 kVA Pad-Mounted Transformer (DTR-01)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-3.5 w-3.5 rounded-full border-2 border-emerald-400 bg-emerald-950/80 ring-2 ring-emerald-500/50 animate-pulse flex items-center justify-center text-[7px] text-emerald-300 font-bold">◉</span>
-                <span className="text-emerald-400 font-bold">ANSI 87L RTU Unit (P01 / P02)</span>
+                <span className="h-3.5 w-3.5 rounded-full border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-950/80 ring-2 ring-emerald-500/50 animate-pulse flex items-center justify-center text-[7px] text-emerald-600 dark:text-emerald-300 font-bold">◉</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">ANSI 87L RTU Unit (P01 / P02)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full border border-purple-400 bg-purple-950/60 flex items-center justify-center text-[7px] text-purple-300">●</span>
-                <span className="text-zinc-300">Tangent &amp; Radial Poles (P03–P28)</span>
+                <span className="h-3 w-3 rounded-full border border-purple-400 bg-purple-50 dark:bg-purple-950/60 flex items-center justify-center text-[7px] text-purple-600 dark:text-purple-300">●</span>
+                <span className="text-slate-700 dark:text-zinc-300">Tangent &amp; Radial Poles (P03–P28)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full border border-rose-500 bg-rose-950/80 animate-ping flex items-center justify-center text-[7px] text-rose-300">✖</span>
-                <span className="text-rose-400 font-bold">Tripped Section / Circuit Lockout</span>
+                <span className="h-3 w-3 rounded-full border border-rose-500 bg-rose-50 dark:bg-rose-950/80 animate-ping flex items-center justify-center text-[7px] text-rose-600 dark:text-rose-300">✖</span>
+                <span className="text-rose-600 dark:text-rose-400 font-bold">Tripped Section / Circuit Lockout</span>
               </div>
-              <div className="flex items-center gap-2 pt-1 border-t border-zinc-800/80 text-[9px] text-zinc-400">
+              <div className="flex items-center gap-2 pt-1 border-t border-slate-200 dark:border-zinc-800/80 text-[9px] text-slate-500 dark:text-zinc-400">
                 <span className="h-1 w-5 bg-emerald-500 rounded-full inline-block" />
                 <span>415/240 V Overhead Aerial Bunched Cable</span>
               </div>
@@ -1030,9 +1048,9 @@ export const GisFeederMap = React.memo(function GisFeederMap({
           ) : (
             <button
               onClick={() => setIsLegendOpen(true)}
-              className="bg-zinc-950/85 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-zinc-200 px-2 py-1 rounded-sm text-[10px] shadow-lg backdrop-blur-xs flex items-center gap-1.5 transition-colors"
+              className="bg-white/95 hover:bg-slate-100 dark:bg-zinc-950/85 dark:hover:bg-zinc-900 border border-slate-300 dark:border-zinc-800 hover:border-slate-400 dark:hover:border-zinc-700 text-slate-700 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-zinc-200 px-2 py-1 rounded-sm text-[10px] shadow-lg backdrop-blur-xs flex items-center gap-1.5 transition-colors"
             >
-              <Info className="h-3 w-3 text-emerald-400" />
+              <Info className="h-3 w-3 text-emerald-600 dark:text-emerald-400" />
               <span>IEEE / IEC Legend</span>
             </button>
           )}

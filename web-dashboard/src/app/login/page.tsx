@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, User, Zap, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -52,7 +53,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-[#09090b] text-slate-900 dark:text-[#fafafa] flex flex-col justify-between p-3 md:p-4 font-mono select-none transition-colors">
       {/* Background Subtle Substation Grid Aesthetics */}
-      <div className="absolute inset-0 bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-25 pointer-events-none" />
+      <div className="absolute inset-0 bg-[radial-gradient(#94a3b8_1px,transparent_1px)] dark:bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-25 pointer-events-none" />
 
       {/* 1. TOP SCADA HEADER BAR - COHERENT WITH MAIN UI */}
       <header className="relative z-10 border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] p-3 rounded-sm flex items-center justify-between shadow-xs dark:shadow-none transition-colors">
@@ -67,11 +68,14 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div
-          suppressHydrationWarning
-          className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-2.5 py-1 rounded-sm text-[11px] text-slate-600 dark:text-zinc-400 tabular-nums"
-        >
-          CLOCK (IST): <span className="text-slate-900 dark:text-zinc-200">{clockTime || "--:--:--"}</span>
+        <div className="flex items-center gap-2.5">
+          <ThemeToggle />
+          <div
+            suppressHydrationWarning
+            className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-2.5 py-1 rounded-sm text-[11px] text-slate-600 dark:text-zinc-400 tabular-nums hidden sm:block"
+          >
+            CLOCK (IST): <span className="text-slate-900 dark:text-zinc-200 font-bold">{clockTime || "--:--:--"}</span>
+          </div>
         </div>
       </header>
 

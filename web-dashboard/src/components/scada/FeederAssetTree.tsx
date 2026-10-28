@@ -152,9 +152,9 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
                                           ? "bg-emerald-500/15 border border-emerald-500/40 text-emerald-800 dark:text-emerald-300 font-bold"
                                           : pole.isLive
                                           ? isPoleDeenergized
-                                            ? "bg-zinc-900/40 border border-transparent"
-                                            : "bg-emerald-500/5 hover:bg-emerald-500/10 border border-transparent"
-                                          : "hover:bg-slate-100 dark:hover:bg-zinc-800/60 border border-transparent"
+                                            ? "bg-slate-100 dark:bg-zinc-900/40 text-slate-700 dark:text-zinc-300 border border-transparent"
+                                            : "bg-emerald-500/5 hover:bg-emerald-500/10 text-slate-800 dark:text-zinc-200 border border-transparent"
+                                          : "hover:bg-slate-100 dark:hover:bg-zinc-800/60 text-slate-700 dark:text-zinc-300 border border-transparent"
                                       }`}
                                     >
                                       <div className="flex items-center gap-1.5">
@@ -165,7 +165,7 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
                                               : isPoleDeenergized
                                               ? "bg-slate-400 dark:bg-zinc-600"
                                               : pole.isLive
-                                              ? "bg-emerald-400 animate-pulse"
+                                              ? "bg-emerald-500 dark:bg-emerald-400 animate-pulse"
                                               : "bg-slate-400"
                                           }`}
                                         />
@@ -173,14 +173,14 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
                                         {pole.isLive && (
                                           <span className={`text-[8.5px] px-1 rounded-xs font-bold ${
                                             isPoleDeenergized
-                                              ? "bg-zinc-800 text-zinc-400 border border-zinc-700"
-                                              : "bg-emerald-500/20 text-emerald-500 border border-emerald-500/40"
+                                              ? "bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700"
+                                              : "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40"
                                           }`}>
                                             {pole.id === "F1-P01" ? (isPoleDeenergized ? "INCOMER (0V)" : "INCOMER") : (isPoleDeenergized ? "OUTGOING (0V)" : "OUTGOING")}
                                           </span>
                                         )}
                                       </div>
-                                      <span className="text-slate-400 tabular-nums text-[10px]">
+                                      <span className="text-slate-500 dark:text-slate-400 tabular-nums text-[10px]">
                                         {pole.phases.R.v.toFixed(0)}V • {pole.phases.R.i.toFixed(2)}A
                                       </span>
                                     </div>
