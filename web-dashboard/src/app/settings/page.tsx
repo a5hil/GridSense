@@ -29,7 +29,7 @@ import { Badge } from "@/components/ui/badge";
 
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
-  const { isAudioMuted, toggleAudioMuted } = useDashboard();
+  const { isAudioMuted, toggleAudioMuted, setScadaSettings } = useDashboard();
 
   // Settings form states
   const [refreshRateMs, setRefreshRateMs] = useState<number>(1000);
@@ -38,6 +38,7 @@ export default function SettingsPage() {
   const [undervoltageV, setUndervoltageV] = useState<number>(195.5);
   const [overvoltageV, setOvervoltageV] = useState<number>(253.0);
   const [overcurrentA, setOvercurrentA] = useState<number>(18.0);
+  const [brokenNeutralSpreadV, setBrokenNeutralSpreadV] = useState<number>(30.0);
   const [substationName, setSubstationName] = useState<string>("Angamaly 33/11kV Substation");
   const [feederId, setFeederId] = useState<string>("FEEDER-04");
   const [gatewayIp, setGatewayIp] = useState<string>("192.168.1.100");
@@ -53,33 +54,30 @@ export default function SettingsPage() {
   const [telegramEnabled, setTelegramEnabled] = useState<boolean>(true);
   const [testStatus, setTestStatus] = useState<{ loading: boolean; success?: boolean; message?: string } | null>(null);
 
-  // Load existing OMS settings from API & localStorage
+  // Load existing OMS & SCADA settings from API & localStorage
   React.useEffect(() => {
     fetch("/api/oms/settings")
       .then((res) => res.json())
       .then((data) => {
         if (data?.settings) {
-          if (typeof data.settings.soakDurationMinutes === "number") {
-            setSoakDurationMinutes(data.settings.soakDurationMinutes);
-          }
-          if (typeof data.settings.safetyOverrideEnabled === "boolean") {
-            setSafetyOverrideEnabled(data.settings.safetyOverrideEnabled);
-          }
-          if (typeof data.settings.linemanPhone === "string") {
-            setLinemanPhone(data.settings.linemanPhone);
-          }
-          if (typeof data.settings.notifyOnEscalation === "boolean") {
-            setNotifyOnEscalation(data.settings.notifyOnEscalation);
-          }
-          if (typeof data.settings.telegramBotToken === "string") {
-            setTelegramBotToken(data.settings.telegramBotToken);
-          }
-          if (typeof data.settings.telegramChatId === "string") {
-            setTelegramChatId(data.settings.telegramChatId);
-          }
-          if (typeof data.settings.telegramEnabled === "boolean") {
-            setTelegramEnabled(data.settings.telegramEnabled);
-          }
+          const s = data.settings;
+          if (typeof s.soakDurationMinutes === "number") setSoakDurationMinutes(s.soakDurationMinutes);
+          if (typeof s.safetyOverrideEnabled === "boolean") setSafetyOverrideEnabled(s.safetyOverrideEnabled);
+          if (typeof s.linemanPhone === "string") setLinemanPhone(s.linemanPhone);
+          if (typeof s.notifyOnEscalation === "boolean") setNotifyOnEscalation(s.notifyOnEscalation);
+          if (typeof s.telegramBotToken === "string") setTelegramBotToken(s.telegramBotToken);
+          if (typeof s.telegramChatId === "string") setTelegramChatId(s.telegramChatId);
+          if (typeof s.telegramEnabled === "boolean") setTelegramEnabled(s.telegramEnabled);
+          if (typeof s.refreshRateMs === "number") setRefreshRateMs(s.refreshRateMs);
+          if (typeof s.differentialPickupA === "number") setDifferentialPickupA(s.differentialPickupA);
+          if (typeof s.tripDelayMs === "number") setTripDelayMs(s.tripDelayMs);
+          if (typeof s.overcurrentA === "number") setOvercurrentA(s.overcurrentA);
+          if (typeof s.undervoltageV === "number") setUndervoltageV(s.undervoltageV);
+          if (typeof s.overvoltageV === "number") setOvervoltageV(s.overvoltageV);
+          if (typeof s.brokenNeutralSpreadV === "number") setBrokenNeutralSpreadV(s.brokenNeutralSpreadV);
+          if (typeof s.substationName === "string") setSubstationName(s.substationName);
+          if (typeof s.feederId === "string") setFeederId(s.feederId);
+          if (typeof s.gatewayIp === "string") setGatewayIp(s.gatewayIp);
         }
       })
       .catch((err) => console.error("Failed to load OMS settings:", err));
@@ -96,6 +94,7 @@ export default function SettingsPage() {
         if (typeof parsed.undervoltageV === "number") setUndervoltageV(parsed.undervoltageV);
         if (typeof parsed.overvoltageV === "number") setOvervoltageV(parsed.overvoltageV);
         if (typeof parsed.overcurrentA === "number") setOvercurrentA(parsed.overcurrentA);
+        if (typeof parsed.brokenNeutralSpreadV === "number") setBrokenNeutralSpreadV(parsed.brokenNeutralSpreadV);
         if (typeof parsed.substationName === "string") setSubstationName(parsed.substationName);
         if (typeof parsed.feederId === "string") setFeederId(parsed.feederId);
         if (typeof parsed.gatewayIp === "string") setGatewayIp(parsed.gatewayIp);
@@ -128,19 +127,35 @@ export default function SettingsPage() {
 
   const handleSave = async () => {
     try {
-      await fetch("/api/oms/settings", {
+      const payload = {
+        soakDurationMinutes,
+        safetyOverrideEnabled,
+        linemanPhone,
+        notifyOnEscalation,
+        telegramBotToken,
+        telegramChatId,
+        telegramEnabled,
+        refreshRateMs,
+        differentialPickupA,
+        tripDelayMs,
+        overcurrentA,
+        undervoltageV,
+        overvoltageV,
+        brokenNeutralSpreadV,
+        substationName,
+        feederId,
+        gatewayIp,
+      };
+
+      const res = await fetch("/api/oms/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          soakDurationMinutes,
-          safetyOverrideEnabled,
-          linemanPhone,
-          notifyOnEscalation,
-          telegramBotToken,
-          telegramChatId,
-          telegramEnabled,
-        }),
+        body: JSON.stringify(payload),
       });
+      const data = await res.json();
+      if (data?.settings) {
+        setScadaSettings(data.settings);
+      }
 
       try {
         localStorage.setItem("gridsense_refresh_rate", String(refreshRateMs));
@@ -152,6 +167,7 @@ export default function SettingsPage() {
             undervoltageV,
             overvoltageV,
             overcurrentA,
+            brokenNeutralSpreadV,
             substationName,
             feederId,
             gatewayIp,
@@ -619,18 +635,19 @@ export default function SettingsPage() {
           {/* Neutral Voltage Spread */}
           <div className="space-y-1">
             <label className="text-[10px] font-semibold text-slate-600 dark:text-zinc-400 uppercase tracking-wider">
-              Broken Neutral Spread
+              ANSI 59N Broken Neutral Spread
             </label>
             <div className="relative">
               <input
                 type="number"
-                value="40.0"
-                disabled
-                className="w-full px-2.5 py-1.5 bg-slate-100 dark:bg-zinc-900 border border-slate-300 dark:border-zinc-800 rounded-xs text-xs font-mono text-slate-500 dark:text-zinc-500 outline-none"
+                step="1.0"
+                value={brokenNeutralSpreadV}
+                onChange={(e) => setBrokenNeutralSpreadV(Number(e.target.value))}
+                className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xs text-xs font-mono text-slate-900 dark:text-zinc-100 outline-none focus:border-rose-500"
               />
               <span className="absolute right-2.5 top-1.5 text-[10px] text-slate-400">Volts</span>
             </div>
-            <span className="text-[9px] text-slate-400">Floating neutral trip boundary</span>
+            <span className="text-[9px] text-slate-400">Floating neutral trip boundary (Default: 30.0 V)</span>
           </div>
         </CardContent>
       </Card>

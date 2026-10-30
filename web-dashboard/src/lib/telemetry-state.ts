@@ -53,6 +53,19 @@ class TelemetryStore extends EventEmitter {
     this.systemStatus.operatorAck = true;
   }
 
+  public updateProtectionConfig(params: { pickupA?: number; tripDelayMs?: number }) {
+    const patch: { pickupA?: number; debounceCycles?: number } = {};
+    if (typeof params.pickupA === "number" && params.pickupA > 0) {
+      patch.pickupA = params.pickupA;
+      this.currentTelemetry.trip_limit = params.pickupA;
+    }
+    if (typeof params.tripDelayMs === "number" && params.tripDelayMs >= 25) {
+      patch.debounceCycles = Math.max(1, Math.round(params.tripDelayMs / 50));
+    }
+    this.protection.updateConfig(patch);
+    this.broadcast();
+  }
+
   constructor() {
     super();
     this.setMaxListeners(50);
@@ -887,6 +900,7 @@ class TelemetryStore extends EventEmitter {
       logs: this.eventLogs.slice(0, 15),
       history: this.telemetryHistory,
       tickets: omsManager.getTickets(),
+      omsSettings: omsManager.getSettings(),
     });
   }
 

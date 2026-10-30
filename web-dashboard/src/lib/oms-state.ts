@@ -16,6 +16,16 @@ class OmsManager {
     telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || "",
     telegramChatId: process.env.TELEGRAM_CHAT_ID || "",
     telegramEnabled: true,
+    refreshRateMs: 1000,
+    differentialPickupA: 0.35,
+    tripDelayMs: 150,
+    overcurrentA: 18.0,
+    undervoltageV: 195.5,
+    overvoltageV: 253.0,
+    brokenNeutralSpreadV: 30.0,
+    substationName: "Angamaly 33/11kV Substation",
+    feederId: "FEEDER-04",
+    gatewayIp: "192.168.1.100",
   };
 
   constructor() {

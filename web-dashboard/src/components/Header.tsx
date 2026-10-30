@@ -33,6 +33,7 @@ export function Header() {
     currentUser,
     handleLogout,
     systemStatus,
+    scadaSettings,
   } = useDashboard();
 
   const [clockTime, setClockTime] = useState<string>("");
@@ -49,6 +50,10 @@ export function Header() {
   const isAlarmUnacked = isFault && systemStatus?.operatorAck === false;
   const activeSectionLabel =
     pathname === "/settings" ? "System Settings" : VIEW_LABELS[activeView] || "Operations Desk";
+  const shortSubstation = scadaSettings?.substationName
+    ? scadaSettings.substationName.replace(/\s*Substation\s*$/i, "")
+    : "Angamaly 33/11kV";
+  const feederLabel = scadaSettings?.feederId || "Feeder 04";
 
   return (
     <header className="h-14 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] px-4 flex items-center justify-between font-mono select-none shrink-0 z-30 transition-colors">
@@ -64,11 +69,11 @@ export function Header() {
           </Link>
           <ChevronRight className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-600 shrink-0" />
           <span className="text-slate-600 dark:text-zinc-300 font-semibold truncate hidden md:inline">
-            Angamaly 33/11kV
+            {shortSubstation}
           </span>
           <ChevronRight className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-600 shrink-0 hidden md:inline" />
           <span className="text-slate-600 dark:text-zinc-300 font-semibold truncate hidden sm:inline">
-            Feeder 04
+            {feederLabel}
           </span>
           <ChevronRight className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-600 shrink-0 hidden sm:inline" />
           <span className="text-emerald-700 dark:text-emerald-400 font-bold truncate font-sans">

@@ -125,6 +125,63 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
     : [];
 
   const handleExportWaveformCsv = () => {
+    if (channelScope === "ANCHOR") {
+      if (data.length === 0) return;
+      const headers = [
+        "Timestamp",
+        "Time_Label",
+        "V1_Incomer_V",
+        "V2_Outgoing_V",
+        "VDrop_Span_V",
+        "I1_Incomer_A",
+        "I2_Outgoing_A",
+        "IDiff_Abs_A",
+        "Trip_Limit_A",
+        "P1_Incomer_W",
+        "P2_Outgoing_W",
+        "PLoss_Span_W",
+        "PF1",
+        "PF2",
+        "Freq_Hz",
+        "Is_Fault",
+      ];
+      const rows = data.map((d) => [
+        `"${d.timestamp || ""}"`,
+        `"${d.timeLabel}"`,
+        d.v1,
+        d.v2,
+        d.vDrop ?? 0,
+        d.i1,
+        d.i2,
+        d.idiff,
+        tripLimit,
+        d.p1 ?? 0,
+        d.p2 ?? 0,
+        d.pLoss ?? 0,
+        d.pf1 ?? 0.96,
+        d.pf2 ?? 0.96,
+        d.freq1 ?? 50.0,
+        d.isFault ? "TRUE" : "FALSE",
+      ]);
+      const csvContent =
+        "data:text/csv;charset=utf-8," +
+        [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute(
+        "download",
+        `gridsense_ansi87l_differential_${new Date()
+          .toISOString()
+          .slice(0, 19)
+          .replace(/[:T]/g, "-")}.csv`
+      );
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      return;
+    }
+
     if (polyHistory.length === 0) return;
     const headers = [
       "Timestamp",

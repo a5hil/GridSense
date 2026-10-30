@@ -80,7 +80,11 @@ export class SpanProtection {
   private latchedConfirmed = false;
   private wasArmed = false; // both nodes have been seen healthy at least once
 
-  constructor(private cfg: ProtectionConfig = DEFAULT_CONFIG) {}
+  constructor(private cfg: ProtectionConfig = { ...DEFAULT_CONFIG }) {}
+
+  public updateConfig(patch: Partial<ProtectionConfig>) {
+    this.cfg = { ...this.cfg, ...patch };
+  }
 
   /** Operator reset. Only clears if the condition is no longer present at next step. */
   reset() {

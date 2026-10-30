@@ -106,6 +106,8 @@ export default function SCADADashboard() {
     setNetworkSnapshot: setGlobalNetworkSnapshot,
     setOpenTicketsCount,
     setSystemStatus: setGlobalSystemStatus,
+    scadaSettings,
+    setScadaSettings,
   } = useDashboard();
 
   const [availablePorts, setAvailablePorts] = React.useState<any[]>([]);
@@ -120,7 +122,6 @@ export default function SCADADashboard() {
     const id = typeof target === "string" ? target : target.id;
     setSelectedPoleId(id || "");
   }, []);
-  const [isBreakerTripped, setIsBreakerTripped] = React.useState(false);
 
   // Waveform Freeze / Capture State
   const [isWaveformFrozen, setIsWaveformFrozen] = React.useState(false);
@@ -258,8 +259,11 @@ export default function SCADADashboard() {
             if (data.logs) setLogs(data.logs);
             if (data.history) setHistory(data.history);
             if (data.networkSnapshot) setNetworkSnapshot(data.networkSnapshot);
-            if (data.omsSettings?.linemanPhone) {
-              setLinemanPhone(data.omsSettings.linemanPhone);
+            if (data.omsSettings) {
+              setScadaSettings(data.omsSettings);
+              if (data.omsSettings.linemanPhone) {
+                setLinemanPhone(data.omsSettings.linemanPhone);
+              }
             }
             if (data.tickets) {
               setTickets(data.tickets);
@@ -403,24 +407,75 @@ export default function SCADADashboard() {
     }
   };
 
+  // Rescan available serial ports handler
+  const handleRefreshPorts = React.useCallback(async () => {
+    try {
+      const res = await fetch("/api/telemetry/ports");
+      const data = await res.json();
+      if (data.ports) {
+        setAvailablePorts(data.ports);
+        if (data.ports.length > 0 && !selectedPort) {
+          const preferred =
+            data.status?.activePort ||
+            data.ports.find((p: any) => p.path?.toUpperCase() === "COM8")?.path ||
+            data.ports[0].path;
+          setSelectedPort(preferred);
+        }
+      }
+      if (data.status) setSystemStatus(data.status);
+      addToast({
+        title: "COM PORT SCAN COMPLETE",
+        description: `Detected ${data.ports?.length ?? 0} hardware serial interface(s).`,
+        type: "info",
+      });
+    } catch (err: any) {
+      addToast({
+        title: "PORT SCAN FAILED",
+        description: err?.message || "Unable to query serial interfaces.",
+        type: "warning",
+      });
+    }
+  }, [selectedPort, addToast]);
+
   // Port connect / disconnect handler
   const handlePortConnect = async () => {
+    const isDisconnecting = !!systemStatus?.gatewayConnected;
     try {
-      await fetch("/api/telemetry/ports", {
+      const res = await fetch("/api/telemetry/ports", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          action: systemStatus?.gatewayConnected ? "disconnect" : "connect",
+          action: isDisconnecting ? "disconnect" : "connect",
           port: selectedPort,
           baudRate: 115200,
         }),
       });
-    } catch (err) {
-      console.error(err);
+      const data = await res.json();
+      if (res.ok && data.success !== false) {
+        addToast({
+          title: isDisconnecting ? "SERIAL PORT DISCONNECTED" : "SERIAL GATEWAY CONNECTED",
+          description: data.message || `${selectedPort || "Serial port"} @ 115200 baud.`,
+          type: isDisconnecting ? "info" : "success",
+        });
+      } else {
+        addToast({
+          title: "SERIAL CONNECTION FAILED",
+          description: data.message || data.error || "Could not open serial port.",
+          type: "warning",
+        });
+      }
+      // Refresh port & gateway status
+      const statusRes = await fetch("/api/telemetry/ports");
+      const statusData = await statusRes.json();
+      if (statusData.status) setSystemStatus(statusData.status);
+    } catch (err: any) {
+      addToast({
+        title: "SERIAL PORT ERROR",
+        description: err?.message || "Failed to reach serial gateway endpoint.",
+        type: "warning",
+      });
     }
   };
-
-
 
   const isPtwLocked =
     tickets.some((t) => t.ptw?.reclosingInterlockActive === true) ||
@@ -437,12 +492,20 @@ export default function SCADADashboard() {
   const isP2Stale = isGatewayOffline || (telemetry?.p2?.age_ms ?? 0) > 20000;
 
   const idiff = isGatewayOffline ? 0 : (telemetry?.idiff ?? 0);
-  const tripLimit = 0.35;
+  const tripLimit = scadaSettings?.differentialPickupA ?? telemetry?.trip_limit ?? 0.35;
+  const overcurrentLimit = scadaSettings?.overcurrentA ?? 18.0;
+  const undervoltageLimit = scadaSettings?.undervoltageV ?? 195.5;
+  const overvoltageLimit = scadaSettings?.overvoltageV ?? 253.0;
   const v1 = isGatewayOffline ? 0 : (telemetry?.p1?.v ?? 0);
   const v2 = isGatewayOffline ? 0 : (telemetry?.p2?.v ?? 0);
   const i1 = isGatewayOffline ? 0 : (telemetry?.p1?.i ?? 0);
   const i2 = isGatewayOffline ? 0 : (telemetry?.p2?.i ?? 0);
   const faultCode = isGatewayOffline ? "GATEWAY_DISCONNECTED" : telemetry?.fault_code;
+  const isBreakerTripped = Boolean(
+    !isGatewayOffline &&
+      faultCode !== "POWERCUT" &&
+      (telemetry?.status === "TRIP" || telemetry?.fault)
+  );
   let isPowerCut =
     !isGatewayOffline &&
     (faultCode === "POWERCUT" ||
@@ -450,7 +513,7 @@ export default function SCADADashboard() {
 
   // Guard against uninitialized node startup race-conditions:
   // Both nodes must have active, initialized power flow readings (V > 50V and I > 0.05A)
-  // before differential protection (|I1 - I2| >= 0.35A) is evaluated.
+  // before differential protection (|I1 - I2| >= tripLimit) is evaluated.
   const bothNodesActive = !isGatewayOffline && (v1 > 50 && i1 > 0.05) && (v2 > 50 && i2 > 0.05);
 
   let activeFault: {
@@ -470,23 +533,23 @@ export default function SCADADashboard() {
         description: "Line voltage collapsed to 0V. Node transmitting emergency last-gasp beacon over Sub-GHz LoRa mesh.",
         severity: "CRITICAL",
       };
-    } else if (i1 > 16 || i2 > 16 || faultCode === "OVERCURRENT") {
+    } else if (i1 > overcurrentLimit || i2 > overcurrentLimit || faultCode === "OVERCURRENT") {
       activeFault = {
         ansiCode: "ANSI 50",
         title: "INSTANTANEOUS OVERCURRENT TRIP",
-        reading: `I_PEAK: ${Math.max(i1, i2).toFixed(3)} A (RATED: 16.0 A)`,
-        description: "Feeder current exceeded 16A instantaneous threshold. Breaker isolation triggered.",
+        reading: `I_PEAK: ${Math.max(i1, i2).toFixed(3)} A (RATED: ${overcurrentLimit.toFixed(1)} A)`,
+        description: `Feeder current exceeded ${overcurrentLimit.toFixed(1)}A instantaneous threshold. Breaker isolation triggered.`,
         severity: "CRITICAL",
       };
-    } else if ((v1 > 20 && (v1 < 180 || v1 > 265)) || (v2 > 20 && (v2 < 180 || v2 > 265))) {
-      const isUnder = (v1 > 20 && v1 < 180) || (v2 > 20 && v2 < 180);
+    } else if ((v1 > 20 && (v1 < undervoltageLimit || v1 > overvoltageLimit)) || (v2 > 20 && (v2 < undervoltageLimit || v2 > overvoltageLimit))) {
+      const isUnder = (v1 > 20 && v1 < undervoltageLimit) || (v2 > 20 && v2 < undervoltageLimit);
       activeFault = {
         ansiCode: isUnder ? "ANSI 27" : "ANSI 59",
         title: isUnder ? "UNDERVOLTAGE TRIP (BROWNOUT)" : "OVERVOLTAGE TRIP (SURGE)",
-        reading: `V1: ${v1.toFixed(1)} V | V2: ${v2.toFixed(1)} V (NOMINAL: 230V ±10%)`,
+        reading: `V1: ${v1.toFixed(1)} V | V2: ${v2.toFixed(1)} V (LIMITS: ${undervoltageLimit.toFixed(1)}V – ${overvoltageLimit.toFixed(1)}V)`,
         description: isUnder
-          ? "Line voltage dropped below 180V brownout threshold."
-          : "Line voltage exceeded 265V insulation surge threshold.",
+          ? `Line voltage dropped below ${undervoltageLimit.toFixed(1)}V brownout threshold.`
+          : `Line voltage exceeded ${overvoltageLimit.toFixed(1)}V insulation surge threshold.`,
         severity: "WARNING",
       };
     } else if (faultCode === "BROKEN_CONDUCTOR") {
@@ -514,12 +577,12 @@ export default function SCADADashboard() {
         description: "Feeder is fully de-energized across all phases (scheduled power cut or upstream feeder trip).",
         severity: "WARNING",
       };
-    } else if (bothNodesActive && (telemetry?.fault || idiff >= 0.35)) {
+    } else if (bothNodesActive && (telemetry?.fault || idiff >= tripLimit)) {
       activeFault = {
         ansiCode: "ANSI 87L",
         title: "CURRENT DIFFERENTIAL PROTECTION (FEEDER LEAKAGE / THEFT)",
-        reading: `ΔI = ${idiff.toFixed(3)} A (TRIP LIMIT: 0.350 A) | I1: ${i1.toFixed(3)} A | I2: ${i2.toFixed(3)} A`,
-        description: `Current imbalance between Pole 1 and Pole 2 (${idiff.toFixed(3)} A) exceeds safety limit (0.350 A). Broken conductor, ground fault, or illegal tap.`,
+        reading: `ΔI = ${idiff.toFixed(3)} A (TRIP LIMIT: ${tripLimit.toFixed(3)} A) | I1: ${i1.toFixed(3)} A | I2: ${i2.toFixed(3)} A`,
+        description: `Current imbalance between Pole 1 and Pole 2 (${idiff.toFixed(3)} A) exceeds safety limit (${tripLimit.toFixed(3)} A). Broken conductor, ground fault, or illegal tap.`,
         severity: "CRITICAL",
       };
     } else if (bothNodesActive && faultCode && faultCode !== "NORMAL" && faultCode !== "PROTECTION_BLIND" && faultCode !== "POLE_OFFLINE") {
@@ -1450,7 +1513,7 @@ export default function SCADADashboard() {
           <div className="flex-1 flex flex-col min-h-0">
             <TelemetryTrendChart
               history={history}
-              tripLimit={0.35}
+              tripLimit={tripLimit}
               isFrozen={isWaveformFrozen}
               onToggleFreeze={() => setIsWaveformFrozen(!isWaveformFrozen)}
               networkSnapshot={networkSnapshot}
@@ -1491,6 +1554,7 @@ export default function SCADADashboard() {
               selectedPort={selectedPort}
               onSelectPort={setSelectedPort}
               onConnectPort={handlePortConnect}
+              onRefreshPorts={handleRefreshPorts}
             />
           </div>
         )}

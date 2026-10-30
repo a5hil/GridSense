@@ -36,7 +36,14 @@ export const FDIR_LIMITS = {
   brokenNeutralSpreadV: 30,
   unbalancePct: 20,
   unbalanceMinAvgA: 5,
+  undervoltageV: 195.5,
+  overvoltageV: 253.0,
+  overcurrentA: 18.0,
 };
+
+export function updateFdirLimits(patch: Partial<typeof FDIR_LIMITS>) {
+  Object.assign(FDIR_LIMITS, patch);
+}
 
 const instrumented = (r: PhaseReading) => r.source === "LIVE" || r.source === "SIM";
 const energized = (r: PhaseReading) => instrumented(r) && r.v >= FDIR_LIMITS.energizedV;
@@ -202,9 +209,9 @@ export function runFdir(params: {
 
   // 4. Under / over voltage — report worst node per feeder+phase+type
   const vLo1 = L.nominalV * (1 - L.warnBandPct / 100);
-  const vLo2 = L.nominalV * (1 - L.tripBandPct / 100);
+  const vLo2 = L.undervoltageV ?? L.nominalV * (1 - L.tripBandPct / 100);
   const vHi1 = L.nominalV * (1 + L.warnBandPct / 100);
-  const vHi2 = L.nominalV * (1 + L.tripBandPct / 100);
+  const vHi2 = L.overvoltageV ?? L.nominalV * (1 + L.tripBandPct / 100);
   const worst: Record<string, { n: NodeState; phase: Phase; v: number; count: number; type: "UV" | "OV" }> = {};
   for (const n of Object.values(nodes)) {
     if (n.id === "DTR-01" || neutralFaultSubtrees.has(n.id)) continue;

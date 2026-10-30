@@ -28,6 +28,7 @@ interface EngineeringDiagnosticsProps {
   selectedPort: string;
   onSelectPort: (port: string) => void;
   onConnectPort: () => void;
+  onRefreshPorts?: () => void;
 }
 
 export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics({
@@ -38,6 +39,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
   selectedPort,
   onSelectPort,
   onConnectPort,
+  onRefreshPorts,
 }: EngineeringDiagnosticsProps) {
   const { addToast } = useToast();
   return (
@@ -146,9 +148,22 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
 
           <CardContent className="space-y-3 text-xs">
             <div className="space-y-1.5">
-              <label className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase font-semibold">
-                DETECTED HARDWARE RTU / COM PORTS:
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase font-semibold">
+                  DETECTED HARDWARE RTU / COM PORTS:
+                </label>
+                {onRefreshPorts && (
+                  <button
+                    type="button"
+                    onClick={onRefreshPorts}
+                    className="flex items-center gap-1 text-[10px] text-cyan-600 dark:text-cyan-400 hover:underline font-bold cursor-pointer"
+                    title="Rescan USB / Serial COM ports"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                    <span>RESCAN PORTS</span>
+                  </button>
+                )}
+              </div>
               <select
                 className="w-full bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-sm px-2.5 py-1.5 text-xs text-slate-800 dark:text-zinc-200 focus:outline-hidden focus:border-slate-400 dark:focus:border-zinc-600 font-mono transition-colors"
                 value={selectedPort}

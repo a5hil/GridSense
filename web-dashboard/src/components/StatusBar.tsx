@@ -33,6 +33,8 @@ export function StatusBar() {
         {/* RIGHT: KEYBOARD SHORTCUTS HINTS */}
         <div className="hidden sm:flex items-center gap-2 text-[10px] text-slate-500 dark:text-zinc-400 shrink-0">
           <Keyboard className="h-3 w-3 text-slate-400 dark:text-zinc-500" />
+          <span>[[]: Sidebar</span>
+          <span>•</span>
           <span>[Esc]: Ack Alarm</span>
           <span>•</span>
           <span>[Alt+1..7]: Views</span>

@@ -116,6 +116,17 @@ export interface OmsSettings {
   telegramBotToken?: string;
   telegramChatId?: string;
   telegramEnabled?: boolean;
+  // SCADA Sampling, Protection Relay & Station Parameters
+  refreshRateMs?: number;
+  differentialPickupA?: number;
+  tripDelayMs?: number;
+  overcurrentA?: number;
+  undervoltageV?: number;
+  overvoltageV?: number;
+  brokenNeutralSpreadV?: number;
+  substationName?: string;
+  feederId?: string;
+  gatewayIp?: string;
 }
 
 export interface GridTelemetry {

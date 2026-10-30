@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { ScadaUser } from "@/lib/auth";
 import { NetworkSnapshot } from "@/lib/network/types";
-import { SystemStatus } from "@/lib/types";
+import { OmsSettings, SystemStatus } from "@/lib/types";
 
 export type ActiveView =
   | "OPERATOR"
@@ -56,6 +56,8 @@ interface DashboardContextType {
   setOpenTicketsCount: (count: number) => void;
   systemStatus: SystemStatus | null;
   setSystemStatus: (status: SystemStatus | null) => void;
+  scadaSettings: OmsSettings | null;
+  setScadaSettings: (settings: OmsSettings | null) => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | null>(null);
@@ -74,8 +76,9 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [networkSnapshot, setNetworkSnapshot] = useState<NetworkSnapshot | null>(null);
   const [openTicketsCount, setOpenTicketsCount] = useState<number>(0);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
+  const [scadaSettings, setScadaSettings] = useState<OmsSettings | null>(null);
 
-  // Load user profile on mount and whenever navigating from /login to protected routes
+  // Load user profile and SCADA settings on mount
   useEffect(() => {
     if (pathname === "/login") return;
 
@@ -84,6 +87,15 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       .then((data) => {
         if (data?.authenticated && data?.user) {
           setCurrentUser(data.user);
+        }
+      })
+      .catch(() => {});
+
+    fetch("/api/oms/settings", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.settings) {
+          setScadaSettings(data.settings);
         }
       })
       .catch(() => {});
@@ -129,6 +141,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       setOpenTicketsCount,
       systemStatus,
       setSystemStatus,
+      scadaSettings,
+      setScadaSettings,
     }),
     [
       isSidebarCollapsed,
@@ -146,6 +160,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       networkSnapshot,
       openTicketsCount,
       systemStatus,
+      scadaSettings,
     ]
   );
 

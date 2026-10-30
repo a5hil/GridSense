@@ -62,6 +62,7 @@ class NetworkTwin extends EventEmitter {
   private noise = mulberry32(this.seed);
   private wasSeenHealthy: Record<string, boolean> = {};
   private timer: NodeJS.Timeout | null = null;
+  private tickMs: number = TICK_MS;
 
   constructor() {
     super();
@@ -72,7 +73,17 @@ class NetworkTwin extends EventEmitter {
   public start() {
     if (this.timer) return;
     this.step(true);
-    this.timer = setInterval(() => this.step(true), TICK_MS);
+    this.timer = setInterval(() => this.step(true), this.tickMs);
+  }
+
+  public setTickIntervalMs(ms: number) {
+    const clamped = Math.max(250, Math.min(5000, Math.round(ms)));
+    this.tickMs = clamped;
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = setInterval(() => this.step(true), this.tickMs);
+    }
+    this.step(false);
   }
 
   public stop() {
