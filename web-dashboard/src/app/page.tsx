@@ -605,10 +605,16 @@ export default function SCADADashboard() {
     const topDet = networkSnapshot.detections.find((d) => d.severity === "CRITICAL" || d.severity === "HIGH") || networkSnapshot.detections[0];
     if (topDet) {
       isCommsOnlyAlarm = topDet.type === "NODE_OFFLINE";
+      const readingBadge = topDet.type === "NODE_OFFLINE"
+        ? "LINK DOWN // NO TELEMETRY"
+        : typeof topDet.value === "number" && topDet.unit
+        ? `${topDet.value.toFixed(2)} ${topDet.unit}${topDet.threshold ? ` (LIMIT: ${topDet.threshold} ${topDet.unit})` : ""}`
+        : "ANOMALY DETECTED";
+
       activeFault = {
         ansiCode: topDet.ansi,
         title: `${topDet.type.replace(/_/g, " ")} (${topDet.sectionId ? `Section ${topDet.sectionId}` : topDet.nodeId ? `Pole ${topDet.nodeId}` : topDet.feederId})`,
-        reading: topDet.message,
+        reading: readingBadge,
         description: topDet.message,
         severity: topDet.severity === "CRITICAL" ? "CRITICAL" : "WARNING",
       };
@@ -820,7 +826,9 @@ export default function SCADADashboard() {
                 <span className="font-bold text-rose-950 dark:text-white bg-white dark:bg-black/40 px-1.5 py-0.5 rounded-xs border border-rose-300 dark:border-rose-800">
                   {activeFault.reading}
                 </span>
-                <span>• {activeFault.description}</span>
+                {activeFault.description && activeFault.description !== activeFault.reading && (
+                  <span>• {activeFault.description}</span>
+                )}
               </div>
             </div>
           </div>
