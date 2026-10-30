@@ -2,20 +2,13 @@
 
 import * as React from "react";
 import {
-  Compass,
+  AlertOctagon,
   Crosshair,
-  ExternalLink,
   Eye,
   Info,
-  Key,
-  Layers,
-  MapPin,
+  Map as MapIcon,
   Maximize2,
-  Minimize2,
-  Radio,
-  RotateCcw,
   Settings,
-  AlertOctagon,
   Zap,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -874,7 +867,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       {/* Real Map Header Controls */}
       <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 px-3.5 py-2.5 bg-slate-50 dark:bg-zinc-950/80 text-xs font-mono">
         <div className="flex items-center gap-2">
-          <Layers className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+          <MapIcon className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           <span className="font-semibold uppercase tracking-wider text-slate-800 dark:text-zinc-200">
             GEOGRAPHIC ADMS // ASSET &amp; FEEDER TOPOLOGY GIS
           </span>
@@ -914,7 +907,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
             onClick={handleResetCamera}
             title="Recenter Camera on Angamaly Substation Bus"
           >
-            <RotateCcw className="h-3 w-3 mr-1" />
+            <Crosshair className="h-3 w-3 mr-1 text-emerald-600 dark:text-emerald-400" />
             RECENTER
           </Button>
         </div>
@@ -1071,33 +1064,48 @@ export const GisFeederMap = React.memo(function GisFeederMap({
                 <span>IEEE / IEC ELECTRICAL SYMBOLS</span>
                 <button
                   onClick={() => setIsLegendOpen(false)}
-                  className="text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white px-1.5 py-0.5 rounded border border-slate-300 dark:border-zinc-800 hover:border-slate-400 dark:hover:border-zinc-700 text-[9px]"
+                  className="text-slate-500 hover:text-slate-900 dark:text-zinc-400 dark:hover:text-white px-1.5 py-0.5 rounded border border-slate-300 dark:border-zinc-800 hover:border-slate-400 dark:hover:border-zinc-700 text-[9px] cursor-pointer"
                 >
                   ✕ Close
                 </button>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-3.5 w-3.5 rounded-xs border border-sky-400 bg-sky-50 dark:bg-sky-950/60 flex items-center justify-center text-[9px] font-bold text-sky-600 dark:text-sky-400">⌁</span>
+                <span className="h-4 w-4 rounded-xs border border-sky-400 bg-sky-50 dark:bg-sky-950/60 flex items-center justify-center shrink-0">
+                  <svg viewBox="0 0 24 24" className="w-3 h-3 text-sky-600 dark:text-sky-400 stroke-current fill-none stroke-[2]">
+                    <path d="M4 22h16M12 2v20M8 8h8M6 14h12M9 4l6 18M15 4L9 22" />
+                  </svg>
+                </span>
                 <span className="text-slate-800 dark:text-zinc-200">33/11 kV Grid Substation (GSS Incomer)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-3.5 w-3.5 rounded-xs border border-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center text-[9px] font-bold text-emerald-600 dark:text-emerald-400">⧇</span>
+                <span className="h-4 w-4 rounded-xs border border-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 flex items-center justify-center shrink-0">
+                  <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 stroke-current fill-none stroke-[2]">
+                    <circle cx="8" cy="12" r="4.5" />
+                    <circle cx="16" cy="12" r="4.5" />
+                  </svg>
+                </span>
                 <span className="text-slate-800 dark:text-zinc-200">250 kVA Pad-Mounted Transformer (DTR-01)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-3.5 w-3.5 rounded-full border-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-950/80 ring-2 ring-emerald-500/50 animate-pulse flex items-center justify-center text-[9px] text-emerald-600 dark:text-emerald-300 font-bold">◉</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-bold">ANSI 87L RTU Unit (P01 / P02)</span>
+                <span className="h-4 w-4 rounded-full border-2 border-emerald-500 bg-emerald-50 dark:bg-emerald-950/80 ring-2 ring-emerald-500/40 flex items-center justify-center text-[8px] text-emerald-600 dark:text-emerald-300 font-bold shrink-0">
+                  P01
+                </span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">ANSI 87L Differential RTU (P01 / P02)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full border border-purple-400 bg-purple-50 dark:bg-purple-950/60 flex items-center justify-center text-[9px] text-purple-600 dark:text-purple-300">●</span>
-                <span className="text-slate-700 dark:text-zinc-300">Tangent &amp; Radial Poles (P03–P28)</span>
+                <span className="h-3.5 w-3.5 rounded-full border border-purple-400 bg-purple-50 dark:bg-purple-950/60 flex items-center justify-center text-[8px] text-purple-600 dark:text-purple-300 font-bold shrink-0">
+                  P
+                </span>
+                <span className="text-slate-700 dark:text-zinc-300">Tangent &amp; Radial Distribution Poles (P03–P28)</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full border border-rose-500 bg-rose-50 dark:bg-rose-950/80 animate-ping flex items-center justify-center text-[9px] text-rose-600 dark:text-rose-300">✖</span>
+                <span className="h-3.5 w-3.5 rounded-full border border-rose-500 bg-rose-50 dark:bg-rose-950/80 flex items-center justify-center text-[9px] text-rose-600 dark:text-rose-400 font-bold shrink-0">
+                  <AlertOctagon className="w-2.5 h-2.5 text-rose-600 dark:text-rose-400" />
+                </span>
                 <span className="text-rose-600 dark:text-rose-400 font-bold">Tripped Section / Circuit Lockout</span>
               </div>
               <div className="flex items-center gap-2 pt-1 border-t border-slate-200 dark:border-zinc-800/80 text-[9px] text-slate-500 dark:text-zinc-400">
-                <span className="h-1 w-5 bg-emerald-500 rounded-full inline-block" />
+                <span className="h-1 w-5 bg-emerald-500 rounded-full inline-block shrink-0" />
                 <span>415/240 V Overhead Aerial Bunched Cable</span>
               </div>
             </div>
