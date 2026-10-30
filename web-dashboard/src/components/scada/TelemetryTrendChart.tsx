@@ -686,7 +686,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
   return (
     <div className="flex-1 flex flex-col gap-3 font-mono">
       {/* 1. Global SCADA Header Bar with Channel Scope & Pole Selection */}
-      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-2.5 rounded-sm flex flex-wrap items-center justify-between gap-3 shadow-xs">
+      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-2.5 rounded-sm flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-xs">
         <div className="flex flex-wrap items-center gap-3">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
@@ -779,7 +779,8 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           )}
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Right-aligned action controls */}
+        <div className="flex items-center gap-3 shrink-0 ml-auto">
           {isFrozen && (
             <div className="flex items-center gap-1.5 text-xs bg-amber-500/10 border border-amber-500/40 text-amber-500 dark:text-amber-400 px-2 py-0.5 rounded-xs font-bold animate-pulse">
               <Clock className="h-3.5 w-3.5" />
