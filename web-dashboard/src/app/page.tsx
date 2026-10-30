@@ -53,18 +53,33 @@ import {
   SystemStatus,
   TroubleTicket,
 } from "@/lib/types";
+import dynamic from "next/dynamic";
 import { GisFeederMap } from "@/components/scada/GisFeederMap";
-import { TelemetryTrendChart } from "@/components/scada/TelemetryTrendChart";
 import { FeederAssetTree } from "@/components/scada/FeederAssetTree";
-import { WorkforceOmsPanel } from "@/components/scada/WorkforceOmsPanel";
 import { SingleLinePowerFlow } from "@/components/scada/SingleLinePowerFlow";
-import { EngineeringDiagnostics } from "@/components/scada/EngineeringDiagnostics";
 import { ScadaUser } from "@/lib/auth";
-import { NetworkTwinView } from "@/components/scada/NetworkTwinView";
 import { PlatformLoadingOverlay } from "@/components/scada/PlatformLoadingOverlay";
 import { NetworkSnapshot } from "@/lib/network/types";
 import { useDashboard } from "@/context/DashboardContext";
 import { ENTERPRISE_CONFIG } from "@/lib/constants";
+
+// Lazy-load secondary/below-the-fold SCADA tab modules to reduce initial JS parse/compile time
+const TelemetryTrendChart = dynamic(
+  () => import("@/components/scada/TelemetryTrendChart").then((m) => m.TelemetryTrendChart),
+  { ssr: false }
+);
+const WorkforceOmsPanel = dynamic(
+  () => import("@/components/scada/WorkforceOmsPanel").then((m) => m.WorkforceOmsPanel),
+  { ssr: false }
+);
+const EngineeringDiagnostics = dynamic(
+  () => import("@/components/scada/EngineeringDiagnostics").then((m) => m.EngineeringDiagnostics),
+  { ssr: false }
+);
+const NetworkTwinView = dynamic(
+  () => import("@/components/scada/NetworkTwinView").then((m) => m.NetworkTwinView),
+  { ssr: false }
+);
 
 export default function SCADADashboard() {
   const { addToast, removeToast, clearAll } = useToast();
@@ -113,6 +128,7 @@ export default function SCADADashboard() {
 
   // SSE Stream Health & Disconnection State
   const [isStreamDisconnected, setIsStreamDisconnected] = React.useState(false);
+  const [soeSeverityFilter, setSoeSeverityFilter] = React.useState<"ALL" | "CRITICAL" | "WARN" | "INFO">("ALL");
   const lastPacketTimeRef = React.useRef<number>(Date.now());
 
   // Web Audio API Industrial Dual-Tone Alarm Synthesizer (880Hz / 660Hz pulses)
@@ -173,27 +189,8 @@ export default function SCADADashboard() {
   // Track if fault toast is currently raised to prevent multiple toasts for the same continuous fault
   const activeFaultToastRef = React.useRef<string | null>(null);
 
-  // Live Energy Accumulation over time (P * Δt) with 3 decimal precision
-  const [accumulatedEnergyKWh, setAccumulatedEnergyKWh] = React.useState<number>(1.248);
-  const lastEnergyTickRef = React.useRef<number>(Date.now());
   const [isPlatformReady, setIsPlatformReady] = React.useState<boolean>(false);
   const handlePlatformReady = React.useCallback(() => setIsPlatformReady(true), []);
-
-  React.useEffect(() => {
-    const timer = setInterval(() => {
-      const now = Date.now();
-      const dtHours = (now - lastEnergyTickRef.current) / (1000 * 3600);
-      lastEnergyTickRef.current = now;
-
-      // Active power in kW (use actual live p1 power if available, otherwise nominal 535W)
-      const currentPowerKW = (telemetry?.p1?.p ?? (isBreakerTripped ? 0 : 535)) / 1000;
-      if (currentPowerKW > 0 && !isBreakerTripped) {
-        setAccumulatedEnergyKWh((prev) => prev + currentPowerKW * dtHours);
-      }
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [telemetry?.p1?.p, isBreakerTripped]);
 
   // Fetch tickets for Outage & Workforce Management
   const fetchTickets = React.useCallback(async () => {
@@ -248,9 +245,9 @@ export default function SCADADashboard() {
           lastPacketTimeRef.current = Date.now();
           setIsStreamDisconnected(false);
           const data = JSON.parse(event.data);
-          setLastHeartbeat(new Date().toLocaleTimeString());
 
           if (data.type === "INITIAL" || data.type === "UPDATE") {
+            setLastHeartbeat(new Date().toLocaleTimeString());
             if (data.telemetry) {
               setTelemetry(data.telemetry);
               if (data.telemetry.history) {
@@ -261,6 +258,9 @@ export default function SCADADashboard() {
             if (data.logs) setLogs(data.logs);
             if (data.history) setHistory(data.history);
             if (data.networkSnapshot) setNetworkSnapshot(data.networkSnapshot);
+            if (data.omsSettings?.linemanPhone) {
+              setLinemanPhone(data.omsSettings.linemanPhone);
+            }
             if (data.tickets) {
               setTickets(data.tickets);
             } else if (data.telemetry?.tickets) {
@@ -285,8 +285,6 @@ export default function SCADADashboard() {
     }
 
     connectSSE();
-    fetchTickets();
-    fetchNetworkSnapshot();
 
     // Query available serial ports
     fetch("/api/telemetry/ports")
@@ -587,7 +585,6 @@ export default function SCADADashboard() {
   // Ensure line loss is physically positive along series radial line
   const lineLossW = Math.max(0, p1PowerW - p2PowerW);
   const lineLossPct = p1PowerW > 0 ? ((lineLossW / p1PowerW) * 100).toFixed(2) : "0.00";
-  const feederEnergyKWh = accumulatedEnergyKWh.toFixed(3);
   
   // Digital Twin Grid macro metrics across 28 poles and 3 feeders
   const gridMetrics = React.useMemo(() => {
@@ -703,11 +700,11 @@ export default function SCADADashboard() {
 
       {/* SSE STREAM DISCONNECTION HIGH-CONTRAST WARNING */}
       {isStreamDisconnected && (
-        <div className="border border-rose-600 bg-rose-950 px-4 py-2.5 rounded-sm flex items-center justify-between text-rose-100 font-mono text-xs shadow-xl animate-pulse">
+        <div className="border border-rose-400 dark:border-rose-600 bg-rose-50 dark:bg-rose-950 px-4 py-2.5 rounded-sm flex items-center justify-between text-rose-900 dark:text-rose-100 font-mono text-xs shadow-sm dark:shadow-xl animate-pulse transition-colors">
           <div className="flex items-center gap-2.5">
-            <WifiOff className="h-5 w-5 text-rose-400 shrink-0 animate-bounce" />
+            <WifiOff className="h-5 w-5 text-rose-600 dark:text-rose-400 shrink-0 animate-bounce" />
             <div>
-              <span className="font-bold text-white bg-rose-900 px-1.5 py-0.5 rounded-xs mr-2">
+              <span className="font-bold text-white bg-rose-600 dark:bg-rose-900 px-1.5 py-0.5 rounded-xs mr-2">
                 CRITICAL: TELEMETRY STREAM DISCONNECTED
               </span>
               <span>No heartbeat received from Next.js SSE endpoint (&gt;5s). Reconnecting to /api/telemetry/stream...</span>
@@ -1120,7 +1117,7 @@ export default function SCADADashboard() {
                         selectedPoleId === "F1-P01" || selectedPoleId === "Pole-A"
                           ? "ring-1 ring-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20"
                           : ""
-                      } ${isP1Stale ? "opacity-50 border-amber-500/50" : ""}`}
+                      } ${isP1Stale ? "border-amber-400/70 dark:border-amber-500/50" : ""}`}
                     >
                       <div className="flex items-center gap-2">
                         <span className={`h-2 w-2 rounded-full ${isPowerCut ? "bg-slate-400 dark:bg-zinc-600" : !isGatewayOffline && telemetry?.p1?.isOnline ? "bg-emerald-500 dark:bg-emerald-400" : "bg-slate-400 dark:bg-zinc-600"}`} />
@@ -1130,17 +1127,17 @@ export default function SCADADashboard() {
                             <span className={`text-[9px] px-1 py-0.2 rounded-xs font-bold ${
                               isPowerCut
                                 ? "bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700"
-                                : "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40"
+                                : "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/40"
                             }`}>
                               {isPowerCut ? "INCOMER (0V)" : "INCOMER TERMINAL"}
                             </span>
                           </div>
-                          <span className="text-[10px] text-slate-500 dark:text-zinc-400">Substation Tap (Phase R Metered)</span>
+                          <span className="text-[10px] text-slate-600 dark:text-zinc-400">Substation Tap (Phase R Metered)</span>
                         </div>
                       </div>
-                      <div className="text-slate-500 dark:text-zinc-400 tabular-nums flex items-center gap-1.5">
+                      <div className="text-slate-600 dark:text-zinc-400 tabular-nums flex items-center gap-1.5">
                         {isP1Stale && (
-                          <Badge variant="warning" className="text-[9px] py-0 border-amber-500 text-amber-500 dark:text-amber-400 animate-pulse font-bold">
+                          <Badge variant="warning" className="text-[9px] py-0 border-amber-400 dark:border-amber-500 text-amber-800 dark:text-amber-400 animate-pulse font-bold">
                             {isGatewayOffline ? "OFFLINE" : "STALE"}
                           </Badge>
                         )}
@@ -1163,7 +1160,7 @@ export default function SCADADashboard() {
                         selectedPoleId === "F1-P02" || selectedPoleId === "Pole-B"
                           ? "ring-1 ring-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20"
                           : ""
-                      } ${isP2Stale ? "opacity-50 border-amber-500/50" : ""}`}
+                      } ${isP2Stale ? "border-amber-400/70 dark:border-amber-500/50" : ""}`}
                     >
                       <div className="flex items-center gap-2">
                         <span
@@ -1181,17 +1178,17 @@ export default function SCADADashboard() {
                             <span className={`text-[9px] px-1 py-0.2 rounded-xs font-bold ${
                               isPowerCut
                                 ? "bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700"
-                                : "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40"
+                                : "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/40"
                             }`}>
                               {isPowerCut ? "BOUNDARY (0V)" : "SECTION TERMINAL"}
                             </span>
                           </div>
-                          <span className="text-[10px] text-slate-500 dark:text-zinc-400">Differential Boundary (Phase R Metered)</span>
+                          <span className="text-[10px] text-slate-600 dark:text-zinc-400">Differential Boundary (Phase R Metered)</span>
                         </div>
                       </div>
-                      <div className="text-slate-500 dark:text-zinc-400 tabular-nums flex items-center gap-1.5">
+                      <div className="text-slate-600 dark:text-zinc-400 tabular-nums flex items-center gap-1.5">
                         {isP2Stale && (
-                          <Badge variant="warning" className="text-[9px] py-0 border-amber-500 text-amber-500 dark:text-amber-400 animate-pulse font-bold">
+                          <Badge variant="warning" className="text-[9px] py-0 border-amber-400 dark:border-amber-500 text-amber-800 dark:text-amber-400 animate-pulse font-bold">
                             {isGatewayOffline ? "OFFLINE" : "STALE"}
                           </Badge>
                         )}
@@ -1199,7 +1196,7 @@ export default function SCADADashboard() {
                           {isPowerCut ? (
                             "0.0V • 0.00A"
                           ) : isGatewayOffline || telemetry?.p2?.isOnline === false ? (
-                            <span className="text-slate-500 dark:text-zinc-400 font-bold">OFFLINE // NO FEED</span>
+                            <span className="text-slate-700 dark:text-zinc-400 font-bold">OFFLINE // NO FEED</span>
                           ) : (
                             `${telemetry?.p2?.v.toFixed(1)}V • ${telemetry?.p2?.i.toFixed(2)}A`
                           )}
@@ -1488,12 +1485,27 @@ export default function SCADADashboard() {
         {/* ============================================================== */}
         {(activeView === "LOGS" || activeView === "SOE") && (
           <Card className="col-span-12 flex-1 flex flex-col font-mono min-h-0">
-            <CardHeader className="py-2.5 flex items-center justify-between">
+            <CardHeader className="py-2.5 flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-2">
-                <Terminal className="h-4 w-4 text-emerald-400" />
+                <Terminal className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 <CardTitle>SCADA Sequential Event Recorder (SER) // Real-Time Audit Log</CardTitle>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5 text-[10px]">
+                  {(["ALL", "CRITICAL", "WARN", "INFO"] as const).map((lvl) => (
+                    <button
+                      key={lvl}
+                      onClick={() => setSoeSeverityFilter(lvl)}
+                      className={`px-2 py-0.5 rounded-xs font-bold transition-colors cursor-pointer ${
+                        soeSeverityFilter === lvl
+                          ? "bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 border border-slate-300 dark:border-zinc-700 shadow-xs"
+                          : "text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200"
+                      }`}
+                    >
+                      {lvl}
+                    </button>
+                  ))}
+                </div>
                 <Badge variant="outline">RECORDS: {logs.length}</Badge>
                 <Button
                   variant="outline"
@@ -1519,14 +1531,16 @@ export default function SCADADashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {logs.length === 0 ? (
+                  {logs.filter((l) => soeSeverityFilter === "ALL" || l.level === soeSeverityFilter).length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-slate-500 dark:text-zinc-500 py-4 font-mono text-xs">
                         Awaiting SCADA telemetry records...
                       </TableCell>
                     </TableRow>
                   ) : (
-                    logs.map((log) => (
+                    logs
+                      .filter((l) => soeSeverityFilter === "ALL" || l.level === soeSeverityFilter)
+                      .map((log) => (
                       <TableRow key={log.id}>
                         <TableCell className="text-slate-600 dark:text-zinc-400 font-mono text-xs">
                           {new Date(log.timestamp).toLocaleTimeString()}

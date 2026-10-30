@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { telemetryStore } from "@/lib/telemetry-state";
+import { omsManager } from "@/lib/oms-state";
 import { networkTwin } from "@/lib/network/twin";
 import "@/lib/serial-reader"; // Trigger serial reader discovery
 
@@ -10,12 +11,16 @@ export async function GET(req: NextRequest) {
 
   const stream = new ReadableStream({
     start(controller) {
-      // 1. Send immediate initial state
+      // 1. Send immediate initial state (including tickets, history, and OMS settings in a single frame)
+      const { history: _h, tickets: _t, ...cleanInitialTelemetry } = telemetryStore.getTelemetry() as any;
       const initialPayload = JSON.stringify({
         type: "INITIAL",
-        telemetry: telemetryStore.getTelemetry(),
+        telemetry: cleanInitialTelemetry,
         status: telemetryStore.getStatus(),
         logs: telemetryStore.getLogs().slice(0, 20),
+        history: telemetryStore.getHistory(),
+        tickets: omsManager.getTickets(),
+        omsSettings: omsManager.getSettings(),
         networkSnapshot: networkTwin.getSnapshot(),
       });
       controller.enqueue(encoder.encode(`data: ${initialPayload}\n\n`));
@@ -63,14 +68,18 @@ export async function GET(req: NextRequest) {
       telemetryStore.on("log", logListener);
       networkTwin.on("snapshot", snapshotListener);
 
-      // Heartbeat ping every 10 seconds to keep connection alive
+      // Heartbeat ping every 3 seconds so the client SSE 5s watchdog receives active data frames
       const pingInterval = setInterval(() => {
         try {
-          controller.enqueue(encoder.encode(`: ping\n\n`));
+          const heartbeat = JSON.stringify({
+            type: "HEARTBEAT",
+            timestamp: Date.now(),
+          });
+          controller.enqueue(encoder.encode(`data: ${heartbeat}\n\n`));
         } catch (e) {
           cleanup?.();
         }
-      }, 10000);
+      }, 3000);
 
       let isClosed = false;
       cleanup = () => {

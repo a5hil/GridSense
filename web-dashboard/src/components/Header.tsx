@@ -92,8 +92,8 @@ export function Header() {
               onClick={() => setIsProfileOpen(!isProfileOpen)}
               className="flex items-center gap-2 border border-slate-300 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-2.5 py-1 rounded-sm text-[11px] hover:border-emerald-500/50 transition-colors cursor-pointer"
             >
-              <div className="h-6 w-6 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-700/60 flex items-center justify-center text-[10px] font-bold">
-                {currentUser.name.charAt(0)}
+              <div className="h-6 w-6 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-700/60 flex items-center justify-center text-[10px] font-bold">
+                {(currentUser.name || currentUser.username || "O").charAt(0).toUpperCase()}
               </div>
               <div className="flex flex-col text-left leading-tight hidden sm:flex">
                 <span className="font-bold text-slate-800 dark:text-zinc-200 truncate max-w-[120px]">

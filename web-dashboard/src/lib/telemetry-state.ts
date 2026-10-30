@@ -876,13 +876,13 @@ class TelemetryStore extends EventEmitter {
     this.systemStatus.mongoConnected = isMongoConnected();
     this.systemStatus.dbName = getMongoDbName();
 
-    const telemetryWithTickets = {
-      ...this.currentTelemetry,
-      tickets: omsManager.getTickets(),
+    const { history: _h, tickets: _t, ...cleanTelemetry } = this.currentTelemetry as GridTelemetry & {
+      history?: unknown;
+      tickets?: unknown;
     };
 
     this.emit("update", {
-      telemetry: telemetryWithTickets,
+      telemetry: cleanTelemetry,
       status: this.systemStatus,
       logs: this.eventLogs.slice(0, 15),
       history: this.telemetryHistory,

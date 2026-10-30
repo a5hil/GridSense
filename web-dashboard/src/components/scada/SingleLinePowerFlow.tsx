@@ -6,6 +6,8 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
   GitBranch,
   Layers,
   Lock,
@@ -35,6 +37,15 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
 }: SingleLinePowerFlowProps) {
   // View Scope: Feeder LT-1 (Residential & Live Anchor Span), LT-2, or LT-3
   const [viewScope, setViewScope] = React.useState<"LT-1" | "LT-2" | "LT-3">("LT-1");
+  const pipelineScrollRef = React.useRef<HTMLDivElement | null>(null);
+
+  const scrollPipeline = (dir: "left" | "right") => {
+    if (!pipelineScrollRef.current) return;
+    pipelineScrollRef.current.scrollBy({
+      left: dir === "left" ? -340 : 340,
+      behavior: "smooth",
+    });
+  };
 
   // Auto-synchronize feeder tab if user selects a pole belonging to another feeder
   React.useEffect(() => {
@@ -214,13 +225,29 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
               ? `${feederSummary.name} • ${feederNodes.length} POLES`
               : "230V/415V LT RADIAL"}
           </span>
+          <div className="flex items-center gap-1 ml-1">
+            <button
+              onClick={() => scrollPipeline("left")}
+              title="Scroll Single-Line Diagram Left"
+              className="h-5 w-5 flex items-center justify-center rounded-xs border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-300 transition-colors cursor-pointer"
+            >
+              <ChevronLeft className="h-3 w-3" />
+            </button>
+            <button
+              onClick={() => scrollPipeline("right")}
+              title="Scroll Single-Line Diagram Right"
+              className="h-5 w-5 flex items-center justify-center rounded-xs border border-slate-300 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 hover:bg-slate-200 dark:hover:bg-zinc-800 text-slate-600 dark:text-zinc-300 transition-colors cursor-pointer"
+            >
+              <ChevronRight className="h-3 w-3" />
+            </button>
+          </div>
         </div>
       </div>
 
       {/* ========================================================================= */}
       {/* UNIFIED RADIAL FEEDER PIPELINE (LT-1 [LIVE ANCHOR], LT-2, LT-3) */}
       {/* ========================================================================= */}
-      <div className="relative py-2 overflow-x-auto">
+      <div ref={pipelineScrollRef} className="relative py-2 overflow-x-auto scroll-smooth">
           <div className="min-w-[1200px] flex items-stretch gap-2.5">
             {/* 1. Substation */}
             <div className="w-[125px] shrink-0 border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/80 p-2.5 rounded-sm flex flex-col justify-between text-center shadow-inner">
@@ -239,13 +266,15 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
               </div>
             </div>
 
-            {/* Cable arrow */}
-            <div className="w-[35px] shrink-0 flex flex-col items-center justify-center">
+            {/* 11kV Primary Feeder Span (Substation -> DTR-01) */}
+            <div className="w-[38px] shrink-0 flex flex-col items-center justify-center select-none">
               <div className="w-full flex items-center">
-                <div className="h-[2px] w-full bg-emerald-500/60 relative overflow-hidden">
-                  <div className="absolute inset-0 bg-emerald-500 dark:bg-emerald-400 w-1/3 animate-pulse" />
+                <div className="h-[2.5px] flex-1 bg-emerald-500 rounded-l-full relative overflow-hidden">
+                  <div className="absolute inset-y-0 left-0 scada-flow-emerald" />
                 </div>
-                <ArrowRight className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400 -ml-1 shrink-0" />
+                <svg viewBox="0 0 8 10" className="w-2 h-2.5 text-emerald-500 fill-current -ml-[1px] shrink-0">
+                  <polygon points="0,1 8,5 0,9" />
+                </svg>
               </div>
             </div>
 
@@ -268,13 +297,15 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
               </div>
             </div>
 
-            {/* Feeder Bus Arrow */}
-            <div className="w-[35px] shrink-0 flex flex-col items-center justify-center">
+            {/* 415V LT Bus Span (DTR-01 -> Feeder Busbar) */}
+            <div className="w-[38px] shrink-0 flex flex-col items-center justify-center select-none">
               <div className="w-full flex items-center">
-                <div className={`h-[2px] w-full ${isPowerCut ? "bg-slate-400 dark:bg-zinc-700" : "bg-emerald-500/60"} relative overflow-hidden`}>
-                  <div className={`absolute inset-0 ${isPowerCut ? "bg-slate-500 dark:bg-zinc-600" : "bg-emerald-500 dark:bg-emerald-400"} w-1/3 ${isPowerCut ? "" : "animate-pulse"}`} />
+                <div className={`h-[2.5px] flex-1 rounded-l-full ${isPowerCut ? "bg-slate-300 dark:bg-zinc-700" : "bg-emerald-500"} relative overflow-hidden`}>
+                  {!isPowerCut && <div className="absolute inset-y-0 left-0 scada-flow-emerald" />}
                 </div>
-                <ArrowRight className={`h-3.5 w-3.5 ${isPowerCut ? "text-slate-400 dark:text-zinc-600" : "text-emerald-600 dark:text-emerald-400"} -ml-1 shrink-0`} />
+                <svg viewBox="0 0 8 10" className={`w-2 h-2.5 ${isPowerCut ? "text-slate-400 dark:text-zinc-600" : "text-emerald-500"} fill-current -ml-[1px] shrink-0`}>
+                  <polygon points="0,1 8,5 0,9" />
+                </svg>
               </div>
             </div>
 
@@ -332,39 +363,45 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                 <React.Fragment key={node.id}>
                   {/* Inter-pole span connector */}
                   {isLiveSpan ? (
-                    <div className="w-[170px] shrink-0 flex flex-col items-center justify-center px-1">
-                      <div className="w-full flex items-center relative">
+                    <div className="w-[170px] shrink-0 relative flex items-center justify-center px-1 select-none">
+                      <div className="w-full flex items-center">
+                        {/* Differential Protected Span Track */}
                         <div
-                          className={`h-[3px] w-full ${
+                          className={`h-[3px] flex-1 rounded-l-full ${
                             isFault || isDifferentialFault
-                              ? "bg-rose-500 ring-2 ring-rose-500 animate-pulse"
+                              ? "bg-rose-500"
                               : isPowerCut
-                              ? "bg-slate-400 dark:bg-zinc-700"
+                              ? "bg-slate-300 dark:bg-zinc-700"
                               : "bg-emerald-500"
-                          } relative overflow-hidden rounded-xs`}
+                          } relative overflow-hidden`}
                         >
                           <div
-                            className={`absolute inset-0 ${
+                            className={`absolute inset-y-0 left-0 ${
                               isFault || isDifferentialFault
-                                ? "bg-rose-300"
+                                ? "scada-flow-rose"
                                 : isPowerCut
-                                ? "bg-slate-500 dark:bg-zinc-600"
-                                : "bg-emerald-300"
-                            } w-1/3 ${isPowerCut ? "" : "animate-pulse"}`}
+                                ? ""
+                                : "scada-flow-emerald"
+                            }`}
                           />
                         </div>
-                        <ArrowRight
-                          className={`h-4 w-4 -ml-1 shrink-0 ${
+
+                        {/* Directional Vector Arrowhead */}
+                        <svg
+                          viewBox="0 0 8 10"
+                          className={`w-2.5 h-3 ${
                             isFault || isDifferentialFault
-                              ? "text-rose-500 animate-bounce"
+                              ? "text-rose-500"
                               : isPowerCut
                               ? "text-slate-400 dark:text-zinc-600"
                               : "text-emerald-500"
-                          }`}
-                        />
+                          } fill-current -ml-[1px] shrink-0`}
+                        >
+                          <polygon points="0,0.5 8,5 0,9.5" />
+                        </svg>
                       </div>
                       <div
-                        className={`mt-1 px-1.5 py-0.5 rounded-xs text-[9px] font-bold text-center border w-full ${
+                        className={`absolute top-1/2 mt-2.5 left-1 right-1 px-1.5 py-0.5 rounded-xs text-[9px] font-bold text-center border ${
                           isFault || isDifferentialFault
                             ? "bg-rose-50 dark:bg-rose-500/20 text-rose-700 dark:text-rose-500 border-rose-400 dark:border-rose-500 animate-pulse"
                             : isPowerCut
@@ -382,39 +419,45 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                       </div>
                     </div>
                   ) : (
-                    <div className="w-[60px] shrink-0 flex flex-col items-center justify-center">
+                    <div className="w-[56px] shrink-0 relative flex items-center justify-center select-none">
                       <div className="w-full flex items-center">
+                        {/* Span Conductor Line */}
                         <div
-                          className={`h-[2px] w-full ${
+                          className={`h-[2.5px] flex-1 rounded-l-full relative overflow-hidden ${
                             isSpanTripped
-                              ? "bg-rose-500 ring-1 ring-rose-400"
+                              ? "bg-rose-500"
                               : isPowerCut || isNodeDeenergized
-                              ? "bg-slate-400 dark:bg-zinc-700"
-                              : "bg-emerald-500/60"
-                          } relative overflow-hidden`}
+                              ? "bg-slate-300 dark:bg-zinc-700"
+                              : "bg-emerald-500"
+                          }`}
                         >
                           <div
-                            className={`absolute inset-0 ${
+                            className={`absolute inset-y-0 left-0 ${
                               isSpanTripped
-                                ? "bg-rose-500 animate-pulse"
+                                ? "scada-flow-rose"
                                 : isPowerCut || isNodeDeenergized
-                                ? "bg-slate-500 dark:bg-zinc-600"
-                                : "bg-emerald-500 dark:bg-emerald-400"
-                            } w-1/3 ${isPowerCut || isNodeDeenergized ? "" : "animate-pulse"}`}
+                                ? ""
+                                : "scada-flow-emerald"
+                            }`}
                           />
                         </div>
-                        <ArrowRight
-                          className={`h-3 w-3 -ml-1 shrink-0 ${
+
+                        {/* Vector Arrowhead */}
+                        <svg
+                          viewBox="0 0 8 10"
+                          className={`w-2 h-2.5 ${
                             isSpanTripped
-                              ? "text-rose-500 font-bold"
+                              ? "text-rose-500"
                               : isPowerCut || isNodeDeenergized
                               ? "text-slate-400 dark:text-zinc-600"
-                              : "text-emerald-600 dark:text-emerald-400"
-                          }`}
-                        />
+                              : "text-emerald-500"
+                          } fill-current -ml-[1px] shrink-0`}
+                        >
+                          <polygon points="0,1 8,5 0,9" />
+                        </svg>
                       </div>
                       <span
-                        className={`text-[8px] font-bold mt-0.5 truncate uppercase ${
+                        className={`absolute top-1/2 mt-2 left-0 right-0 text-center text-[8px] font-bold truncate uppercase ${
                           isSpanTripped
                             ? "text-rose-500 animate-pulse"
                             : isPowerCut || isNodeDeenergized

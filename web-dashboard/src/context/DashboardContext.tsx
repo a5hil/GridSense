@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { ScadaUser } from "@/lib/auth";
 import { NetworkSnapshot } from "@/lib/network/types";
 import { SystemStatus } from "@/lib/types";
@@ -60,6 +61,7 @@ interface DashboardContextType {
 const DashboardContext = createContext<DashboardContextType | null>(null);
 
 export function DashboardProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [activeView, setActiveView] = useState<ActiveView>("OPERATOR");
   const [isFault, setIsFault] = useState<boolean>(false);
@@ -73,60 +75,82 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [openTicketsCount, setOpenTicketsCount] = useState<number>(0);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
 
-  // Load user profile on mount
+  // Load user profile on mount and whenever navigating from /login to protected routes
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => res.json())
+    if (pathname === "/login") return;
+
+    fetch("/api/auth/me", { cache: "no-store", credentials: "same-origin" })
+      .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (data.authenticated && data.user) {
+        if (data?.authenticated && data?.user) {
           setCurrentUser(data.user);
         }
       })
       .catch(() => {});
-  }, []);
+  }, [pathname]);
 
-  const toggleSidebar = () => setIsSidebarCollapsed((prev) => !prev);
-  const toggleAudioMuted = () => setIsAudioMuted((prev) => !prev);
+  const toggleSidebar = React.useCallback(() => setIsSidebarCollapsed((prev) => !prev), []);
+  const toggleAudioMuted = React.useCallback(() => setIsAudioMuted((prev) => !prev), []);
 
-  const handleLogout = async () => {
+  const handleLogout = React.useCallback(async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } catch {}
+    setCurrentUser(null);
     window.location.href = "/login";
-  };
+  }, []);
+
+  const contextValue = React.useMemo(
+    () => ({
+      isSidebarCollapsed,
+      setIsSidebarCollapsed,
+      toggleSidebar,
+      activeView,
+      setActiveView,
+      isFault,
+      setIsFault,
+      activeFaultAnsi,
+      setActiveFaultAnsi,
+      activeFaultTitle,
+      setActiveFaultTitle,
+      connectedSSE,
+      setConnectedSSE,
+      isAudioMuted,
+      setIsAudioMuted,
+      toggleAudioMuted,
+      lastHeartbeat,
+      setLastHeartbeat,
+      currentUser,
+      setCurrentUser,
+      handleLogout,
+      networkSnapshot,
+      setNetworkSnapshot,
+      openTicketsCount,
+      setOpenTicketsCount,
+      systemStatus,
+      setSystemStatus,
+    }),
+    [
+      isSidebarCollapsed,
+      toggleSidebar,
+      activeView,
+      isFault,
+      activeFaultAnsi,
+      activeFaultTitle,
+      connectedSSE,
+      isAudioMuted,
+      toggleAudioMuted,
+      lastHeartbeat,
+      currentUser,
+      handleLogout,
+      networkSnapshot,
+      openTicketsCount,
+      systemStatus,
+    ]
+  );
 
   return (
-    <DashboardContext.Provider
-      value={{
-        isSidebarCollapsed,
-        setIsSidebarCollapsed,
-        toggleSidebar,
-        activeView,
-        setActiveView,
-        isFault,
-        setIsFault,
-        activeFaultAnsi,
-        setActiveFaultAnsi,
-        activeFaultTitle,
-        setActiveFaultTitle,
-        connectedSSE,
-        setConnectedSSE,
-        isAudioMuted,
-        setIsAudioMuted,
-        toggleAudioMuted,
-        lastHeartbeat,
-        setLastHeartbeat,
-        currentUser,
-        setCurrentUser,
-        handleLogout,
-        networkSnapshot,
-        setNetworkSnapshot,
-        openTicketsCount,
-        setOpenTicketsCount,
-        systemStatus,
-        setSystemStatus,
-      }}
-    >
+    <DashboardContext.Provider value={contextValue}>
       {children}
     </DashboardContext.Provider>
   );

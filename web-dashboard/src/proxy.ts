@@ -30,7 +30,7 @@ async function isTokenValid(token?: string): Promise<boolean> {
   }
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Allow static assets, next internal files, and public auth / bridge ingest APIs
@@ -69,3 +69,4 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
+

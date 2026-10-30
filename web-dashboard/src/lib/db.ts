@@ -8,6 +8,10 @@ let client: MongoClient | null = null;
 let db: Db | null = null;
 let isConnected = false;
 let connectionAttempted = false;
+let indexesCreated = false;
+let lastFailedAt = 0;
+let connectingPromise: Promise<Db | null> | null = null;
+const RETRY_COOLDOWN_MS = 15000;
 
 // Fallback in-memory circular buffers if MongoDB service is offline
 const inMemoryTelemetry: GridTelemetry[] = [];
@@ -18,33 +22,50 @@ const MAX_BUFFER = 200;
 export async function getDb(): Promise<Db | null> {
   if (db && isConnected) return db;
 
-  try {
-    if (!client) {
-      client = new MongoClient(MONGODB_URI, {
-        serverSelectionTimeoutMS: 2500,
-        connectTimeoutMS: 2500,
-      });
-    }
-    await client.connect();
-    db = client.db(DB_NAME);
-    isConnected = true;
-    connectionAttempted = true;
-
-    // Ensure indexes exist for high-speed queries
-    try {
-      await db.collection("trouble_tickets").createIndex({ ticketId: 1 }, { unique: true });
-      await db.collection("scada_events").createIndex({ createdAt: -1 });
-      await db.collection("telemetry_history").createIndex({ createdAt: -1 });
-    } catch {
-      // Index creation optional
-    }
-
-    return db;
-  } catch (err: any) {
-    isConnected = false;
-    connectionAttempted = true;
+  // Circuit breaker: if MongoDB recently failed to connect, return null immediately (<1ms)
+  // so API requests and in-memory fallback never block waiting for a 2.5s socket timeout
+  if (lastFailedAt > 0 && Date.now() - lastFailedAt < RETRY_COOLDOWN_MS) {
     return null;
   }
+
+  if (connectingPromise) return connectingPromise;
+
+  connectingPromise = (async () => {
+    try {
+      if (!client) {
+        client = new MongoClient(MONGODB_URI, {
+          serverSelectionTimeoutMS: 2000,
+          connectTimeoutMS: 2000,
+        });
+      }
+      await client.connect();
+      db = client.db(DB_NAME);
+      isConnected = true;
+      connectionAttempted = true;
+      lastFailedAt = 0;
+
+      // Ensure indexes exist once per connection lifecycle
+      if (!indexesCreated) {
+        indexesCreated = true;
+        Promise.all([
+          db.collection("trouble_tickets").createIndex({ ticketId: 1 }, { unique: true }),
+          db.collection("scada_events").createIndex({ createdAt: -1 }),
+          db.collection("telemetry_history").createIndex({ createdAt: -1 }),
+        ]).catch(() => {});
+      }
+
+      return db;
+    } catch {
+      isConnected = false;
+      connectionAttempted = true;
+      lastFailedAt = Date.now();
+      return null;
+    } finally {
+      connectingPromise = null;
+    }
+  })();
+
+  return connectingPromise;
 }
 
 export function isMongoConnected(): boolean {
@@ -56,15 +77,16 @@ export function getMongoDbName(): string {
 }
 
 export async function saveTelemetryRecord(data: GridTelemetry): Promise<void> {
-  // Update in-memory buffer
-  inMemoryTelemetry.unshift(data);
+  // Strip nested history/tickets arrays before storing individual point to avoid 40x document bloat
+  const { history: _h, tickets: _t, ...compactRecord } = data as GridTelemetry & { tickets?: unknown };
+  inMemoryTelemetry.unshift(compactRecord as GridTelemetry);
   if (inMemoryTelemetry.length > MAX_BUFFER) inMemoryTelemetry.pop();
 
   try {
     const database = await getDb();
     if (database) {
       await database.collection("telemetry_history").insertOne({
-        ...data,
+        ...compactRecord,
         createdAt: new Date(),
       });
     }

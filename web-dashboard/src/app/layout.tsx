@@ -34,7 +34,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
     >
-      <head>
+      <body className="h-full overflow-hidden bg-slate-100 dark:bg-[#09090b] text-slate-900 dark:text-[#fafafa] font-mono transition-colors duration-150">
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -51,8 +51,6 @@ export default function RootLayout({
             `,
           }}
         />
-      </head>
-      <body className="h-full overflow-hidden bg-slate-100 dark:bg-[#09090b] text-slate-900 dark:text-[#fafafa] font-mono transition-colors duration-150">
         <ThemeProvider>
           <ToastProvider>
             <DashboardProvider>

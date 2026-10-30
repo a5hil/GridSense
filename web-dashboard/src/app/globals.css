@@ -102,3 +102,44 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--muted-foreground);
 }
+
+/* GIS Map Zoom-Aware Pole Telemetry Pill Visibility */
+[data-zoomed-in="true"] .pole-pill-badge {
+  opacity: 1 !important;
+}
+
+/* SCADA Single-Line Diagram Smooth Gradient Shimmer Animation */
+@keyframes scada-gradient-wave {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}
+
+.scada-flow-emerald {
+  width: 65%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(167, 243, 208, 0.85) 35%,
+    #ffffff 50%,
+    rgba(167, 243, 208, 0.85) 65%,
+    transparent 100%
+  );
+  animation: scada-gradient-wave 1.5s ease-in-out infinite;
+}
+
+.scada-flow-rose {
+  width: 65%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(254, 205, 211, 0.85) 35%,
+    #ffffff 50%,
+    rgba(254, 205, 211, 0.85) 65%,
+    transparent 100%
+  );
+  animation: scada-gradient-wave 1.1s ease-in-out infinite;
+}

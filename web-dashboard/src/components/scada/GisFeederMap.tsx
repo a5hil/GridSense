@@ -107,6 +107,8 @@ export const GisFeederMap = React.memo(function GisFeederMap({
   const mapContainerRef = React.useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = React.useRef<any>(null);
   const markersRef = React.useRef<any[]>([]);
+  const markersMapRef = React.useRef<Map<string, { marker: any; el: HTMLDivElement }>>(new Map());
+  const appliedStyleRef = React.useRef<string>("");
 
   const { theme } = useTheme();
   const [mapLoaded, setMapLoaded] = React.useState(false);
@@ -136,6 +138,8 @@ export const GisFeederMap = React.memo(function GisFeederMap({
   const isFault = telemetry?.fault || (telemetry?.idiff ?? 0) >= (telemetry?.trip_limit ?? 0.35);
   const isLastGasp = telemetry?.fault_code === "OUTAGE_LAST_GASP";
   const isPowerCut = telemetry?.fault_code === "POWERCUT" || Boolean(telemetry && (telemetry.p1?.v ?? 0) < 50 && (telemetry.p2?.v ?? 0) < 50);
+  const isPowerCutRef = React.useRef(isPowerCut);
+  isPowerCutRef.current = isPowerCut;
 
   // Load custom token from localStorage if present
   React.useEffect(() => {
@@ -153,11 +157,14 @@ export const GisFeederMap = React.memo(function GisFeederMap({
   React.useEffect(() => {
     if (mapInstanceRef.current && mapLoaded) {
       const styleUrl = getMapStyleUrl(mapMode, theme);
-      mapInstanceRef.current.setStyle(styleUrl, { diff: false });
-      mapInstanceRef.current.once("style.load", () => {
-        renderFeederVectors(mapInstanceRef.current);
-        renderAssetMarkers(mapInstanceRef.current);
-      });
+      if (appliedStyleRef.current !== styleUrl) {
+        appliedStyleRef.current = styleUrl;
+        mapInstanceRef.current.setStyle(styleUrl, { diff: false });
+        mapInstanceRef.current.once("style.load", () => {
+          renderFeederVectors(mapInstanceRef.current);
+          renderAssetMarkers(mapInstanceRef.current);
+        });
+      }
     }
   }, [theme, mapMode, mapLoaded, getMapStyleUrl]);
 
@@ -186,6 +193,8 @@ export const GisFeederMap = React.memo(function GisFeederMap({
     }
 
     return () => {
+      markersMapRef.current.clear();
+      markersRef.current = [];
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -197,6 +206,8 @@ export const GisFeederMap = React.memo(function GisFeederMap({
   const initializeMap = () => {
     if (!mapContainerRef.current || !window.mapboxgl) return;
 
+    markersMapRef.current.clear();
+    markersRef.current = [];
     if (mapInstanceRef.current) {
       mapInstanceRef.current.remove();
       mapInstanceRef.current = null;
@@ -210,7 +221,12 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         gl.accessToken = activeToken;
       }
 
-      const styleUrl = getMapStyleUrl(mapMode, theme);
+      const initialTheme =
+        typeof document !== "undefined" && document.documentElement.classList.contains("light")
+          ? "light"
+          : theme;
+      const styleUrl = getMapStyleUrl(mapMode, initialTheme);
+      appliedStyleRef.current = styleUrl;
 
       const map = new gl.Map({
         container: mapContainerRef.current,
@@ -253,6 +269,17 @@ export const GisFeederMap = React.memo(function GisFeederMap({
           renderAssetMarkers(map);
         }
       });
+
+      const syncZoomAttr = () => {
+        if (mapContainerRef.current) {
+          mapContainerRef.current.setAttribute(
+            "data-zoomed-in",
+            map.getZoom() >= 17.2 ? "true" : "false"
+          );
+        }
+      };
+      syncZoomAttr();
+      map.on("zoom", syncZoomAttr);
     } catch (err) {
       console.error("Mapbox GL initialization error:", err);
     }
@@ -332,57 +359,64 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       features.push(ltLeadSpec, protectedSpanSpec);
     }
 
-    if (!map.getSource("feeder-lines")) {
-      map.addSource("feeder-lines", {
-        type: "geojson",
-        data: {
+    try {
+      if (typeof map.isStyleLoaded === "function" && !map.isStyleLoaded()) {
+        return;
+      }
+      if (!map.getSource("feeder-lines")) {
+        map.addSource("feeder-lines", {
+          type: "geojson",
+          data: {
+            type: "FeatureCollection",
+            features,
+          },
+        });
+
+        // Layer 1: Ambient Neon Feeder Glow
+        map.addLayer({
+          id: "feeder-lines-glow",
+          type: "line",
+          source: "feeder-lines",
+          paint: {
+            "line-color": ["get", "color"],
+            "line-width": 6,
+            "line-opacity": 0.35,
+            "line-blur": 3,
+          },
+        });
+
+        // Layer 2: Main Solid Conductor
+        map.addLayer({
+          id: "feeder-lines-layer",
+          type: "line",
+          source: "feeder-lines",
+          paint: {
+            "line-color": ["get", "color"],
+            "line-width": 3,
+            "line-opacity": 0.95,
+          },
+        });
+
+        // Layer 3: Dynamic Energy Flow Particle Stream (Moving Dashes)
+        map.addLayer({
+          id: "feeder-lines-flow",
+          type: "line",
+          source: "feeder-lines",
+          paint: {
+            "line-color": "#ffffff",
+            "line-width": 2,
+            "line-opacity": 0.85,
+            "line-dasharray": [0.4, 2.5],
+          },
+        });
+      } else {
+        map.getSource("feeder-lines").setData({
           type: "FeatureCollection",
           features,
-        },
-      });
-
-      // Layer 1: Ambient Neon Feeder Glow
-      map.addLayer({
-        id: "feeder-lines-glow",
-        type: "line",
-        source: "feeder-lines",
-        paint: {
-          "line-color": ["get", "color"],
-          "line-width": 6,
-          "line-opacity": 0.35,
-          "line-blur": 3,
-        },
-      });
-
-      // Layer 2: Main Solid Conductor
-      map.addLayer({
-        id: "feeder-lines-layer",
-        type: "line",
-        source: "feeder-lines",
-        paint: {
-          "line-color": ["get", "color"],
-          "line-width": 3,
-          "line-opacity": 0.95,
-        },
-      });
-
-      // Layer 3: Dynamic Energy Flow Particle Stream (Moving Dashes)
-      map.addLayer({
-        id: "feeder-lines-flow",
-        type: "line",
-        source: "feeder-lines",
-        paint: {
-          "line-color": "#ffffff",
-          "line-width": 2,
-          "line-opacity": 0.85,
-          "line-dasharray": [0.4, 2.5],
-        },
-      });
-    } else {
-      map.getSource("feeder-lines").setData({
-        type: "FeatureCollection",
-        features,
-      });
+        });
+      }
+    } catch {
+      // Style is still transitioning; style.load listener will re-invoke renderFeederVectors
     }
   };
 
@@ -393,8 +427,8 @@ export const GisFeederMap = React.memo(function GisFeederMap({
     let lastTime = 0;
 
     const animateFlow = (time: number) => {
-      // Step every ~45ms for smooth ~22fps particle drift
-      if (time - lastTime > 45) {
+      // Step every ~45ms for smooth ~22fps particle drift; skip GPU repaint if tab is hidden or feeder is de-energized
+      if (time - lastTime > 45 && !isPowerCutRef.current && (typeof document === "undefined" || !document.hidden)) {
         lastTime = time;
         step = (step + 0.15) % 4;
         if (mapInstanceRef.current && mapInstanceRef.current.getLayer("feeder-lines-flow")) {
@@ -417,57 +451,63 @@ export const GisFeederMap = React.memo(function GisFeederMap({
     return () => cancelAnimationFrame(animId);
   }, [mapLoaded]);
 
-  // 4. Render SCADA Asset Markers using Circular Energy Flow Nodes
+  // 4. Render SCADA Asset Markers using Circular Energy Flow Nodes (in-place DOM updates)
   const renderAssetMarkers = (map: any) => {
     if (!map || !window.mapboxgl) return;
     const gl = window.mapboxgl;
+    const activeIds = new Set<string>();
 
-    // Clear previous markers
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
-
-    // Helper to create Circular Energy Flow Node
-    const createCircularNodeMarker = (spec: {
-      id: string;
-      label: string;
-      badgeText: string;
-      color: string;
-      iconType: "SUBSTATION" | "DTR" | "POLE" | "LIVE_POLE";
-      loadingPct?: number;
-      isLive?: boolean;
-      isDeenergized?: boolean;
-      isTripped?: boolean;
-      isWarn?: boolean;
-      feederName?: string;
-      phases?: {
-        R: { v: number; i: number; p: number };
-        Y: { v: number; i: number; p: number; source?: string };
-        B: { v: number; i: number; p: number; source?: string };
-      };
-      statusText?: string;
-    }) => {
+    // Helper to create or update Circular Energy Flow Node in-place (preserving hover state & avoiding DOM teardown)
+    const upsertCircularNodeMarker = (
+      coords: [number, number],
+      spec: {
+        id: string;
+        label: string;
+        badgeText: string;
+        color: string;
+        iconType: "SUBSTATION" | "DTR" | "POLE" | "LIVE_POLE";
+        loadingPct?: number;
+        isLive?: boolean;
+        isSelected?: boolean;
+        isDeenergized?: boolean;
+        isTripped?: boolean;
+        isWarn?: boolean;
+        feederName?: string;
+        phases?: {
+          R: { v: number; i: number; p: number };
+          Y: { v: number; i: number; p: number; source?: string };
+          B: { v: number; i: number; p: number; source?: string };
+        };
+        statusText?: string;
+      },
+      onClick: () => void
+    ) => {
+      activeIds.add(spec.id);
       const isLight = theme === "light";
-      const el = document.createElement("div");
-      el.className = "relative flex flex-col items-center cursor-pointer group select-none";
-      el.style.zIndex = spec.isLive ? "45" : spec.iconType === "SUBSTATION" || spec.iconType === "DTR" ? "42" : "35";
-      el.style.pointerEvents = "auto";
+      const zIdx = spec.isSelected
+        ? "50"
+        : spec.isLive
+          ? "45"
+          : spec.iconType === "SUBSTATION" || spec.iconType === "DTR"
+            ? "42"
+            : "35";
 
       const isSub = spec.iconType === "SUBSTATION";
       const isDtr = spec.iconType === "DTR";
       const isLive = spec.isLive || spec.iconType === "LIVE_POLE";
-      const size = isSub ? 46 : isDtr ? 44 : isLive ? 38 : 32;
+      const size = isSub ? 40 : isDtr ? 38 : 30;
+      const alwaysShowPill = Boolean(isSub || isDtr || isLive || spec.isTripped || spec.isSelected);
 
       // Radar pulse for alarm or live pole
       let haloHtml = "";
       if (spec.isTripped) {
         haloHtml = `
-          <div class="absolute -top-3 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-rose-500/40 animate-ping pointer-events-none -z-10"></div>
-          <div class="absolute -top-1.5 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-rose-500/30 animate-pulse pointer-events-none -z-10"></div>
+          <div class="absolute -top-2 left-1/2 -translate-x-1/2 w-11 h-11 rounded-full bg-rose-500/35 animate-ping pointer-events-none -z-10"></div>
+          <div class="absolute -top-1 left-1/2 -translate-x-1/2 w-9 h-9 rounded-full bg-rose-500/25 animate-pulse pointer-events-none -z-10"></div>
         `;
       } else if (isLive && !spec.isDeenergized) {
         haloHtml = `
-          <div class="absolute -top-2.5 left-1/2 -translate-x-1/2 w-13 h-13 rounded-full bg-emerald-500/25 animate-ping pointer-events-none -z-10"></div>
-          <div class="absolute -top-1 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-emerald-500/20 animate-pulse pointer-events-none -z-10"></div>
+          <div class="absolute -top-1.5 left-1/2 -translate-x-1/2 w-10 h-10 rounded-full bg-emerald-500/20 animate-ping pointer-events-none -z-10"></div>
         `;
       }
 
@@ -476,69 +516,49 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       if (isSub) {
         // Transmission Grid Tower
         iconSvg = `
-          <svg viewBox="0 0 24 24" class="w-5 h-5 text-sky-500 dark:text-sky-400 stroke-current fill-none stroke-[2.2]">
+          <svg viewBox="0 0 24 24" class="w-4 h-4 text-sky-500 dark:text-sky-400 stroke-current fill-none stroke-[2]">
             <path d="M4 22h16M12 2v20M8 8h8M6 14h12M9 4l6 18M15 4L9 22"/>
           </svg>
         `;
       } else if (isDtr) {
         // Transformer Dual Coils with Donut Arc
         const pct = Math.min(100, Math.max(0, spec.loadingPct ?? 26));
-        const circ = 119.4; // 2 * PI * 19
+        const circ = 100.5; // 2 * PI * 16
         const strokeColor = pct > 85 ? "#f43f5e" : pct > 65 ? "#f59e0b" : "#10b981";
         const offset = circ * (1 - pct / 100);
         iconSvg = `
-          <svg class="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 44 44">
-            <circle cx="22" cy="22" r="19" stroke="${isLight ? "rgba(0,0,0,0.12)" : "rgba(255,255,255,0.12)"}" stroke-width="2.5" fill="none"/>
-            <circle cx="22" cy="22" r="19" stroke="${strokeColor}" stroke-width="2.5" stroke-linecap="round" fill="none"
+          <svg class="absolute inset-0 w-full h-full -rotate-90 pointer-events-none" viewBox="0 0 38 38">
+            <circle cx="19" cy="19" r="16" stroke="${isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.10)"}" stroke-width="1.5" fill="none"/>
+            <circle cx="19" cy="19" r="16" stroke="${strokeColor}" stroke-width="1.5" stroke-linecap="round" fill="none"
               stroke-dasharray="${circ}" stroke-dashoffset="${offset}"/>
           </svg>
-          <svg viewBox="0 0 24 24" class="w-5 h-5 text-emerald-600 dark:text-emerald-400 stroke-current fill-none stroke-[2] relative z-10">
+          <svg viewBox="0 0 24 24" class="w-4 h-4 text-emerald-600 dark:text-emerald-400 stroke-current fill-none stroke-[1.8] relative z-10">
             <circle cx="9" cy="12" r="4.5" />
             <circle cx="15" cy="12" r="4.5" />
           </svg>
         `;
-      } else if (isLive) {
-        // Live Hardware Node with Bolt + P1/P2
-        const shortNum = spec.id === "F1-P01" || spec.id === "POLE-A" || spec.id === "Pole-A" ? "P1" : "P2";
-        const boltColor = spec.isDeenergized ? (isLight ? "text-slate-400" : "text-zinc-500") : spec.isTripped ? "text-rose-600 dark:text-rose-400" : "text-emerald-600 dark:text-emerald-400";
-        iconSvg = `
-          <div class="flex flex-col items-center justify-center leading-none">
-            <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 ${boltColor} fill-current"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-            <span class="text-[9px] font-black ${isLight ? "text-slate-900" : "text-white"} font-mono mt-0.5">${shortNum}</span>
-          </div>
-        `;
       } else {
-        // Distribution Pole (e.g. F1-P03 -> "P03")
-        const cleanNum = spec.id.split("-").pop() || spec.id;
+        // Uniform Circular Pole Marker (F1-P01..P28)
+        const rawPart =
+          spec.id === "POLE-A" || spec.id === "Pole-A"
+            ? "P1"
+            : spec.id === "POLE-B" || spec.id === "Pole-B"
+              ? "P2"
+              : spec.id.split("-").pop() || spec.id;
+        const cleanNum = rawPart.replace(/^P0?/, "P");
         iconSvg = `
-          <span class="text-[10px] font-black font-mono tracking-tight" style="color: ${spec.color}">
-            ${cleanNum.replace(/^P0?/, "P")}
+          <span class="text-[10px] font-bold font-mono tracking-tight" style="color: ${spec.color}">
+            ${cleanNum}
           </span>
         `;
       }
 
-      // Live tag badge above live nodes
-      const liveBadgeHtml = isLive
-        ? spec.isDeenergized
-          ? isLight
-            ? `<div class="absolute -top-3.5 bg-slate-200 text-slate-800 border border-slate-300 text-[8px] font-black font-mono px-1.5 py-0.2 rounded-full uppercase tracking-tighter flex items-center gap-1 shadow-sm">
-                <span class="h-1.5 w-1.5 rounded-full bg-slate-500"></span>0V DEAD
-               </div>`
-            : `<div class="absolute -top-3.5 bg-zinc-800 text-zinc-400 border border-zinc-700 text-[8px] font-black font-mono px-1.5 py-0.2 rounded-full uppercase tracking-tighter flex items-center gap-1 shadow-md">
-                <span class="h-1.5 w-1.5 rounded-full bg-zinc-500"></span>0V DEAD
-               </div>`
-          : `<div class="absolute -top-3.5 bg-emerald-500 text-black text-[8px] font-black font-mono px-1.5 py-0.2 rounded-full uppercase tracking-tighter flex items-center gap-1 shadow-md shadow-emerald-500/30">
-              <span class="h-1.5 w-1.5 rounded-full bg-black animate-pulse"></span>LIVE
-             </div>`
-        : "";
-
       // Quick hover preview tooltip
       const hoverTooltipHtml = spec.phases
         ? `
-        <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none absolute bottom-full mb-2 w-52 ${
-          isLight
-            ? "bg-white/95 border border-slate-300 text-slate-800 shadow-xl"
-            : "bg-[#090a0f]/95 border border-zinc-700/80 text-zinc-300 shadow-2xl"
+        <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none absolute bottom-full mb-2 w-52 ${isLight
+          ? "bg-white/95 border border-slate-300 text-slate-800 shadow-xl"
+          : "bg-[#090a0f]/95 border border-zinc-700/80 text-zinc-300 shadow-2xl"
         } rounded-sm p-2.5 text-[10px] font-mono z-50 backdrop-blur-md left-1/2 -translate-x-1/2">
           <div class="flex items-center justify-between border-b ${isLight ? "border-slate-200 text-slate-900" : "border-zinc-800 text-zinc-100"} pb-1 mb-1.5 font-bold">
             <span>${spec.label}</span>
@@ -558,35 +578,39 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         : "";
 
       const circleBg = isLight ? "#ffffff" : "#090a0f";
+      const selectedRing = spec.isSelected ? `, 0 0 0 3px ${spec.color}55` : "";
       const circleShadow = isLight
-        ? `0 2px 8px rgba(0,0,0,0.18), 0 0 ${isLive ? "12px" : "6px"} ${spec.color}66`
-        : `0 0 ${isLive ? "16px" : "8px"} ${spec.color}55, 0 4px 10px rgba(0,0,0,0.85)`;
-      const badgeBg = isLight ? "rgba(255, 255, 255, 0.95)" : "rgba(9, 10, 15, 0.92)";
-      const badgeBorder = isLight ? "1px solid #cbd5e1" : "1px solid rgba(255, 255, 255, 0.14)";
+        ? `0 1px 4px rgba(0,0,0,0.14), 0 0 4px ${spec.color}33${selectedRing}`
+        : `0 0 8px ${spec.color}40, 0 2px 6px rgba(0,0,0,0.75)${selectedRing}`;
+      const badgeBg = isLight ? "rgba(255, 255, 255, 0.94)" : "rgba(9, 10, 15, 0.90)";
+      const badgeBorder = isLight ? "1px solid #e2e8f0" : "1px solid rgba(255, 255, 255, 0.12)";
       const badgeColor = isLight ? "#0f172a" : "#fafafa";
-      const badgeShadow = isLight ? "0 1px 4px rgba(0,0,0,0.12)" : "0 2px 6px rgba(0,0,0,0.7)";
+      const badgeShadow = isLight ? "0 1px 2px rgba(0,0,0,0.08)" : "0 1px 4px rgba(0,0,0,0.6)";
 
-      el.innerHTML = `
+      const nextHtml = `
         ${haloHtml}
-        ${liveBadgeHtml}
         ${hoverTooltipHtml}
         <div style="
           width: ${size}px;
           height: ${size}px;
           border-radius: 50%;
           background: ${circleBg};
-          border: ${isLive ? "3px" : "2.5px"} solid ${spec.color};
+          border: ${spec.isSelected ? "2px" : "1.5px"} solid ${spec.color};
           box-shadow: ${circleShadow};
           display: flex;
           align-items: center;
           justify-content: center;
           position: relative;
+          transform: ${spec.isSelected ? "scale(1.15)" : "scale(1)"};
           transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.15s ease;
         " class="group-hover:scale-125">
           ${iconSvg}
         </div>
-        <div style="
-          margin-top: 3px;
+        <div class="${alwaysShowPill
+          ? "opacity-100"
+          : "pole-pill-badge opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none"
+        }" style="
+          margin-top: 2px;
           background: ${badgeBg};
           border: ${badgeBorder};
           color: ${badgeColor};
@@ -603,41 +627,57 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         </div>
       `;
 
-      return el;
+      const existing = markersMapRef.current.get(spec.id);
+      if (existing) {
+        if (existing.el.innerHTML !== nextHtml) {
+          existing.el.innerHTML = nextHtml;
+        }
+        existing.el.style.zIndex = zIdx;
+        existing.el.onclick = onClick;
+        return;
+      }
+
+      const el = document.createElement("div");
+      el.className = "relative flex flex-col items-center cursor-pointer group select-none";
+      el.style.zIndex = zIdx;
+      el.style.pointerEvents = "auto";
+      el.innerHTML = nextHtml;
+      el.onclick = onClick;
+
+      const marker = new gl.Marker({ element: el }).setLngLat(coords).addTo(map);
+      markersMapRef.current.set(spec.id, { marker, el });
     };
 
     // 1. Substation Circular Hub
-    const subEl = createCircularNodeMarker({
-      id: "SUBSTATION",
-      label: "Angamaly Substation",
-      badgeText: "33kV SUB",
-      color: "#0ea5e9",
-      iconType: "SUBSTATION",
-      statusText: "HEALTHY (11kV OK)",
-    });
-    const subMarker = new gl.Marker({ element: subEl })
-      .setLngLat(ASSETS.substation.coords)
-      .addTo(map);
-    subEl.onclick = () => setSelectedAsset(ASSETS.substation);
-    markersRef.current.push(subMarker);
+    upsertCircularNodeMarker(
+      ASSETS.substation.coords,
+      {
+        id: "SUBSTATION",
+        label: "Angamaly Substation",
+        badgeText: "33kV SUB",
+        color: "#0ea5e9",
+        iconType: "SUBSTATION",
+        statusText: "HEALTHY (11kV OK)",
+      },
+      () => setSelectedAsset(ASSETS.substation)
+    );
 
     // 2. DTR-01 Circular Hub with % Load Arc
     const dtrKva = networkSnapshot ? networkSnapshot.dtr.kva : 65.7;
     const dtrPct = networkSnapshot ? networkSnapshot.dtr.loadingPct : 26.3;
-    const dtrEl = createCircularNodeMarker({
-      id: "DTR-01",
-      label: "DTR-01 (250 kVA)",
-      badgeText: `DTR • ${dtrKva.toFixed(0)}kVA`,
-      color: "#10b981",
-      iconType: "DTR",
-      loadingPct: dtrPct,
-      statusText: `ONLINE (${dtrPct}% LOAD)`,
-    });
-    const dtrMarker = new gl.Marker({ element: dtrEl })
-      .setLngLat(ASSETS.dtr.coords)
-      .addTo(map);
-    dtrEl.onclick = () => setSelectedAsset(ASSETS.dtr);
-    markersRef.current.push(dtrMarker);
+    upsertCircularNodeMarker(
+      ASSETS.dtr.coords,
+      {
+        id: "DTR-01",
+        label: "DTR-01 (250 kVA)",
+        badgeText: `DTR • ${dtrKva.toFixed(0)}kVA`,
+        color: "#10b981",
+        iconType: "DTR",
+        loadingPct: dtrPct,
+        statusText: `ONLINE (${dtrPct}% LOAD)`,
+      },
+      () => setSelectedAsset(ASSETS.dtr)
+    );
 
     if (networkSnapshot) {
       // Render all 28 poles from Network Twin as Circular Flow Nodes
@@ -654,10 +694,10 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         let color = isTripped
           ? "#f43f5e"
           : isWarn
-          ? "#f59e0b"
-          : isDeenergized
-          ? "#64748b"
-          : "#10b981";
+            ? "#f59e0b"
+            : isDeenergized
+              ? "#64748b"
+              : "#10b981";
         const fDef = networkSnapshot.topology.feeders.find((f: any) => f.id === node.feederId);
         if (!isLive && !isTripped && !isWarn && !isDeenergized) {
           color = fDef?.color || "#71717a";
@@ -673,84 +713,99 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         const badgeText = isDeenergized
           ? "0V • OUTAGE"
           : isLive
-          ? `${node.phases.R.v.toFixed(0)}V • ${node.phases.R.i.toFixed(2)}A`
-          : `${shortId.replace(/^P0?/, "P")} • ${node.phases.R.i.toFixed(1)}A`;
+            ? `${node.phases.R.v.toFixed(0)}V • ${node.phases.R.i.toFixed(2)}A`
+            : `${shortId.replace(/^P0?/, "P")} • ${node.phases.R.i.toFixed(1)}A`;
 
-        const poleEl = createCircularNodeMarker({
-          id: node.id,
-          label,
-          badgeText,
-          color,
-          iconType: isLive ? "LIVE_POLE" : "POLE",
-          isLive,
-          isDeenergized,
-          isTripped,
-          isWarn,
-          feederName: fDef?.name || node.feederId,
-          phases: node.phases,
-          statusText: isDeenergized ? "DE-ENERGIZED (0V)" : node.status,
-        });
+        const normSelected = selectedPoleId?.trim().toLowerCase() || "";
+        const isSelected = Boolean(
+          normSelected &&
+          (node.id.toLowerCase() === normSelected ||
+            ((normSelected === "pole-a" || normSelected === "p1" || normSelected === "f1-p01") &&
+              (node.id === "F1-P01" || node.id === "POLE-A")) ||
+            ((normSelected === "pole-b" || normSelected === "p2" || normSelected === "f1-p02") &&
+              (node.id === "F1-P02" || node.id === "POLE-B")))
+        );
 
-        const poleMarker = new gl.Marker({ element: poleEl })
-          .setLngLat([topoNode.lng, topoNode.lat])
-          .addTo(map);
-
-        poleEl.onclick = () => {
-          setSelectedAsset(node);
-          if (onSelectPole) onSelectPole(node);
-        };
-        markersRef.current.push(poleMarker);
+        upsertCircularNodeMarker(
+          [topoNode.lng, topoNode.lat],
+          {
+            id: node.id,
+            label,
+            badgeText,
+            color,
+            iconType: isLive ? "LIVE_POLE" : "POLE",
+            isLive,
+            isSelected,
+            isDeenergized,
+            isTripped,
+            isWarn,
+            feederName: fDef?.name || node.feederId,
+            phases: node.phases,
+            statusText: isDeenergized ? "DE-ENERGIZED (0V)" : node.status,
+          },
+          () => {
+            setSelectedAsset(node);
+            if (onSelectPole) onSelectPole(node);
+          }
+        );
       });
     } else {
       // Fallback 2-Pole Hardware Markers
       const p1Current = telemetry ? telemetry.p1.i : 2.45;
       const p1Color = isFault ? "#f43f5e" : isPowerCut ? "#64748b" : "#10b981";
-      const p1El = createCircularNodeMarker({
-        id: "F1-P01",
-        label: "F1-P01 (Live Incomer)",
-        badgeText: isPowerCut ? "0V • OUTAGE" : `${(telemetry?.p1.v ?? 230).toFixed(0)}V • ${p1Current.toFixed(2)}A`,
-        color: p1Color,
-        iconType: "LIVE_POLE",
-        isLive: true,
-        isDeenergized: isPowerCut,
-        isTripped: isFault,
-        statusText: isPowerCut ? "DE-ENERGIZED (0V)" : isFault ? "DIFFERENTIAL FAULT" : "HEALTHY",
-      });
-      const p1Marker = new gl.Marker({ element: p1El })
-        .setLngLat(ASSETS.pole1.coords)
-        .addTo(map);
-      p1El.onclick = () => {
-        if (telemetry) {
-          setSelectedAsset(telemetry.p1);
-          if (onSelectPole) onSelectPole(telemetry.p1);
+      upsertCircularNodeMarker(
+        ASSETS.pole1.coords,
+        {
+          id: "F1-P01",
+          label: "F1-P01 (Live Incomer)",
+          badgeText: isPowerCut ? "0V • OUTAGE" : `${(telemetry?.p1.v ?? 230).toFixed(0)}V • ${p1Current.toFixed(2)}A`,
+          color: p1Color,
+          iconType: "LIVE_POLE",
+          isLive: true,
+          isDeenergized: isPowerCut,
+          isTripped: isFault,
+          statusText: isPowerCut ? "DE-ENERGIZED (0V)" : isFault ? "DIFFERENTIAL FAULT" : "HEALTHY",
+        },
+        () => {
+          if (telemetry) {
+            setSelectedAsset(telemetry.p1);
+            if (onSelectPole) onSelectPole(telemetry.p1);
+          }
         }
-      };
-      markersRef.current.push(p1Marker);
+      );
 
       const p2Current = telemetry ? telemetry.p2.i : 2.43;
       const p2Color = isLastGasp || telemetry?.p2.isOnline === false ? "#f43f5e" : isFault ? "#f43f5e" : isPowerCut ? "#64748b" : "#10b981";
-      const p2El = createCircularNodeMarker({
-        id: "F1-P02",
-        label: "F1-P02 (Live Outgoing)",
-        badgeText: telemetry?.p2.isOnline === false ? "OUTAGE" : isPowerCut ? "0V • OUTAGE" : `${(telemetry?.p2.v ?? 230).toFixed(0)}V • ${p2Current.toFixed(2)}A`,
-        color: p2Color,
-        iconType: "LIVE_POLE",
-        isLive: true,
-        isDeenergized: isPowerCut || telemetry?.p2.isOnline === false,
-        isTripped: isFault || isLastGasp,
-        statusText: telemetry?.p2.isOnline === false ? "OUTAGE" : isPowerCut ? "DE-ENERGIZED (0V)" : isFault ? "TRIPPED" : "HEALTHY",
-      });
-      const p2Marker = new gl.Marker({ element: p2El })
-        .setLngLat(ASSETS.pole2.coords)
-        .addTo(map);
-      p2El.onclick = () => {
-        if (telemetry) {
-          setSelectedAsset(telemetry.p2);
-          if (onSelectPole) onSelectPole(telemetry.p2);
+      upsertCircularNodeMarker(
+        ASSETS.pole2.coords,
+        {
+          id: "F1-P02",
+          label: "F1-P02 (Live Outgoing)",
+          badgeText: telemetry?.p2.isOnline === false ? "OUTAGE" : isPowerCut ? "0V • OUTAGE" : `${(telemetry?.p2.v ?? 230).toFixed(0)}V • ${p2Current.toFixed(2)}A`,
+          color: p2Color,
+          iconType: "LIVE_POLE",
+          isLive: true,
+          isDeenergized: isPowerCut || telemetry?.p2.isOnline === false,
+          isTripped: isFault || isLastGasp,
+          statusText: telemetry?.p2.isOnline === false ? "OUTAGE" : isPowerCut ? "DE-ENERGIZED (0V)" : isFault ? "TRIPPED" : "HEALTHY",
+        },
+        () => {
+          if (telemetry) {
+            setSelectedAsset(telemetry.p2);
+            if (onSelectPole) onSelectPole(telemetry.p2);
+          }
         }
-      };
-      markersRef.current.push(p2Marker);
+      );
     }
+
+    // Remove any stale markers no longer in activeIds
+    for (const [id, entry] of markersMapRef.current.entries()) {
+      if (!activeIds.has(id)) {
+        entry.marker.remove();
+        markersMapRef.current.delete(id);
+      }
+    }
+    markersRef.current = Array.from(markersMapRef.current.values()).map((v) => v.marker);
   };
 
   // Re-render vectors and markers when telemetry or networkSnapshot updates
@@ -759,7 +814,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
       renderFeederVectors(mapInstanceRef.current);
       renderAssetMarkers(mapInstanceRef.current);
     }
-  }, [telemetry, networkSnapshot, isFault, mapLoaded, theme]);
+  }, [telemetry, networkSnapshot, isFault, mapLoaded, theme, selectedPoleId]);
 
   // Handle container resize & ensure markers are drawn on tab switches
   React.useEffect(() => {
@@ -790,11 +845,14 @@ export const GisFeederMap = React.memo(function GisFeederMap({
     setMapMode(mode);
     if (mapInstanceRef.current) {
       const styleUrl = getMapStyleUrl(mode, theme);
-      mapInstanceRef.current.setStyle(styleUrl, { diff: false });
-      mapInstanceRef.current.once("style.load", () => {
-        renderFeederVectors(mapInstanceRef.current);
-        renderAssetMarkers(mapInstanceRef.current);
-      });
+      if (appliedStyleRef.current !== styleUrl) {
+        appliedStyleRef.current = styleUrl;
+        mapInstanceRef.current.setStyle(styleUrl, { diff: false });
+        mapInstanceRef.current.once("style.load", () => {
+          renderFeederVectors(mapInstanceRef.current);
+          renderAssetMarkers(mapInstanceRef.current);
+        });
+      }
     }
   };
 
@@ -830,21 +888,19 @@ export const GisFeederMap = React.memo(function GisFeederMap({
           <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5">
             <button
               onClick={() => handleModeChange("NORMAL")}
-              className={`px-2.5 py-0.5 text-[10px] rounded-sm transition-colors cursor-pointer ${
-                mapMode === "NORMAL"
+              className={`px-2.5 py-0.5 text-[10px] rounded-sm transition-colors cursor-pointer ${mapMode === "NORMAL"
                   ? "bg-white dark:bg-zinc-800 text-emerald-700 dark:text-emerald-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
                   : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-              }`}
+                }`}
             >
               NORMAL
             </button>
             <button
               onClick={() => handleModeChange("SATELLITE")}
-              className={`px-2.5 py-0.5 text-[10px] rounded-sm transition-colors cursor-pointer ${
-                mapMode === "SATELLITE"
+              className={`px-2.5 py-0.5 text-[10px] rounded-sm transition-colors cursor-pointer ${mapMode === "SATELLITE"
                   ? "bg-white dark:bg-zinc-800 text-cyan-700 dark:text-cyan-400 font-bold border border-slate-300 dark:border-zinc-700 shadow-xs"
                   : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200"
-              }`}
+                }`}
             >
               SATELLITE
             </button>

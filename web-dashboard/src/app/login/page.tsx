@@ -4,9 +4,11 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, User, Zap, AlertTriangle, Eye, EyeOff } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { useDashboard } from "@/context/DashboardContext";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { setCurrentUser } = useDashboard();
   const [username, setUsername] = useState("operator");
   const [password, setPassword] = useState("gridsense123");
   const [showPassword, setShowPassword] = useState(false);
@@ -41,6 +43,9 @@ export default function LoginPage() {
         return;
       }
 
+      if (data.user) {
+        setCurrentUser(data.user);
+      }
       setIsAuthorized(true);
       router.push("/");
       router.refresh();

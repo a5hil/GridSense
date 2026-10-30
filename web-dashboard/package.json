@@ -10,15 +10,16 @@
     "bridge": "node scripts/cloud-serial-bridge.js"
   },
   "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lightningcss": "^1.33.0",
+    "lucide-react": "^0.475.0",
+    "mongodb": "^6.13.0",
     "next": "16.4.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "clsx": "^2.1.1",
-    "tailwind-merge": "^2.6.0",
-    "class-variance-authority": "^0.7.1",
-    "lucide-react": "^0.475.0",
     "serialport": "^12.0.0",
-    "mongodb": "^6.13.0"
+    "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "^4.0.0",
