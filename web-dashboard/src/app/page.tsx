@@ -596,10 +596,15 @@ export default function SCADADashboard() {
     }
   }
 
+  // True when the banner is showing a communications-only alarm (e.g. NODE_OFFLINE):
+  // nothing has tripped, so "reset" is meaningless; the operator can only acknowledge it.
+  let isCommsOnlyAlarm = false;
+
   // Network Twin FDIR Detection Fallback (promotes simulated/injected feeder faults to global alarm banner)
   if (!activeFault && networkSnapshot && networkSnapshot.detections.length > 0) {
     const topDet = networkSnapshot.detections.find((d) => d.severity === "CRITICAL" || d.severity === "HIGH") || networkSnapshot.detections[0];
     if (topDet) {
+      isCommsOnlyAlarm = topDet.type === "NODE_OFFLINE";
       activeFault = {
         ansiCode: topDet.ansi,
         title: `${topDet.type.replace(/_/g, " ")} (${topDet.sectionId ? `Section ${topDet.sectionId}` : topDet.nodeId ? `Pole ${topDet.nodeId}` : topDet.feederId})`,
@@ -832,20 +837,33 @@ export default function SCADADashboard() {
             </Button>
 
             <Button
-              variant={isPtwLocked ? "outline" : isPowerCut ? "secondary" : "destructive"}
+              variant={isPtwLocked ? "outline" : isPowerCut || isCommsOnlyAlarm ? "secondary" : "destructive"}
               size="sm"
               className={`font-mono font-bold text-xs ${
                 isPtwLocked
                   ? "border-amber-500 text-amber-900 bg-amber-100 dark:border-amber-600 dark:text-amber-300 dark:bg-amber-950/50 cursor-not-allowed"
-                  : isPowerCut
+                  : isPowerCut || isCommsOnlyAlarm
                   ? "bg-slate-200 hover:bg-slate-300 text-slate-900 border border-slate-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 dark:border-zinc-700"
                   : "bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
               }`}
               onClick={handleAcknowledgeAlarm}
               disabled={isAcking}
+              title={
+                isCommsOnlyAlarm
+                  ? "Acknowledges the communications alarm. It will remain until the gateway/node reconnects. Does not operate any field equipment."
+                  : "Acknowledges the alarm and resets GridSense fault detection. If the fault is still present it will be raised again. Does not operate any field equipment."
+              }
             >
               <Check className="h-3.5 w-3.5 mr-1" />
-              {isAcking ? "CLEARING..." : isPowerCut ? "ACKNOWLEDGE OUTAGE" : isAlarmUnacked ? "ACKNOWLEDGE TRIP ALARM" : "CLEAR LATCH / RE-ARM PROTECTION"}
+              {isAcking
+                ? "ACKNOWLEDGING..."
+                : isCommsOnlyAlarm
+                ? "ACKNOWLEDGE"
+                : isPowerCut
+                ? "ACKNOWLEDGE OUTAGE"
+                : isAlarmUnacked
+                ? "ACKNOWLEDGE & RESET ALARM"
+                : "RESET ALARM"}
             </Button>
           </div>
         </div>
