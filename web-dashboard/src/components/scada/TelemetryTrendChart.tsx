@@ -517,9 +517,10 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
     const iR = activeNode.phases.R.i;
     const iY = activeNode.phases.Y.i;
     const iB = activeNode.phases.B.i;
-    const pfR = activeNode.phases.R.pf || 0.96;
-    const pfY = activeNode.phases.Y.pf || 0.96;
-    const pfB = activeNode.phases.B.pf || 0.96;
+    const isEnergized = vR >= 10 || vY >= 10 || vB >= 10;
+    const pfR = isEnergized ? (activeNode.phases.R.pf || 0.96) : 0;
+    const pfY = isEnergized ? (activeNode.phases.Y.pf || 0.96) : 0;
+    const pfB = isEnergized ? (activeNode.phases.B.pf || 0.96) : 0;
     const pR = activeNode.phases.R.p > 0 ? activeNode.phases.R.p : (iR > 0 ? vR * iR * pfR : 0);
     const pY = activeNode.phases.Y.p > 0 ? activeNode.phases.Y.p : (iY > 0 ? vY * iY * pfY : 0);
     const pB = activeNode.phases.B.p > 0 ? activeNode.phases.B.p : (iB > 0 ? vB * iB * pfB : 0);
@@ -668,7 +669,9 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
   const statsPolyPB = calcStats(polyHistory.map((p) => p.pB));
   const statsPolyPTotal = calcStats(polyHistory.map((p) => p.pTotal));
 
-  const minPolyPf = 0.8;
+  const allPolyPf = polyHistory.flatMap((p) => [p.pfR, p.pfY, p.pfB]);
+  const hasZeroPf = allPolyPf.some((pf) => pf < 0.1);
+  const minPolyPf = hasZeroPf ? 0 : 0.8;
   const maxPolyPf = 1.0;
   const pathPolyPfR = generatePolyPath((p) => p.pfR, minPolyPf, maxPolyPf);
   const pathPolyPfY = generatePolyPath((p) => p.pfY, minPolyPf, maxPolyPf);
