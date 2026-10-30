@@ -156,7 +156,11 @@ export function Sidebar() {
 
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = !isSettingsPage && activeView === item.id;
+            const isActive =
+              !isSettingsPage &&
+              (activeView === item.id ||
+                (item.id === "COMMS" && activeView === "DIAGNOSTICS") ||
+                (item.id === "SOE" && activeView === "LOGS"));
 
             return (
               <button
@@ -165,12 +169,12 @@ export function Sidebar() {
                 className={`transition-all duration-150 relative group cursor-pointer ${
                   isSidebarCollapsed
                     ? "w-10 h-10 mx-auto flex items-center justify-center rounded-sm"
-                    : "w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-xs font-semibold tracking-wide"
+                    : "w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-xs font-semibold tracking-wide font-sans"
                 } ${
                   isActive
                     ? isSidebarCollapsed
-                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
-                      : "bg-emerald-50/70 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 font-bold border-l-2 border-emerald-500 dark:border-emerald-400 shadow-xs"
+                      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+                      : "bg-emerald-50/80 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 font-bold border-l-2 border-emerald-500 dark:border-emerald-400 shadow-xs"
                     : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-900/60"
                 }`}
               >
@@ -191,10 +195,10 @@ export function Sidebar() {
                 {/* Badges in Expanded Mode */}
                 {!isSidebarCollapsed && item.badgeCount !== undefined && item.badgeCount > 0 && (
                   <span
-                    className={`ml-auto text-[9px] font-mono font-bold px-1.5 py-0.2 rounded-xs shrink-0 ${
+                    className={`ml-auto text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-xs shrink-0 ${
                       item.badgeVariant === "destructive"
-                        ? "bg-rose-500/20 text-rose-500 border border-rose-500/40 animate-pulse"
-                        : "bg-amber-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/40"
+                        ? "bg-rose-500/15 text-rose-600 dark:text-rose-400 border border-rose-500/40"
+                        : "bg-amber-500/15 text-amber-700 dark:text-amber-400 border border-amber-500/40"
                     }`}
                   >
                     {item.badgeCount}
@@ -206,7 +210,7 @@ export function Sidebar() {
                   <span
                     className={`absolute top-2 right-2 h-2 w-2 rounded-full ring-2 ring-white dark:ring-[#0c0d10] ${
                       item.badgeVariant === "destructive"
-                        ? "bg-rose-500 animate-pulse"
+                        ? "bg-rose-500"
                         : "bg-amber-500"
                     }`}
                   />
@@ -214,10 +218,10 @@ export function Sidebar() {
 
                 {/* Floating Tooltip in Collapsed Mode */}
                 {isSidebarCollapsed && (
-                  <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-[#0f1115] border border-zinc-700 text-zinc-100 text-[11px] font-mono rounded-sm shadow-2xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[100] flex items-center gap-2">
+                  <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-white dark:bg-[#0f1115] border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 text-[11px] font-mono rounded-sm shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[100] flex items-center gap-2">
                     <span>{item.label}</span>
                     {item.badgeCount !== undefined && item.badgeCount > 0 && (
-                      <span className="text-[9px] px-1 bg-amber-500/30 text-amber-300 border border-amber-500/50 rounded-xs">
+                      <span className="text-[10px] px-1 bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/40 rounded-xs">
                         {item.badgeCount}
                       </span>
                     )}
@@ -236,19 +240,19 @@ export function Sidebar() {
           className={`transition-all relative group cursor-pointer ${
             isSidebarCollapsed
               ? "w-10 h-10 mx-auto flex items-center justify-center rounded-sm"
-              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-xs font-semibold tracking-wide"
+              : "w-full flex items-center gap-3 px-3 py-2.5 rounded-sm text-xs font-semibold tracking-wide font-sans"
           } ${
             isSettingsPage
               ? isSidebarCollapsed
-                ? "bg-cyan-500/15 text-cyan-400 border border-cyan-500/40 shadow-[0_0_10px_rgba(6,182,212,0.2)]"
-                : "bg-cyan-50/70 dark:bg-cyan-950/30 text-cyan-700 dark:text-cyan-400 font-bold border-l-2 border-cyan-500 dark:border-cyan-400 shadow-xs"
+                ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/40 shadow-[0_0_10px_rgba(16,185,129,0.2)]"
+                : "bg-emerald-50/80 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 font-bold border-l-2 border-emerald-500 dark:border-emerald-400 shadow-xs"
               : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-900/60"
           }`}
         >
           <Settings
             className={`h-4 w-4 shrink-0 transition-transform group-hover:rotate-45 ${
               isSettingsPage
-                ? "text-cyan-600 dark:text-cyan-400"
+                ? "text-emerald-600 dark:text-emerald-400"
                 : "text-slate-500 dark:text-zinc-500"
             }`}
           />
@@ -258,7 +262,7 @@ export function Sidebar() {
               <span className="truncate flex-1 text-left">
                 Settings
               </span>
-              <span className="text-[9px] font-mono text-slate-400 dark:text-zinc-500">
+              <span className="text-[10px] font-mono text-slate-400 dark:text-zinc-500">
                 v2.0
               </span>
             </>
@@ -266,7 +270,7 @@ export function Sidebar() {
 
           {/* Floating Tooltip in Collapsed Mode */}
           {isSidebarCollapsed && (
-            <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-[#0f1115] border border-zinc-700 text-zinc-100 text-[11px] font-mono rounded-sm shadow-2xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[100]">
+            <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-white dark:bg-[#0f1115] border border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-zinc-100 text-[11px] font-mono rounded-sm shadow-xl whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity z-[100]">
               Settings (v2.0)
             </div>
           )}

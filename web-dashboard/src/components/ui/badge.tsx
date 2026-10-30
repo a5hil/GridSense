@@ -18,7 +18,7 @@ const badgeVariants = cva(
         warning:
           "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-600/50 dark:bg-amber-950/40 dark:text-amber-400",
         destructive:
-          "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-600/60 dark:bg-rose-950/50 dark:text-rose-300 animate-pulse",
+          "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-600/60 dark:bg-rose-950/50 dark:text-rose-300",
         trip:
           "border-rose-500 bg-rose-600 text-white dark:bg-rose-900 dark:text-rose-100 font-bold animate-pulse",
         crypto:

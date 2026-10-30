@@ -3,13 +3,14 @@ import { cn } from "@/lib/utils";
 
 const Card = React.forwardRef<
   HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement> & { isFault?: boolean }
->(({ className, isFault, ...props }, ref) => (
+  React.HTMLAttributes<HTMLDivElement> & { isFault?: boolean; isUnacked?: boolean }
+>(({ className, isFault, isUnacked, ...props }, ref) => (
   <div
     ref={ref}
     className={cn(
-      "rounded-sm border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 text-slate-900 dark:text-zinc-100 transition-colors shadow-none",
-      isFault && "border-rose-500 bg-rose-50 dark:bg-rose-950/20 animate-pulse ring-1 ring-rose-500/30",
+      "rounded-sm border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] text-slate-900 dark:text-zinc-100 transition-colors shadow-xs dark:shadow-none",
+      isFault && "border-rose-500 bg-rose-50/80 dark:bg-rose-950/20 ring-1 ring-rose-500/30",
+      isFault && isUnacked && "animate-pulse",
       className
     )}
     {...props}

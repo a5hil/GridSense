@@ -137,7 +137,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
   const isFeederFaulted = feederDetections.length > 0 || (viewScope === "LT-1" && isFault);
 
   return (
-    <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm p-4 flex flex-col gap-3 font-mono transition-colors shadow-xs dark:shadow-none">
+    <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm p-3.5 flex flex-col gap-3 font-mono transition-colors shadow-xs dark:shadow-none">
       {/* Header Bar with Feeder Scope Tabs */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-zinc-800/80 pb-2.5">
         <div className="flex items-center gap-2">
@@ -413,7 +413,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                           <GitBranch className="h-3 w-3" />
                           <span>ANSI 87L DIFFERENTIAL</span>
                         </div>
-                        <div className="text-[8px] font-mono tabular-nums opacity-90">
+                        <div className="text-[9px] font-mono tabular-nums opacity-90">
                           {isPowerCut ? "DE-ENERGIZED // NO FLOW (0A)" : `ΔI = ${idiff.toFixed(3)}A ${isDifferentialFault ? "(TRIP LIMIT EXCEEDED)" : "• Z = 0.045 Ω"}`}
                         </div>
                       </div>
@@ -457,7 +457,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                         </svg>
                       </div>
                       <span
-                        className={`absolute top-1/2 mt-2 left-0 right-0 text-center text-[8px] font-bold truncate uppercase ${
+                        className={`absolute top-1/2 mt-2 left-0 right-0 text-center text-[9px] font-bold truncate uppercase ${
                           isSpanTripped
                             ? "text-rose-500 animate-pulse"
                             : isPowerCut || isNodeDeenergized
@@ -492,16 +492,16 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                           <span className="font-bold text-slate-800 dark:text-zinc-200">{node.id}</span>
                           {node.isLive ? (
                             isNodeDeenergized ? (
-                              <span className="bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700 text-[8px] px-1 py-0.2 rounded-xs font-bold">
+                              <span className="bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700 text-[9px] px-1 py-0.5 rounded-xs font-bold">
                                 {isP1 ? "INCOMER (0V)" : "BOUNDARY (0V)"}
                               </span>
                             ) : (
-                              <span className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/40 text-[8px] px-1 py-0.2 rounded-xs font-bold">
+                              <span className="bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/40 text-[9px] px-1 py-0.5 rounded-xs font-bold">
                                 {isP1 ? "INCOMER RTU" : "BOUNDARY RTU"}
                               </span>
                             )
                           ) : (
-                            <span className="bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700 text-[8px] px-1 py-0.2 rounded-xs font-semibold">
+                            <span className="bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700 text-[9px] px-1 py-0.5 rounded-xs font-semibold">
                               {isNodeDeenergized ? "DE-ENERGIZED" : "ENERGIZED"}
                             </span>
                           )}

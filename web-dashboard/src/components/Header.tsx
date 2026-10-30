@@ -2,18 +2,37 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { ChevronRight, LogOut, ShieldCheck, User } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { ChevronRight, LogOut, ShieldCheck, User, Volume2, VolumeX } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { useDashboard } from "@/context/DashboardContext";
+import { useDashboard, ActiveView } from "@/context/DashboardContext";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
+const VIEW_LABELS: Record<ActiveView, string> = {
+  OPERATOR: "Operations Desk",
+  GIS: "Geospatial GIS",
+  NETWORK: "Network Model (3Φ)",
+  WAVEFORMS: "Power Quality & Waveforms",
+  OMS: "OMS & Field Dispatch",
+  COMMS: "Communications & RTU",
+  DIAGNOSTICS: "Communications & RTU",
+  SOE: "Sequence of Events (SOE)",
+  LOGS: "Sequence of Events (SOE)",
+};
+
 export function Header() {
+  const pathname = usePathname();
   const {
+    activeView,
+    setActiveView,
     isFault,
     activeFaultAnsi,
+    isAudioMuted,
+    toggleAudioMuted,
     lastHeartbeat,
     currentUser,
     handleLogout,
+    systemStatus,
   } = useDashboard();
 
   const [clockTime, setClockTime] = useState<string>("");
@@ -27,6 +46,10 @@ export function Header() {
     return () => clearInterval(interval);
   }, []);
 
+  const isAlarmUnacked = isFault && systemStatus?.operatorAck === false;
+  const activeSectionLabel =
+    pathname === "/settings" ? "System Settings" : VIEW_LABELS[activeView] || "Operations Desk";
+
   return (
     <header className="h-14 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] px-4 flex items-center justify-between font-mono select-none shrink-0 z-30 transition-colors">
       {/* 1. LEFT: CLEAN BREADCRUMB NAVIGATION & DYNAMIC HEALTH PILL */}
@@ -34,30 +57,39 @@ export function Header() {
         <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs">
           <Link
             href="/"
+            onClick={() => setActiveView("OPERATOR")}
             className="text-slate-500 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors font-bold"
           >
             GridSense ADMS
           </Link>
           <ChevronRight className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-600 shrink-0" />
-          <span className="text-slate-600 dark:text-zinc-300 font-semibold truncate hidden sm:inline">
+          <span className="text-slate-600 dark:text-zinc-300 font-semibold truncate hidden md:inline">
             Angamaly 33/11kV
           </span>
-          <ChevronRight className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-600 shrink-0 hidden sm:inline" />
-          <span className="text-slate-900 dark:text-zinc-100 font-black truncate">
+          <ChevronRight className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-600 shrink-0 hidden md:inline" />
+          <span className="text-slate-600 dark:text-zinc-300 font-semibold truncate hidden sm:inline">
             Feeder 04
+          </span>
+          <ChevronRight className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-600 shrink-0 hidden sm:inline" />
+          <span className="text-emerald-700 dark:text-emerald-400 font-bold truncate font-sans">
+            {activeSectionLabel}
           </span>
         </nav>
 
         {/* Dynamic System Health Status Pill */}
         <Badge
           variant={isFault ? "destructive" : "healthy"}
-          className={`ml-2 text-[10px] py-0.5 px-2 flex items-center gap-1.5 font-bold uppercase shrink-0 ${
-            isFault ? "animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]" : ""
+          className={`ml-1.5 text-[10px] py-0.5 px-2 flex items-center gap-1.5 font-bold uppercase shrink-0 ${
+            isAlarmUnacked ? "animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.45)]" : ""
           }`}
         >
           <span
             className={`h-1.5 w-1.5 rounded-full ${
-              isFault ? "bg-white animate-ping" : "bg-emerald-400"
+              isFault
+                ? isAlarmUnacked
+                  ? "bg-rose-600 dark:bg-white animate-ping"
+                  : "bg-rose-600 dark:bg-rose-400"
+                : "bg-emerald-500 dark:bg-emerald-400"
             }`}
           />
           <span>
@@ -70,8 +102,31 @@ export function Header() {
         </Badge>
       </div>
 
-      {/* 2. RIGHT ACTIONS: THEME TOGGLE, DIGITAL CLOCK (IST) & OPERATOR PROFILE */}
-      <div className="flex items-center gap-2.5 shrink-0">
+      {/* 2. RIGHT ACTIONS: AUDIO ALARM MUTE, THEME TOGGLE, DIGITAL CLOCK (IST) & OPERATOR PROFILE */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Quick 1-Click SCADA Buzzer Mute / Unmute */}
+        <button
+          onClick={toggleAudioMuted}
+          title={isAudioMuted ? "Unmute SCADA Alarm Buzzer" : "Mute SCADA Alarm Buzzer"}
+          className={`h-8 px-2 rounded-sm border text-[10px] font-mono font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
+            isAudioMuted
+              ? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-400"
+              : "border-slate-200 bg-slate-50 text-slate-600 hover:text-slate-900 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-200"
+          }`}
+        >
+          {isAudioMuted ? (
+            <>
+              <VolumeX className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
+              <span className="hidden lg:inline">MUTED</span>
+            </>
+          ) : (
+            <>
+              <Volume2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+              <span className="hidden lg:inline">AUDIO ON</span>
+            </>
+          )}
+        </button>
+
         <ThemeToggle />
 
         {/* Live IST Digital Clock */}

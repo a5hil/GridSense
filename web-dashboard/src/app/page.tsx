@@ -665,15 +665,15 @@ export default function SCADADashboard() {
         }
       }
 
-      // Alt + 1..7: Switch between the 7 primary SCADA tabs
+      // Alt + 1..7: Switch between the 7 primary SCADA tabs (matches Sidebar order 1:1)
       if (e.altKey && !e.ctrlKey && !e.shiftKey) {
         if (e.key === "1") { e.preventDefault(); setActiveView("OPERATOR"); }
         else if (e.key === "2") { e.preventDefault(); setActiveView("GIS"); }
         else if (e.key === "3") { e.preventDefault(); setActiveView("NETWORK"); }
         else if (e.key === "4") { e.preventDefault(); setActiveView("WAVEFORMS"); }
         else if (e.key === "5") { e.preventDefault(); setActiveView("OMS"); }
-        else if (e.key === "6") { e.preventDefault(); setActiveView("DIAGNOSTICS"); }
-        else if (e.key === "7") { e.preventDefault(); setActiveView("LOGS"); }
+        else if (e.key === "6") { e.preventDefault(); setActiveView("COMMS"); }
+        else if (e.key === "7") { e.preventDefault(); setActiveView("SOE"); }
       }
 
       // Space: Freeze / Resume Waveform when viewing WAVEFORMS tab
@@ -716,11 +716,11 @@ export default function SCADADashboard() {
         </div>
       )}
 
-      {/* 2. PERSISTENT GLOBAL FAULT ALARM BANNER (ACTIVE ACROSS ALL TABS) */}
+      {/* 2. PERSISTENT GLOBAL FAULT ALARM BANNER (ACTIVE ACROSS ALL TABS - ISA-101 FLASH WHEN UNACKED, STEADY WHEN ACKED) */}
       {activeFault && (
-        <div className="border border-rose-400 dark:border-rose-600 bg-rose-50 dark:bg-rose-950/80 p-3 rounded-sm flex flex-wrap items-center justify-between gap-3 animate-pulse ring-1 ring-rose-300 dark:ring-rose-500 font-mono shadow-sm dark:shadow-lg transition-colors">
+        <div className={`border border-rose-400 dark:border-rose-600 bg-rose-50 dark:bg-rose-950/80 p-3 rounded-sm flex flex-wrap items-center justify-between gap-3 ring-1 ring-rose-300 dark:ring-rose-500 font-mono shadow-sm dark:shadow-lg transition-colors ${isAlarmUnacked ? "animate-pulse" : ""}`}>
           <div className="flex items-center gap-3">
-            <AlertOctagon className="h-6 w-6 text-rose-600 dark:text-rose-400 animate-bounce shrink-0" />
+            <AlertOctagon className={`h-6 w-6 text-rose-600 dark:text-rose-400 shrink-0 ${isAlarmUnacked ? "animate-bounce" : ""}`} />
             <div>
               <div className="text-xs font-bold uppercase tracking-wider text-rose-900 dark:text-rose-200 flex flex-wrap items-center gap-2">
                 <span className="bg-rose-600 text-white dark:bg-rose-900 border border-rose-500 dark:border-rose-400 font-mono px-2 py-0.5 rounded-xs text-[10px] font-black">
@@ -800,48 +800,49 @@ export default function SCADADashboard() {
               {/* CARD 1: Grid Protection & FLISR Supervision (ANSI 87L / 50/51) */}
               <Card
                 isFault={!isPowerCut && (isFault || (gridMetrics?.criticalDetections ?? 0) > 0)}
+                isUnacked={isAlarmUnacked}
                 className="col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between"
               >
-                <CardHeader className="pb-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono uppercase tracking-wider font-semibold">
-                      FEEDER PROTECTION &amp; AUTOMATION (FDIR)
+                <CardHeader className="pb-1.5">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono uppercase tracking-wider font-semibold truncate">
+                      FEEDER PROTECTION (FDIR)
                     </span>
                     {isGatewayOffline ? (
-                      <Badge variant="outline" className="text-[10px] border-amber-500/80 text-amber-600 dark:text-amber-500 font-bold">
+                      <Badge variant="outline" className="text-[10px] border-amber-500/80 text-amber-600 dark:text-amber-500 font-bold shrink-0">
                         GATEWAY OFFLINE
                       </Badge>
                     ) : isPowerCut ? (
-                      <Badge variant="warning" className="text-[10px]">
+                      <Badge variant="warning" className="text-[10px] shrink-0">
                         POWERCUT (ANSI 27)
                       </Badge>
                     ) : isFault || (gridMetrics?.totalDetections ?? 0) > 0 ? (
-                      <Badge variant="destructive" className="text-[10px]">
+                      <Badge variant="destructive" className={`text-[10px] shrink-0 ${isAlarmUnacked ? "animate-pulse" : ""}`}>
                         {isFault ? "RELAY TRIP" : `${gridMetrics?.totalDetections} ANOMALIES`}
                       </Badge>
                     ) : (
-                      <Badge variant="healthy" className="text-[10px]">
+                      <Badge variant="healthy" className="text-[10px] shrink-0">
                         ARMED &amp; SUPERVISED
                       </Badge>
                     )}
                   </div>
                 </CardHeader>
-                <CardContent className="pt-1 pb-2">
+                <CardContent className="pt-2 pb-2.5">
                   <div className="flex items-center gap-2.5">
                     {isGatewayOffline ? (
                       <Radio className="h-7 w-7 text-amber-500 animate-pulse shrink-0" />
                     ) : isPowerCut ? (
                       <Power className="h-7 w-7 text-amber-500 shrink-0" />
                     ) : isFault || (gridMetrics?.criticalDetections ?? 0) > 0 ? (
-                      <AlertOctagon className="h-7 w-7 text-rose-600 dark:text-rose-500 shrink-0 animate-bounce" />
+                      <AlertOctagon className={`h-7 w-7 text-rose-600 dark:text-rose-500 shrink-0 ${isAlarmUnacked ? "animate-bounce" : ""}`} />
                     ) : (gridMetrics?.totalDetections ?? 0) > 0 ? (
-                      <AlertTriangle className="h-7 w-7 text-amber-500 shrink-0 animate-pulse" />
+                      <AlertTriangle className="h-7 w-7 text-amber-500 shrink-0" />
                     ) : (
                       <ShieldCheck className="h-7 w-7 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     )}
-                    <div>
+                    <div className="min-w-0">
                       <div
-                        className={`text-lg font-bold font-mono tracking-tight ${
+                        className={`text-lg font-bold font-mono tracking-tight truncate ${
                           isGatewayOffline
                             ? "text-amber-600 dark:text-amber-500"
                             : isPowerCut
@@ -861,21 +862,21 @@ export default function SCADADashboard() {
                           ? telemetry?.fault_code || "ANOMALY / TRIP"
                           : (gridMetrics?.totalDetections ?? 0) > 0
                           ? `${gridMetrics?.totalDetections} ACTIVE ALERTS`
-                          : "FEEDER OPERATION: BALANCED & NORMAL"}
+                          : "BALANCED & NORMAL"}
                       </div>
-                      <div className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono">
+                      <div className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono truncate">
                         {isPowerCut
                           ? "Feeder unpowered • Upstream supply 0.0V"
                           : isFault
                           ? `ΔI = ${idiff.toFixed(3)}A • Span F1-P01 ↔ F1-P02`
                           : (gridMetrics?.totalDetections ?? 0) > 0
                           ? `${gridMetrics?.criticalDetections} Critical • ${gridMetrics?.trippedSections} Spans Tripped`
-                          : `Line Differential ΔI = ${idiff.toFixed(3)}A • Conductor Normal`}
+                          : `Line Differential ΔI = ${idiff.toFixed(3)}A • Normal`}
                       </div>
                     </div>
                   </div>
                 </CardContent>
-                <div className="border-t border-slate-100 dark:border-zinc-800/60 px-3 py-1 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between">
+                <div className="border-t border-slate-200/80 dark:border-zinc-800/80 px-3.5 py-1.5 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between bg-slate-50/60 dark:bg-zinc-950/40">
                   <span>PICKUP: {tripLimit.toFixed(3)}A</span>
                   <span className="text-emerald-600 dark:text-emerald-500 font-semibold">FLISR AUTOMATION: ARMED</span>
                 </div>
@@ -885,10 +886,10 @@ export default function SCADADashboard() {
               <Card className={`col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between transition-opacity ${
                 isP1Stale ? "opacity-75 border-amber-500/50" : ""
               }`}>
-                <CardHeader className="pb-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono uppercase tracking-wider font-semibold">
-                      DISTRIBUTION TRANSFORMER DEMAND (DTR-01)
+                <CardHeader className="pb-1.5">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono uppercase tracking-wider font-semibold truncate">
+                      TRANSFORMER DEMAND (DTR-01)
                     </span>
                     <Badge
                       variant={
@@ -898,32 +899,45 @@ export default function SCADADashboard() {
                           ? "warning"
                           : "healthy"
                       }
-                      className="text-[10px]"
+                      className="text-[10px] shrink-0"
                     >
                       {networkSnapshot ? `${networkSnapshot.dtr.loadingPct.toFixed(1)}%` : "--%"} CAPACITY
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-1 pb-2">
+                <CardContent className="pt-2 pb-2.5">
                   <div className="flex items-center gap-2.5">
                     <Zap className="h-7 w-7 text-amber-500 shrink-0" />
-                    <div>
-                      <div className="text-2xl font-bold font-mono text-slate-900 dark:text-zinc-100 tabular-nums">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xl font-bold font-mono text-slate-900 dark:text-zinc-100 tabular-nums">
                         {networkSnapshot ? networkSnapshot.dtr.kw.toFixed(1) : feederLoadKW}{" "}
                         <span className="text-sm text-slate-600 dark:text-zinc-400 font-normal">kW</span>
-                        <span className="text-xs text-slate-500 dark:text-zinc-400 font-normal ml-2 font-mono">
+                        <span className="text-xs text-slate-500 dark:text-zinc-400 font-normal ml-1.5 font-mono">
                           ({networkSnapshot ? networkSnapshot.dtr.kva.toFixed(1) : "---"} kVA)
                         </span>
                       </div>
-                      <div className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono">
-                        LT-1 HEAD LOAD: <span className="text-slate-900 dark:text-zinc-200 font-semibold tabular-nums">{feederLoadKW} kW</span>
+                      <div className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono truncate">
+                        LT-1 HEAD: <span className="text-slate-900 dark:text-zinc-200 font-semibold tabular-nums">{feederLoadKW} kW</span>
                         <span className="ml-1 text-slate-600 dark:text-zinc-400">• I²R LOSS: {gridMetrics ? gridMetrics.technicalLossKw.toFixed(2) : lineLossW.toFixed(1)} kW</span>
+                      </div>
+                      {/* Visual Capacity Utilization Bar */}
+                      <div className="mt-1.5 h-1 w-full bg-slate-200 dark:bg-zinc-800 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full transition-all duration-300 ${
+                            (networkSnapshot?.dtr.loadingPct ?? 0) > 85
+                              ? "bg-rose-500"
+                              : (networkSnapshot?.dtr.loadingPct ?? 0) > 65
+                              ? "bg-amber-500"
+                              : "bg-emerald-500"
+                          }`}
+                          style={{ width: `${Math.min(100, Math.max(0, networkSnapshot?.dtr.loadingPct ?? 26))}%` }}
+                        />
                       </div>
                     </div>
                   </div>
                 </CardContent>
-                <div className="border-t border-slate-100 dark:border-zinc-800/60 px-3 py-1 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between">
-                  <span>RADIAL POWER: F1: {gridMetrics?.f1Kw.toFixed(0) ?? feederLoadKW}k • F2: {gridMetrics?.f2Kw.toFixed(0) ?? 0}k • F3: {gridMetrics?.f3Kw.toFixed(0) ?? 0}k</span>
+                <div className="border-t border-slate-200/80 dark:border-zinc-800/80 px-3.5 py-1.5 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between bg-slate-50/60 dark:bg-zinc-950/40">
+                  <span>RADIAL: F1: {gridMetrics?.f1Kw.toFixed(0) ?? feederLoadKW}k • F2: {gridMetrics?.f2Kw.toFixed(0) ?? 0}k • F3: {gridMetrics?.f3Kw.toFixed(0) ?? 0}k</span>
                   <span className="text-blue-600 dark:text-cyan-500 font-semibold">250 kVA BASE</span>
                 </div>
               </Card>
@@ -945,10 +959,10 @@ export default function SCADADashboard() {
 
                   return (
                     <>
-                      <CardHeader className="pb-1">
-                        <div className="flex items-center justify-between">
-                          <span className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono uppercase tracking-wider font-semibold">
-                            LV BUS VOLTAGE &amp; POWER QUALITY (IEC 61000)
+                      <CardHeader className="pb-1.5">
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono uppercase tracking-wider font-semibold truncate">
+                            LV BUS VOLTAGE (IEC 61000)
                           </span>
                           <Badge
                             variant={
@@ -956,7 +970,7 @@ export default function SCADADashboard() {
                                 ? "destructive"
                                 : "healthy"
                             }
-                            className="text-[10px]"
+                            className="text-[10px] shrink-0"
                           >
                             {isUnderVoltage
                               ? `UNDERVOLTAGE (${minV.toFixed(0)}V)`
@@ -964,43 +978,43 @@ export default function SCADADashboard() {
                               ? `OVERVOLTAGE (${maxV.toFixed(0)}V)`
                               : isUnbalanced
                               ? "UNBALANCED"
-                              : "VOLTAGE BALANCE: NORMAL"}
+                              : "BALANCE: NORMAL"}
                           </Badge>
                         </div>
                       </CardHeader>
-                      <CardContent className="pt-1 pb-2">
+                      <CardContent className="pt-2 pb-2.5">
                         <div className="flex items-center gap-2.5">
-                          <Activity className={`h-7 w-7 shrink-0 ${isUnderVoltage || isOverVoltage ? "text-rose-600 dark:text-rose-400 animate-pulse" : "text-blue-600 dark:text-cyan-400"}`} />
-                          <div>
-                            <div className="text-xs font-bold font-mono text-slate-900 dark:text-zinc-100 tabular-nums space-x-1.5">
-                              <span>
-                                <strong className="text-rose-600 dark:text-rose-400">R:</strong>{" "}
-                                {dtrVr.toFixed(1)}V
-                              </span>
-                              <span>
-                                <strong className="text-amber-700 dark:text-amber-400">Y:</strong>{" "}
-                                {dtrVy.toFixed(1)}V
-                              </span>
-                              <span>
-                                <strong className="text-blue-700 dark:text-cyan-400">B:</strong>{" "}
-                                {dtrVb.toFixed(1)}V
-                              </span>
+                          <Activity className={`h-7 w-7 shrink-0 ${isUnderVoltage || isOverVoltage ? "text-rose-600 dark:text-rose-400" : "text-blue-600 dark:text-cyan-400"}`} />
+                          <div className="flex-1 min-w-0">
+                            <div className="grid grid-cols-3 gap-1 font-mono tabular-nums">
+                              <div className="px-1.5 py-0.5 rounded-xs bg-rose-500/10 border border-rose-500/25 flex items-center justify-between text-[11px]">
+                                <span className="font-bold text-rose-600 dark:text-rose-400">R</span>
+                                <span className="font-bold text-slate-900 dark:text-zinc-100">{dtrVr.toFixed(0)}V</span>
+                              </div>
+                              <div className="px-1.5 py-0.5 rounded-xs bg-amber-500/10 border border-amber-500/25 flex items-center justify-between text-[11px]">
+                                <span className="font-bold text-amber-700 dark:text-amber-400">Y</span>
+                                <span className="font-bold text-slate-900 dark:text-zinc-100">{dtrVy.toFixed(0)}V</span>
+                              </div>
+                              <div className="px-1.5 py-0.5 rounded-xs bg-blue-500/10 border border-blue-500/25 flex items-center justify-between text-[11px]">
+                                <span className="font-bold text-blue-700 dark:text-cyan-400">B</span>
+                                <span className="font-bold text-slate-900 dark:text-zinc-100">{dtrVb.toFixed(0)}V</span>
+                              </div>
                             </div>
-                            <div className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono mt-1">
-                              Freq: <span className="text-slate-900 dark:text-zinc-200">{!isGatewayOffline && telemetry?.p1?.freq !== undefined && telemetry.p1.freq > 0 ? `${telemetry.p1.freq.toFixed(2)} Hz` : "50.00 Hz"}</span>
-                              <span className="ml-2">Unbalance: {unbalance.toFixed(2)}%</span>
+                            <div className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono mt-1 flex items-center justify-between">
+                              <span>Freq: <strong className="text-slate-900 dark:text-zinc-200">{!isGatewayOffline && telemetry?.p1?.freq !== undefined && telemetry.p1.freq > 0 ? `${telemetry.p1.freq.toFixed(2)} Hz` : "50.00 Hz"}</strong></span>
+                              <span>Unbalance: <strong className="text-slate-900 dark:text-zinc-200">{unbalance.toFixed(2)}%</strong></span>
                             </div>
                           </div>
                         </div>
                       </CardContent>
-                      <div className="border-t border-slate-100 dark:border-zinc-800/60 px-3 py-1 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between">
+                      <div className="border-t border-slate-200/80 dark:border-zinc-800/80 px-3.5 py-1.5 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between bg-slate-50/60 dark:bg-zinc-950/40">
                         <span>415V L-L / 240V L-N</span>
                         {isUnderVoltage ? (
-                          <span className="text-rose-600 dark:text-rose-500 font-bold animate-pulse">
+                          <span className="text-rose-600 dark:text-rose-500 font-bold">
                             ANSI 27 EXCURSION ({(((minV - 230) / 230) * 100).toFixed(0)}%)
                           </span>
                         ) : isOverVoltage ? (
-                          <span className="text-amber-600 dark:text-amber-500 font-bold animate-pulse">
+                          <span className="text-amber-600 dark:text-amber-500 font-bold">
                             ANSI 59 EXCURSION (+{(((maxV - 230) / 230) * 100).toFixed(0)}%)
                           </span>
                         ) : isUnbalanced ? (
@@ -1017,16 +1031,17 @@ export default function SCADADashboard() {
               {/* CARD 4: Grid Incomer Current & Conductor Integrity */}
               <Card
                 isFault={!isPowerCut && (isFault || (gridMetrics?.trippedSections ?? 0) > 0)}
+                isUnacked={isAlarmUnacked}
                 className="col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between"
               >
-                <CardHeader className="pb-1">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono uppercase tracking-wider font-semibold">
-                      PHASE CONDUCTOR &amp; DIFFERENTIAL INTEGRITY
+                <CardHeader className="pb-1.5">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono uppercase tracking-wider font-semibold truncate">
+                      CONDUCTOR &amp; DIFF INTEGRITY
                     </span>
                     <Badge
                       variant={isGatewayOffline ? "outline" : isPowerCut ? "outline" : isFault || (gridMetrics?.trippedSections ?? 0) > 0 ? "destructive" : "healthy"}
-                      className={`text-[10px] ${isPowerCut ? "border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-400" : ""}`}
+                      className={`text-[10px] shrink-0 ${isPowerCut ? "border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-400" : ""}`}
                     >
                       {isGatewayOffline
                         ? "OFFLINE"
@@ -1036,14 +1051,14 @@ export default function SCADADashboard() {
                         ? "DIFFERENTIAL ALARM"
                         : (gridMetrics?.trippedSections ?? 0) > 0
                         ? "SPAN TRIP"
-                        : "CONDUCTORS INTACT (NORMAL)"}
+                        : "CONDUCTORS INTACT"}
                     </Badge>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-1 pb-2">
+                <CardContent className="pt-2 pb-2.5">
                   <div className="flex items-center gap-2.5">
                     <GitBranch className={`h-7 w-7 shrink-0 ${isPowerCut ? "text-slate-500 dark:text-zinc-500" : isFault ? "text-rose-600 dark:text-rose-500" : "text-emerald-600 dark:text-emerald-400"}`} />
-                    <div>
+                    <div className="min-w-0">
                       <div className={`text-xl font-bold font-mono tabular-nums ${isPowerCut ? "text-slate-600 dark:text-zinc-400" : "text-slate-900 dark:text-emerald-400"}`}>
                         {networkSnapshot
                           ? (
@@ -1054,20 +1069,20 @@ export default function SCADADashboard() {
                           : (i1 + i2).toFixed(1)}{" "}
                         <span className="text-sm text-slate-600 dark:text-zinc-500 font-normal">A (3Φ SUM)</span>
                       </div>
-                      <div className="text-[10px] text-slate-600 dark:text-zinc-400 font-mono mt-0.5 space-x-1 tabular-nums">
-                        <span>F1-P01: {i1.toFixed(2)}A</span>
+                      <div className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono mt-0.5 space-x-1 tabular-nums truncate">
+                        <span>P01: {i1.toFixed(2)}A</span>
                         <span>•</span>
-                        <span>F1-P02: {i2.toFixed(2)}A</span>
+                        <span>P02: {i2.toFixed(2)}A</span>
                         <span>•</span>
                         <span className={idiff >= tripLimit ? "text-rose-600 dark:text-rose-400 font-bold" : isPowerCut ? "text-slate-600 dark:text-zinc-400" : "text-emerald-700 dark:text-emerald-400"}>ΔI: {idiff.toFixed(3)}A</span>
                       </div>
                     </div>
                   </div>
                 </CardContent>
-                <div className="border-t border-slate-100 dark:border-zinc-800/60 px-3 py-1 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between">
-                  <span>SUPERVISED CORRIDOR: SPAN F1-P01 ↔ F1-P02</span>
+                <div className="border-t border-slate-200/80 dark:border-zinc-800/80 px-3.5 py-1.5 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between bg-slate-50/60 dark:bg-zinc-950/40">
+                  <span>CORRIDOR: F1-P01 ↔ F1-P02</span>
                   <span className={isPowerCut ? "text-slate-600 dark:text-zinc-400 font-semibold" : isFault ? "text-rose-600 dark:text-rose-500 font-bold" : "text-emerald-600 dark:text-emerald-500 font-semibold"}>
-                    {isPowerCut ? "FEEDER DE-ENERGIZED // 0A SUPPLY" : isFault ? "DIFF TRIP" : "28 DISTRIBUTION NODES ENERGIZED"}
+                    {isPowerCut ? "0A SUPPLY" : isFault ? "DIFF TRIP" : "28 NODES ENERGIZED"}
                   </span>
                 </div>
               </Card>
@@ -1098,7 +1113,7 @@ export default function SCADADashboard() {
               {/* Right (4 cols): Operations & Incident Dispatch Hub */}
               <div className="col-span-12 lg:col-span-4 flex flex-col gap-2.5 font-mono h-full">
                 {/* Feeder Status Overview */}
-                <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3 rounded-sm space-y-2.5 shadow-xs dark:shadow-none transition-colors">
+                <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm space-y-2.5 shadow-xs dark:shadow-none transition-colors">
                   <div className="flex items-center justify-between text-xs text-slate-800 dark:text-zinc-300 font-bold border-b border-slate-200 dark:border-zinc-800/80 pb-2">
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -1124,7 +1139,7 @@ export default function SCADADashboard() {
                         <div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-slate-800 dark:text-zinc-200 font-bold">F1-P01</span>
-                            <span className={`text-[9px] px-1 py-0.2 rounded-xs font-bold ${
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-xs font-bold ${
                               isPowerCut
                                 ? "bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700"
                                 : "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/40"
@@ -1137,7 +1152,7 @@ export default function SCADADashboard() {
                       </div>
                       <div className="text-slate-600 dark:text-zinc-400 tabular-nums flex items-center gap-1.5">
                         {isP1Stale && (
-                          <Badge variant="warning" className="text-[9px] py-0 border-amber-400 dark:border-amber-500 text-amber-800 dark:text-amber-400 animate-pulse font-bold">
+                          <Badge variant="warning" className="text-[10px] py-0 border-amber-400 dark:border-amber-500 text-amber-800 dark:text-amber-400 animate-pulse font-bold">
                             {isGatewayOffline ? "OFFLINE" : "STALE"}
                           </Badge>
                         )}
@@ -1175,7 +1190,7 @@ export default function SCADADashboard() {
                         <div>
                           <div className="flex items-center gap-1.5">
                             <span className="text-slate-800 dark:text-zinc-200 font-bold">F1-P02</span>
-                            <span className={`text-[9px] px-1 py-0.2 rounded-xs font-bold ${
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-xs font-bold ${
                               isPowerCut
                                 ? "bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700"
                                 : "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/40"
@@ -1188,7 +1203,7 @@ export default function SCADADashboard() {
                       </div>
                       <div className="text-slate-600 dark:text-zinc-400 tabular-nums flex items-center gap-1.5">
                         {isP2Stale && (
-                          <Badge variant="warning" className="text-[9px] py-0 border-amber-400 dark:border-amber-500 text-amber-800 dark:text-amber-400 animate-pulse font-bold">
+                          <Badge variant="warning" className="text-[10px] py-0 border-amber-400 dark:border-amber-500 text-amber-800 dark:text-amber-400 animate-pulse font-bold">
                             {isGatewayOffline ? "OFFLINE" : "STALE"}
                           </Badge>
                         )}
@@ -1224,7 +1239,7 @@ export default function SCADADashboard() {
                       </div>
                       <Badge
                         variant={isGatewayOffline ? "warning" : "healthy"}
-                        className={`text-[9px] py-0.5 ${isGatewayOffline ? "border-amber-500 text-amber-500 font-bold" : ""}`}
+                        className={`text-[10px] py-0.5 ${isGatewayOffline ? "border-amber-500 text-amber-500 font-bold" : ""}`}
                       >
                         {isGatewayOffline ? "GATEWAY OFFLINE" : "866.3 MHz IN865 (MESH OK)"}
                       </Badge>
@@ -1238,7 +1253,7 @@ export default function SCADADashboard() {
                       </div>
                       <Badge
                         variant={isPowerCut ? "outline" : isFault ? "destructive" : "outline"}
-                        className={`text-[9px] py-0.5 ${isPowerCut ? "text-slate-600 dark:text-zinc-400 border-slate-300 dark:border-zinc-700" : !isFault ? "text-emerald-700 dark:text-emerald-400 border-emerald-500/30" : ""}`}
+                        className={`text-[10px] py-0.5 ${isPowerCut ? "text-slate-600 dark:text-zinc-400 border-slate-300 dark:border-zinc-700" : !isFault ? "text-emerald-700 dark:text-emerald-400 border-emerald-500/30" : ""}`}
                       >
                         {isPowerCut ? "DE-ENERGIZED // NO FLOW (0A)" : isFault ? `TRIP: I_diff = ${(telemetry?.idiff ?? 0).toFixed(3)}A` : `120m • INTACT (I_diff ${(telemetry?.idiff ?? 0).toFixed(3)}A)`}
                       </Badge>
@@ -1247,7 +1262,7 @@ export default function SCADADashboard() {
                 </div>
 
                 {/* Section 1 Protection & Operational Incident Station */}
-                <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3 rounded-sm space-y-2.5 flex-1 flex flex-col justify-between shadow-xs dark:shadow-none transition-colors">
+                <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm space-y-2.5 flex-1 flex flex-col justify-between shadow-xs dark:shadow-none transition-colors">
                   <div className="space-y-2.5">
                     <div className="flex items-center justify-between text-xs text-slate-800 dark:text-zinc-300 font-bold border-b border-slate-200 dark:border-zinc-800/80 pb-2">
                       <div className="flex items-center gap-2">

@@ -56,12 +56,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-[#09090b] text-slate-900 dark:text-[#fafafa] flex flex-col justify-between p-3 md:p-4 font-mono select-none transition-colors">
+    <div className="min-h-screen bg-slate-100 dark:bg-[#08090b] text-slate-900 dark:text-[#fafafa] flex flex-col justify-between p-3 md:p-4 font-mono select-none transition-colors">
       {/* Background Subtle Substation Grid Aesthetics */}
       <div className="absolute inset-0 bg-[radial-gradient(#94a3b8_1px,transparent_1px)] dark:bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-25 pointer-events-none" />
 
       {/* 1. TOP SCADA HEADER BAR - COHERENT WITH MAIN UI */}
-      <header className="relative z-10 border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] p-3 rounded-sm flex items-center justify-between shadow-xs dark:shadow-none transition-colors">
+      <header className="relative z-10 border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm flex items-center justify-between shadow-xs dark:shadow-none transition-colors">
         <div className="flex items-center gap-3">
           <div className="p-2 border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 rounded-sm">
             <Zap className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -86,7 +86,7 @@ export default function LoginPage() {
 
       {/* 2. CENTER OPERATOR AUTHENTICATION CARD */}
       <main className="relative z-10 flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] p-8 rounded-sm shadow-xl transition-colors">
+        <div className="w-full max-w-md border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-8 rounded-sm shadow-xl transition-colors">
           <div className="mb-6 pb-3 border-b border-slate-200 dark:border-zinc-800">
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-zinc-100">
               OPERATOR AUTHENTICATION

@@ -8,7 +8,7 @@ export function StatusBar() {
   const { connectedSSE } = useDashboard();
 
   return (
-    <footer className="h-8 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0a0b0e] px-3 sm:px-4 text-[10px] text-slate-500 dark:text-zinc-400 flex items-center justify-between font-mono shrink-0 select-none z-30 transition-colors">
+    <footer className="h-8 border-t border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] px-3 sm:px-4 text-[10px] text-slate-500 dark:text-zinc-400 flex items-center justify-between font-mono shrink-0 select-none z-30 transition-colors">
       {/* LEFT: COMPACT PILL-SHAPED SECONDARY SYSTEM STATES */}
       <div className="flex items-center gap-2 overflow-x-auto">
         {/* 1. SCADA Link Pill */}

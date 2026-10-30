@@ -89,6 +89,17 @@ export default function SettingsPage() {
       if (savedRate) setRefreshRateMs(Number(savedRate));
       const savedDiff = localStorage.getItem("gridsense_diff_pickup");
       if (savedDiff) setDifferentialPickupA(Number(savedDiff));
+      const savedParams = localStorage.getItem("gridsense_scada_params");
+      if (savedParams) {
+        const parsed = JSON.parse(savedParams);
+        if (typeof parsed.tripDelayMs === "number") setTripDelayMs(parsed.tripDelayMs);
+        if (typeof parsed.undervoltageV === "number") setUndervoltageV(parsed.undervoltageV);
+        if (typeof parsed.overvoltageV === "number") setOvervoltageV(parsed.overvoltageV);
+        if (typeof parsed.overcurrentA === "number") setOvercurrentA(parsed.overcurrentA);
+        if (typeof parsed.substationName === "string") setSubstationName(parsed.substationName);
+        if (typeof parsed.feederId === "string") setFeederId(parsed.feederId);
+        if (typeof parsed.gatewayIp === "string") setGatewayIp(parsed.gatewayIp);
+      }
     } catch {}
   }, []);
 
@@ -134,6 +145,18 @@ export default function SettingsPage() {
       try {
         localStorage.setItem("gridsense_refresh_rate", String(refreshRateMs));
         localStorage.setItem("gridsense_diff_pickup", String(differentialPickupA));
+        localStorage.setItem(
+          "gridsense_scada_params",
+          JSON.stringify({
+            tripDelayMs,
+            undervoltageV,
+            overvoltageV,
+            overcurrentA,
+            substationName,
+            feederId,
+            gatewayIp,
+          })
+        );
       } catch {}
 
       setIsSaved(true);

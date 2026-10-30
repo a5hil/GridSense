@@ -48,9 +48,9 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
   const isLiveFault = telemetry?.fault || (telemetry?.idiff ?? 0) >= (telemetry?.trip_limit ?? 0.35);
 
   return (
-    <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1012] rounded-sm flex flex-col h-full overflow-hidden text-xs font-mono shadow-xs dark:shadow-none transition-colors">
+    <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col h-full overflow-hidden text-xs font-mono shadow-xs dark:shadow-none transition-colors">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 px-3 py-2 bg-slate-50 dark:bg-zinc-950/70">
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 px-3.5 py-2.5 bg-slate-50 dark:bg-zinc-950/70">
         <div className="flex items-center gap-2">
           <GitBranch className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           <span className="font-semibold uppercase tracking-wider text-slate-800 dark:text-zinc-200">
@@ -201,7 +201,7 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
                           <div className="flex items-center gap-1.5">
                             <span className="h-2 w-2 rounded-full bg-emerald-400" />
                             <span>F1-P01 // Substation Incomer</span>
-                            <Badge variant="healthy" className="text-[8px] py-0">ENERGIZED</Badge>
+                            <Badge variant="healthy" className="text-[10px] py-0">ENERGIZED</Badge>
                           </div>
                           <span className="text-slate-400 tabular-nums">
                             {telemetry?.p1 ? `${telemetry.p1.i.toFixed(2)}A | ${telemetry.p1.v.toFixed(0)}V` : "--"}
@@ -215,7 +215,7 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
                           <div className="flex items-center gap-1.5">
                             <span className={`h-2 w-2 rounded-full ${isLiveFault ? "bg-rose-500" : "bg-emerald-400"}`} />
                             <span>F1-P02 // Feeder Section Terminal</span>
-                            <Badge variant="healthy" className="text-[8px] py-0">ENERGIZED</Badge>
+                            <Badge variant="healthy" className="text-[10px] py-0">ENERGIZED</Badge>
                           </div>
                           <span className="text-slate-400 tabular-nums">
                             {telemetry?.p2 ? `${telemetry.p2.i.toFixed(2)}A | ${telemetry.p2.v.toFixed(0)}V` : "--"}

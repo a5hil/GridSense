@@ -412,13 +412,13 @@ export function WorkforceOmsPanel({
   }, [closedTickets, historyFilter]);
 
   return (
-    <div className="flex flex-col h-full overflow-hidden text-xs font-mono bg-slate-100 dark:bg-[#090a0d] text-slate-900 dark:text-zinc-100 p-2 sm:p-3 gap-3">
+    <div className="flex flex-col h-full overflow-hidden text-xs font-mono text-slate-900 dark:text-zinc-100 gap-2.5">
       {/* ============================================================== */}
       {/* 1. TOP OPERATIONAL KPI STATUS RIBBON                           */}
       {/* ============================================================== */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 shrink-0">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 shrink-0">
         {/* Metric 1: Grid Status */}
-        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] p-2.5 rounded-sm flex items-center justify-between shadow-xs">
+        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3 rounded-sm flex items-center justify-between shadow-xs dark:shadow-none">
           <div>
             <div className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase tracking-wider font-semibold">
               Grid Feeder Integrity
@@ -438,7 +438,7 @@ export function WorkforceOmsPanel({
         </div>
 
         {/* Metric 2: Soak Observation Watchlist */}
-        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] p-2.5 rounded-sm flex items-center justify-between shadow-xs">
+        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3 rounded-sm flex items-center justify-between shadow-xs dark:shadow-none">
           <div>
             <div className="text-[10px] text-slate-600 dark:text-zinc-400 uppercase tracking-wider font-semibold">
               Soak Watchlist
@@ -450,13 +450,13 @@ export function WorkforceOmsPanel({
               </span>
             </div>
           </div>
-          <Badge variant={isSoakActive ? "warning" : "outline"} className="text-[9px] tabular-nums">
+          <Badge variant={isSoakActive ? "warning" : "outline"} className="text-[10px] tabular-nums">
             {isSoakActive ? soakRemaining.label : "IDLE"}
           </Badge>
         </div>
 
         {/* Metric 3: Sustained Outages / Escalated */}
-        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] p-2.5 rounded-sm flex items-center justify-between shadow-xs">
+        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3 rounded-sm flex items-center justify-between shadow-xs dark:shadow-none">
           <div>
             <div className="text-[10px] text-slate-600 dark:text-zinc-400 uppercase tracking-wider font-semibold">
               Action Required
@@ -468,13 +468,13 @@ export function WorkforceOmsPanel({
               </span>
             </div>
           </div>
-          <Badge variant={isEscalated ? "destructive" : "outline"} className="text-[9px]">
+          <Badge variant={isEscalated ? "destructive" : "outline"} className="text-[10px]">
             {isEscalated ? "DISPATCH REQ" : "CLEAR"}
           </Badge>
         </div>
 
         {/* Metric 4: Field Crews Dispatched */}
-        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] p-2.5 rounded-sm flex items-center justify-between shadow-xs">
+        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3 rounded-sm flex items-center justify-between shadow-xs dark:shadow-none">
           <div>
             <div className="text-[10px] text-slate-600 dark:text-zinc-400 uppercase tracking-wider font-semibold">
               Duty Linemen
@@ -486,13 +486,13 @@ export function WorkforceOmsPanel({
               </span>
             </div>
           </div>
-          <Badge variant="outline" className="text-[9px]">
+          <Badge variant="outline" className="text-[10px]">
             {dispatchedTickets.length > 0 ? "1 ACTIVE" : "STANDBY"}
           </Badge>
         </div>
 
         {/* Metric 5: SCADA Safety Interlocks */}
-        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] p-2.5 rounded-sm flex items-center justify-between shadow-xs col-span-2 sm:col-span-1">
+        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3 rounded-sm flex items-center justify-between shadow-xs dark:shadow-none col-span-2 sm:col-span-1">
           <div>
             <div className="text-[10px] text-slate-600 dark:text-zinc-400 uppercase tracking-wider font-semibold">
               SCADA Safety Interlock
@@ -511,7 +511,7 @@ export function WorkforceOmsPanel({
               )}
             </div>
           </div>
-          <Badge variant={isPtwActive ? "destructive" : "healthy"} className="text-[9px]">
+          <Badge variant={isPtwActive ? "destructive" : "healthy"} className="text-[10px]">
             {isPtwActive ? "CEA SEC 44" : "SAFE"}
           </Badge>
         </div>
@@ -520,7 +520,7 @@ export function WorkforceOmsPanel({
       {/* ============================================================== */}
       {/* 2. TABLE 1: ACTIVE OUTAGES & SOAK WATCHLIST (ACTION TABLE)     */}
       {/* ============================================================== */}
-      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] rounded-sm p-3 shadow-sm flex flex-col shrink-0 space-y-2">
+      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm p-3.5 shadow-xs dark:shadow-none flex flex-col shrink-0 space-y-2">
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-2">
           <div className="flex items-center gap-2">
             <Radio className="h-4 w-4 text-rose-600 dark:text-rose-400 animate-pulse" />
@@ -762,7 +762,7 @@ export function WorkforceOmsPanel({
       {/* ============================================================== */}
       {/* 3. TABLE 2: RESOLVED OUTAGES & RESTORATION LEDGER              */}
       {/* ============================================================== */}
-      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] rounded-sm p-3 shadow-sm flex flex-col flex-1 min-h-0 space-y-2">
+      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm p-3.5 shadow-xs dark:shadow-none flex flex-col flex-1 min-h-0 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-zinc-800 pb-2">
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-slate-500" />
@@ -822,7 +822,7 @@ export function WorkforceOmsPanel({
         {/* Tabular History View */}
         <div className="overflow-y-auto flex-1 min-h-0">
           <table className="w-full text-left text-[11px] border-collapse">
-            <thead className="sticky top-0 bg-white dark:bg-[#0f1115] z-10">
+            <thead className="sticky top-0 bg-white dark:bg-[#0c0d10] z-10">
               <tr className="border-b border-slate-200 dark:border-zinc-800 text-slate-500 dark:text-zinc-400 text-[10px] uppercase font-semibold">
                 <th className="py-2 px-2.5">Ticket ID</th>
                 <th className="py-2 px-2.5">Restored Time</th>
@@ -933,7 +933,7 @@ export function WorkforceOmsPanel({
       {/* ============================================================== */}
       {/* 4. BOTTOM BAR: DUTY LINEMEN & SCADA SAFETY PROTOCOL STRIP      */}
       {/* ============================================================== */}
-      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0f1115] rounded-sm p-2.5 shadow-sm shrink-0 flex flex-wrap items-center justify-between gap-3 text-xs">
+      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm p-3 shadow-xs dark:shadow-none shrink-0 flex flex-wrap items-center justify-between gap-3 text-xs">
         {/* Lineman Readiness */}
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1.5 mr-2">
@@ -960,9 +960,9 @@ export function WorkforceOmsPanel({
                   }`}
                 />
                 <span className="font-bold">{lm.name}</span>
-                <span className="text-[9px] text-slate-500 dark:text-slate-400">({lm.role.split(" ")[0]})</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400">({lm.role.split(" ")[0]})</span>
                 {isAssigned && (
-                  <Badge variant="healthy" className="text-[8px] py-0 px-1 ml-1">
+                  <Badge variant="healthy" className="text-[9px] py-0 px-1 ml-1">
                     ACTIVE
                   </Badge>
                 )}
@@ -994,7 +994,7 @@ export function WorkforceOmsPanel({
       {/* ============================================================== */}
       {isDispatchModalOpen && effectiveTicket && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#0f1115] border border-slate-300 dark:border-zinc-700 rounded-sm w-full max-w-lg p-5 font-mono shadow-2xl space-y-4">
+          <div className="bg-white dark:bg-[#0c0d10] border border-slate-300 dark:border-zinc-700 rounded-sm w-full max-w-lg p-5 font-mono shadow-2xl space-y-4">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-2.5">
               <div className="flex items-center gap-2">
                 <UserCheck className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -1118,7 +1118,7 @@ export function WorkforceOmsPanel({
       {/* ============================================================== */}
       {auditModalTicket && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-[#0f1115] border border-slate-300 dark:border-zinc-700 rounded-sm w-full max-w-lg p-5 font-mono shadow-2xl space-y-3">
+          <div className="bg-white dark:bg-[#0c0d10] border border-slate-300 dark:border-zinc-700 rounded-sm w-full max-w-lg p-5 font-mono shadow-2xl space-y-3">
             <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-2.5">
               <div className="flex items-center gap-2">
                 <FileText className="h-5 w-5 text-cyan-600 dark:text-cyan-400" />

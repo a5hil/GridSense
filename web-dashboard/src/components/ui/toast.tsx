@@ -84,51 +84,51 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           <div
             key={toast.id}
             className={cn(
-              "pointer-events-auto flex flex-col gap-2 rounded-sm border p-3 shadow-2xl transition-all",
+              "pointer-events-auto flex flex-col gap-2 rounded-sm border border-l-4 p-3.5 shadow-2xl transition-all bg-white dark:bg-[#0c0d10]",
               toast.type === "destructive" &&
-                "border-rose-500 bg-zinc-950 text-rose-100 ring-1 ring-rose-500 shadow-2xl opacity-100",
+                "border-rose-500/80 border-l-rose-600 text-rose-900 dark:text-rose-100 ring-1 ring-rose-500/40",
               toast.type === "warning" &&
-                "border-amber-600 bg-zinc-950 text-amber-100 shadow-xl opacity-100",
+                "border-amber-500/70 border-l-amber-500 text-amber-900 dark:text-amber-100",
               toast.type === "success" &&
-                "border-emerald-600 bg-zinc-950 text-emerald-100 shadow-xl opacity-100",
-              toast.type === "info" &&
-                "border-zinc-700 bg-zinc-900 text-zinc-100 shadow-xl opacity-100"
+                "border-emerald-500/70 border-l-emerald-500 text-emerald-900 dark:text-emerald-100",
+              (!toast.type || toast.type === "info") &&
+                "border-slate-300 dark:border-zinc-700 border-l-cyan-500 text-slate-900 dark:text-zinc-100"
             )}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2">
                 {toast.type === "destructive" && (
-                  <ShieldAlert className="h-4 w-4 text-rose-500 animate-bounce" />
+                  <ShieldAlert className="h-4 w-4 text-rose-600 dark:text-rose-500 animate-bounce shrink-0" />
                 )}
                 {toast.type === "warning" && (
-                  <AlertTriangle className="h-4 w-4 text-amber-500" />
+                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500 shrink-0" />
                 )}
                 {toast.type === "success" && (
-                  <CheckCircle className="h-4 w-4 text-emerald-500" />
+                  <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-500 shrink-0" />
                 )}
                 <span className="text-xs font-bold uppercase tracking-wider font-mono">
                   {toast.title}
                 </span>
               </div>
-              <span className="text-[10px] text-zinc-500 font-mono">
+              <span className="text-[10px] text-slate-500 dark:text-zinc-500 font-mono tabular-nums shrink-0">
                 {toast.timestamp}
               </span>
             </div>
 
-            <p className="text-xs font-mono text-zinc-300 whitespace-pre-wrap leading-relaxed">
+            <p className="text-xs font-mono text-slate-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
               {toast.description}
             </p>
 
-            <div className="mt-1 flex items-center justify-between border-t border-zinc-800 pt-2">
+            <div className="mt-1 flex items-center justify-between border-t border-slate-200 dark:border-zinc-800 pt-2">
               {toast.persistent ? (
                 <div className="flex w-full items-center justify-between">
-                  <span className="text-[10px] font-mono uppercase text-rose-400 font-bold">
+                  <span className="text-[10px] font-mono uppercase text-rose-600 dark:text-rose-400 font-bold">
                     [REQ OPERATOR ACK]
                   </span>
                   <Button
                     variant="destructive"
                     size="sm"
-                    className="font-mono text-xs font-bold px-3 py-1 bg-rose-600 text-white hover:bg-rose-700"
+                    className="font-mono text-xs font-bold px-3 py-1 bg-rose-600 text-white hover:bg-rose-700 cursor-pointer"
                     onClick={() => {
                       if (toast.onAcknowledge) toast.onAcknowledge();
                       removeToast(toast.id);
@@ -142,7 +142,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-6 px-2 text-zinc-400"
+                    className="h-6 px-2 text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 cursor-pointer"
                     onClick={() => removeToast(toast.id)}
                   >
                     <X className="h-3 w-3" />

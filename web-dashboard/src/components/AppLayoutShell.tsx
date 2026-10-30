@@ -26,7 +26,7 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
         <Header />
 
         {/* Central <main> content area that dynamically resizes with sidebar */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden p-2.5 sm:p-3 bg-slate-100 dark:bg-[#09090b] flex flex-col">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-2.5 sm:p-3 bg-slate-100 dark:bg-[#08090b] flex flex-col">
           {children}
         </main>
 

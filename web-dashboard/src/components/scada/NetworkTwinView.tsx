@@ -864,7 +864,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                               key={s.phase}
                               className={`text-[10px] font-mono flex items-center gap-1 ${
                                 s.tripped
-                                  ? "text-rose-600 dark:text-rose-500 font-bold bg-rose-50 dark:bg-rose-500/10 px-1 py-0.2 rounded-xs"
+                                  ? "text-rose-600 dark:text-rose-500 font-bold bg-rose-50 dark:bg-rose-500/10 px-1 py-0.5 rounded-xs"
                                   : "text-slate-600 dark:text-zinc-400"
                               }`}
                             >

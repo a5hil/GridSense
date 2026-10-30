@@ -16,6 +16,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/components/ui/toast";
 import { GridTelemetry, SystemStatus } from "@/lib/types";
 import { NetworkSnapshot } from "@/lib/network/types";
 
@@ -38,10 +39,11 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
   onSelectPort,
   onConnectPort,
 }: EngineeringDiagnosticsProps) {
+  const { addToast } = useToast();
   return (
     <div className="flex flex-col gap-3 font-mono">
       {/* Banner Notice */}
-      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-950/80 p-3 rounded-sm flex items-center justify-between text-xs text-slate-600 dark:text-zinc-400 shadow-xs dark:shadow-none transition-colors">
+      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm flex items-center justify-between text-xs text-slate-600 dark:text-zinc-400 shadow-xs dark:shadow-none transition-colors">
         <div className="flex items-center gap-2">
           <Cpu className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
           <span className="text-slate-900 dark:text-zinc-200 font-semibold">
@@ -195,17 +197,37 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
                   size="sm"
                   onClick={async () => {
                     try {
-                      await fetch("/api/telemetry/ports", {
+                      const res = await fetch("/api/telemetry/ports", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ action: "command", command: "n" }),
                       });
-                    } catch (e) {}
+                      const data = await res.json();
+                      if (res.ok && data.success !== false) {
+                        addToast({
+                          title: "SUPERVISORY COMMAND SENT ('n')",
+                          description: "Remote protection relay latch cleared and re-armed via SCADA serial bus.",
+                          type: "success",
+                        });
+                      } else {
+                        addToast({
+                          title: "COMMAND TRANSMISSION FAILED",
+                          description: data.error || "Gateway serial link is offline or did not acknowledge.",
+                          type: "warning",
+                        });
+                      }
+                    } catch (e: any) {
+                      addToast({
+                        title: "COMMAND ERROR",
+                        description: e?.message || "Failed to reach telemetry gateway API.",
+                        type: "warning",
+                      });
+                    }
                   }}
-                  className="text-[10px] h-7 px-2.5 bg-slate-200 dark:bg-zinc-800 hover:bg-emerald-600 hover:text-white rounded text-slate-700 dark:text-zinc-200 font-mono transition-colors font-bold"
+                  className="text-[10px] h-7 px-2.5 bg-slate-200 dark:bg-zinc-800 hover:bg-emerald-600 hover:text-white rounded text-slate-700 dark:text-zinc-200 font-mono transition-colors font-bold cursor-pointer"
                   title="Send remote command over SCADA link to clear trips and re-arm line protection relays"
                 >
-                  RESET PROTECTION LATCH / RE-ARM ('n')
+                  RESET PROTECTION LATCH / RE-ARM (&apos;n&apos;)
                 </Button>
               </div>
             </div>
@@ -351,7 +373,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
                 </div>
                 <div className="flex justify-between items-baseline">
                   <span className="text-slate-500 dark:text-zinc-400">Phases Y &amp; B Modeling:</span>
-                  <Badge variant="outline" className="text-[9px] py-0 border-cyan-500 text-cyan-400">
+                  <Badge variant="outline" className="text-[9px] py-0 border-cyan-500 text-cyan-700 dark:text-cyan-400">
                     {networkSnapshot?.uninstrumentedMode === "SIM" ? "3-PHASE STATE ESTIMATION" : "DIRECT CT/PT ONLY"}
                   </Badge>
                 </div>
