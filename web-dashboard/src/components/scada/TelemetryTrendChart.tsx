@@ -489,6 +489,18 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
     };
   }, [networkSnapshot]);
 
+  // Active detections targeting or affecting the currently viewed pole
+  const activeNodeDetections = React.useMemo(() => {
+    if (!networkSnapshot || !activeNode) return [];
+    return networkSnapshot.detections.filter((d) => {
+      // Exclude non-electrical comms warnings like NODE_OFFLINE from transient fault trigger markers
+      if (d.type === "NODE_OFFLINE") return false;
+      if (d.nodeId === activeNode.id) return true;
+      if (d.isolate && (d.isolate.upstream === activeNode.id || d.isolate.downstream?.includes(activeNode.id))) return true;
+      return false;
+    });
+  }, [networkSnapshot, activeNode]);
+
   const [polyHistory, setPolyHistory] = React.useState<PolyphaseHistoricalPoint[]>([]);
 
   // Track polyphase telemetry buffer
@@ -1647,8 +1659,8 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                 <path d={pathPolyIB} fill="none" stroke="#06b6d4" strokeWidth="1.6" strokeLinecap="round" />
                 <path d={pathPolyIN} fill="none" stroke="#a855f7" strokeWidth="1.35" strokeLinecap="round" strokeDasharray="4 3" />
 
-                {/* DFR Trip Event Marker Line */}
-                {networkSnapshot && networkSnapshot.detections.length > 0 && polyHistory.length > 1 && (
+                {/* IEEE COMTRADE / SCADA Transient Fault Event Marker */}
+                {activeNodeDetections.length > 0 && polyHistory.length > 1 && (
                   <g>
                     <line
                       x1={getPolyX(polyHistory.length - 1, polyHistory.length)}
@@ -1656,18 +1668,28 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                       x2={getPolyX(polyHistory.length - 1, polyHistory.length)}
                       y2={svgHeight - padding.bottom}
                       stroke="#f43f5e"
-                      strokeWidth="1.5"
+                      strokeWidth="1.25"
                       strokeDasharray="4 2"
+                      opacity="0.85"
                     />
-                    <text
-                      x={Math.max(padding.left + 10, getPolyX(polyHistory.length - 1, polyHistory.length) - 8)}
-                      y={padding.top + 14}
-                      className="fill-rose-500 font-bold"
-                      fontSize="9.5"
-                      textAnchor="end"
-                    >
-                      ⚡ TRIP EXCURSION
-                    </text>
+                    <g transform={`translate(${Math.max(padding.left + 54, getPolyX(polyHistory.length - 1, polyHistory.length) - 58)}, ${padding.top + 2})`}>
+                      <rect
+                        width="54"
+                        height="14"
+                        rx="2"
+                        className="fill-rose-500/10 stroke-rose-500/40"
+                        strokeWidth="1"
+                      />
+                      <text
+                        x="27"
+                        y="10"
+                        className="fill-rose-600 dark:fill-rose-400 font-mono font-bold"
+                        fontSize="8.5"
+                        textAnchor="middle"
+                      >
+                        FAULT TRIGGER
+                      </text>
+                    </g>
                   </g>
                 )}
 
@@ -1815,8 +1837,8 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                 <path d={pathPolyVY} fill="none" stroke="#f59e0b" strokeWidth="1.6" strokeLinecap="round" />
                 <path d={pathPolyVB} fill="none" stroke="#06b6d4" strokeWidth="1.6" strokeLinecap="round" />
 
-                {/* DFR Trip Event Marker Line */}
-                {networkSnapshot && networkSnapshot.detections.length > 0 && polyHistory.length > 1 && (
+                {/* IEEE COMTRADE / SCADA Transient Fault Event Marker */}
+                {activeNodeDetections.length > 0 && polyHistory.length > 1 && (
                   <g>
                     <line
                       x1={getPolyX(polyHistory.length - 1, polyHistory.length)}
@@ -1824,18 +1846,28 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                       x2={getPolyX(polyHistory.length - 1, polyHistory.length)}
                       y2={svgHeight - padding.bottom}
                       stroke="#f43f5e"
-                      strokeWidth="1.5"
+                      strokeWidth="1.25"
                       strokeDasharray="4 2"
+                      opacity="0.85"
                     />
-                    <text
-                      x={Math.max(padding.left + 10, getPolyX(polyHistory.length - 1, polyHistory.length) - 8)}
-                      y={padding.top + 14}
-                      className="fill-rose-500 font-bold"
-                      fontSize="9.5"
-                      textAnchor="end"
-                    >
-                      ⚡ TRIP EXCURSION
-                    </text>
+                    <g transform={`translate(${Math.max(padding.left + 54, getPolyX(polyHistory.length - 1, polyHistory.length) - 58)}, ${padding.top + 2})`}>
+                      <rect
+                        width="54"
+                        height="14"
+                        rx="2"
+                        className="fill-rose-500/10 stroke-rose-500/40"
+                        strokeWidth="1"
+                      />
+                      <text
+                        x="27"
+                        y="10"
+                        className="fill-rose-600 dark:fill-rose-400 font-mono font-bold"
+                        fontSize="8.5"
+                        textAnchor="middle"
+                      >
+                        FAULT TRIGGER
+                      </text>
+                    </g>
                   </g>
                 )}
 
