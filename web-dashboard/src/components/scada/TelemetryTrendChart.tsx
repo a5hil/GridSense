@@ -317,18 +317,16 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
     return { min, max, avg, cur };
   };
 
-  // Hover data point
+  // Hover data point (only shown when actively inspecting with crosshair)
   const hoveredPoint =
     hoverIndex !== null && data[hoverIndex]
       ? data[hoverIndex]
-      : data.length > 0
-      ? data[data.length - 1]
       : null;
 
-  // Optimized High-Resolution Sizing for 2x2 Grid
-  const svgWidth = 800;
-  const svgHeight = 240;
-  const padding = { top: 24, right: 36, bottom: 32, left: 62 };
+  // Optimized High-Resolution Sizing for 2x2 Grid (1:1 isotropic aspect ratio)
+  const svgWidth = 760;
+  const svgHeight = 250;
+  const padding = { top: 22, right: 42, bottom: 28, left: 58 };
   const graphWidth = svgWidth - padding.left - padding.right;
   const graphHeight = svgHeight - padding.top - padding.bottom;
 
@@ -668,8 +666,6 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
   const hoveredPolyPoint =
     hoverIndex !== null && polyHistory[hoverIndex]
       ? polyHistory[hoverIndex]
-      : polyHistory.length > 0
-      ? polyHistory[polyHistory.length - 1]
       : null;
 
   return (
@@ -751,15 +747,19 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                 </optgroup>
               </select>
 
-              {activeNode && (
-                <span className={`text-[9px] px-1.5 py-0.5 rounded-xs font-bold border ${
+              {channelScope === "ANCHOR" ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-xs font-bold border bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30">
+                  SPAN: F1-P01 (INCOMER) ↔ F1-P02 (TERMINAL)
+                </span>
+              ) : activeNode ? (
+                <span className={`text-[10px] px-2 py-0.5 rounded-xs font-bold border ${
                   activeNode.isLive
                     ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
                     : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30"
                 }`}>
                   {activeNode.id === "F1-P01" ? "SECTION 1 INCOMER" : activeNode.id === "F1-P02" ? "SECTION 1 TERMINAL" : "DISTRIBUTION POLE"}
                 </span>
-              )}
+              ) : null}
             </div>
           )}
         </div>
@@ -808,7 +808,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           {/* ============================================================== */}
           {/* CHART 1: CURRENT & DIFFERENTIAL PROTECTION (ANSI 87L) */}
           {/* ============================================================== */}
-        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none min-h-[300px]">
+        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none">
           {/* Card Header with Live Values */}
           <div className="flex flex-wrap items-center justify-between px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/80 border-b border-slate-200 dark:border-zinc-800/80 text-xs">
             <div className="flex items-center gap-2">
@@ -820,15 +820,15 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
             {/* Live Instantaneous Pill Badges with explicit color keys */}
             <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
               <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                <span className="h-2 w-2 rounded-full bg-[#10b981] shadow-xs" />
+                <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0 shadow-xs" />
                 I1 (INCOMER): <span className="font-bold">{statsI1.cur.toFixed(3)}A</span>
               </span>
               <span className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400">
-                <span className="h-2 w-2 rounded-full bg-[#06b6d4] shadow-xs" />
+                <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0 shadow-xs" />
                 I2 (OUTGOING): <span className="font-bold">{statsI2.cur.toFixed(3)}A</span>
               </span>
-              <span className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-xs ${statsIdiff.cur > tripLimit ? "bg-rose-500/20 text-rose-500 border border-rose-500/50 animate-pulse font-bold" : "text-rose-500"}`}>
-                <span className="h-2 w-2 rounded-full bg-[#f43f5e] shadow-xs" />
+              <span className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-xs ${statsIdiff.cur > tripLimit ? "bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/50 animate-pulse font-bold" : "text-rose-600 dark:text-rose-400"}`}>
+                <span className="h-2 w-2 rounded-full bg-[#f43f5e] shrink-0 shadow-xs" />
                 ΔI (|I1 - I2|): <span className="font-bold">{statsIdiff.cur.toFixed(3)}A</span>
               </span>
             </div>
@@ -836,10 +836,14 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
 
           {/* SVG Graph Area */}
           <div
-            className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none min-h-[220px] h-[260px] xl:h-[285px]"
+            className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none aspect-[760/250] w-full"
             onMouseLeave={() => setHoverIndex(null)}
           >
-            <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
+            <svg
+              viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+              className="w-full h-full overflow-visible font-mono tabular-nums"
+              style={{ fontFamily: "var(--font-mono), monospace" }}
+            >
               <defs>
                 <linearGradient id="gradIdiff" x1="0%" y1="0%" x2="0%" y2="100%">
                   <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.14" />
@@ -868,7 +872,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                       y={y + 3.5}
                       className="fill-slate-500 dark:fill-zinc-400"
                       fontSize="10"
-                      fontWeight="500"
+                      fontWeight="600"
                       textAnchor="end"
                     >
                       {val.toFixed(2)}A
@@ -894,9 +898,10 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                     />
                     <text
                       x={x}
-                      y={svgHeight - padding.bottom + 18}
+                      y={svgHeight - padding.bottom + 16}
                       className="fill-slate-400 dark:fill-zinc-500"
                       fontSize="9.5"
+                      fontWeight="500"
                       textAnchor="middle"
                     >
                       {marker.label}
@@ -912,7 +917,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                 x2={svgWidth - padding.right}
                 y2={yTripLimit}
                 stroke="#f43f5e"
-                strokeWidth="1.1"
+                strokeWidth="1.2"
                 strokeDasharray="4 3"
               />
               <text
@@ -930,9 +935,9 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               <path d={areaIdiff} fill="url(#gradIdiff)" />
 
               {/* Traces */}
-              <path d={pathI1} fill="none" stroke="#10b981" strokeWidth="1.4" strokeLinecap="round" />
-              <path d={pathI2} fill="none" stroke="#06b6d4" strokeWidth="1.4" strokeLinecap="round" />
-              <path d={pathIdiff} fill="none" stroke="#f43f5e" strokeWidth="1.7" strokeLinecap="round" />
+              <path d={pathI1} fill="none" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" />
+              <path d={pathI2} fill="none" stroke="#06b6d4" strokeWidth="1.5" strokeLinecap="round" />
+              <path d={pathIdiff} fill="none" stroke="#f43f5e" strokeWidth="1.75" strokeLinecap="round" />
 
               {/* Hover Crosshair & Dots */}
               {hoverIndex !== null && data[hoverIndex] && (
@@ -942,13 +947,14 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                     y1={padding.top}
                     x2={getX(hoverIndex)}
                     y2={svgHeight - padding.bottom}
-                    stroke="#ffffff"
+                    stroke="currentColor"
+                    className="text-slate-400 dark:text-zinc-300"
                     strokeWidth="1.0"
                     strokeDasharray="3 3"
                   />
-                  <circle cx={getX(hoverIndex)} cy={getYCoord(data[hoverIndex].i1, minI, maxI)} r="3" fill="#10b981" stroke="#ffffff" strokeWidth="1" />
-                  <circle cx={getX(hoverIndex)} cy={getYCoord(data[hoverIndex].i2, minI, maxI)} r="3" fill="#06b6d4" stroke="#ffffff" strokeWidth="1" />
-                  <circle cx={getX(hoverIndex)} cy={getYCoord(data[hoverIndex].idiff, minI, maxI)} r="3.5" fill="#f43f5e" stroke="#ffffff" strokeWidth="1" />
+                  <circle cx={getX(hoverIndex)} cy={getYCoord(data[hoverIndex].i1, minI, maxI)} r="3.5" fill="#10b981" stroke="#ffffff" strokeWidth="1.2" />
+                  <circle cx={getX(hoverIndex)} cy={getYCoord(data[hoverIndex].i2, minI, maxI)} r="3.5" fill="#06b6d4" stroke="#ffffff" strokeWidth="1.2" />
+                  <circle cx={getX(hoverIndex)} cy={getYCoord(data[hoverIndex].idiff, minI, maxI)} r="4" fill="#f43f5e" stroke="#ffffff" strokeWidth="1.2" />
                 </g>
               )}
 
@@ -969,15 +975,15 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
 
             {/* High-Readability Floating HUD Tooltip */}
             {hoveredPoint && (
-              <div className="absolute top-2 left-20 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs shadow-md backdrop-blur-xs">
-                <span className="text-slate-400 dark:text-zinc-400 font-mono">{hoveredPoint.timeLabel}</span>
-                <span className="text-emerald-500 font-bold">I1: {hoveredPoint.i1.toFixed(3)}A</span>
-                <span className="text-cyan-500 font-bold">I2: {hoveredPoint.i2.toFixed(3)}A</span>
-                <span className={`font-bold ${hoveredPoint.idiff > tripLimit ? "text-rose-500 animate-pulse" : "text-rose-400"}`}>
+              <div className="pointer-events-none absolute top-2 left-16 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs font-mono tabular-nums shadow-md backdrop-blur-xs">
+                <span className="text-slate-500 dark:text-zinc-400 font-bold">{hoveredPoint.timeLabel}</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">I1: {hoveredPoint.i1.toFixed(3)}A</span>
+                <span className="text-cyan-600 dark:text-cyan-400 font-bold">I2: {hoveredPoint.i2.toFixed(3)}A</span>
+                <span className={`font-bold ${hoveredPoint.idiff > tripLimit ? "text-rose-600 dark:text-rose-400 animate-pulse" : "text-rose-600 dark:text-rose-400"}`}>
                   ΔI: {hoveredPoint.idiff.toFixed(3)}A
                 </span>
-                <span className="text-slate-400 dark:text-zinc-500 text-[10px]">
-                  (Margin: {Math.max(0, tripLimit - hoveredPoint.idiff).toFixed(3)}A)
+                <span className="text-slate-500 dark:text-zinc-500 text-[10px]">
+                  (MARGIN: {Math.max(0, tripLimit - hoveredPoint.idiff).toFixed(3)}A)
                 </span>
               </div>
             )}
@@ -987,15 +993,15 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums font-mono">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0" />
-              <span>I1 (Incomer): <span className="font-bold text-emerald-600 dark:text-emerald-400">{statsI1.cur.toFixed(3)}A</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsI1.avg.toFixed(2)}A)</span></span>
+              <span>I1 (INCOMER): <span className="font-bold text-emerald-600 dark:text-emerald-400">{statsI1.cur.toFixed(3)} A</span> <span className="text-slate-400 dark:text-zinc-500">(AVG: {statsI1.avg.toFixed(2)}A)</span></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0" />
-              <span>I2 (Terminal): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsI2.cur.toFixed(3)}A</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsI2.avg.toFixed(2)}A)</span></span>
+              <span>I2 (TERMINAL): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsI2.cur.toFixed(3)} A</span> <span className="text-slate-400 dark:text-zinc-500">(AVG: {statsI2.avg.toFixed(2)}A)</span></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#f43f5e] shrink-0" />
-              <span>Diff ΔI: <span className={`font-bold ${statsIdiff.cur > tripLimit ? "text-rose-500 animate-pulse" : "text-rose-600 dark:text-rose-400"}`}>{statsIdiff.cur.toFixed(3)}A</span> <span className="text-slate-400 dark:text-zinc-500">(|I1 - I2|)</span></span>
+              <span>DIFF ΔI: <span className={`font-bold ${statsIdiff.cur > tripLimit ? "text-rose-500 animate-pulse" : "text-rose-600 dark:text-rose-400"}`}>{statsIdiff.cur.toFixed(3)} A</span> <span className="text-slate-400 dark:text-zinc-500">(|I1 - I2|)</span></span>
             </div>
           </div>
         </div>
@@ -1003,7 +1009,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
         {/* ============================================================== */}
         {/* CHART 2: BUS VOLTAGE STABILITY & GRID FREQUENCY */}
         {/* ============================================================== */}
-        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none min-h-[300px]">
+        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none">
           {/* Card Header with Live Values */}
           <div className="flex flex-wrap items-center justify-between px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/80 border-b border-slate-200 dark:border-zinc-800/80 text-xs">
             <div className="flex items-center gap-2">
@@ -1015,15 +1021,15 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
             {/* Live Instantaneous Pill Badges (V1 Substation >= V2 Load End) */}
             <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
               <span className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400">
-                <span className="h-2 w-2 rounded-full bg-[#06b6d4] shadow-xs" />
+                <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0 shadow-xs" />
                 V1 (SUBSTATION): <span className="font-bold">{statsV1.cur.toFixed(1)}V</span>
               </span>
               <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-                <span className="h-2 w-2 rounded-full bg-[#eab308] shadow-xs" />
+                <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0 shadow-xs" />
                 V2 (LOAD END): <span className="font-bold">{statsV2.cur.toFixed(1)}V</span>
               </span>
               <span className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
-                <span className="h-2 w-2 rounded-full bg-[#a855f7] shadow-xs" />
+                <span className="h-2 w-2 rounded-full bg-[#a855f7] shrink-0 shadow-xs" />
                 FREQ: <span className="font-bold">{statsFreq.cur.toFixed(2)}Hz</span>
               </span>
             </div>
@@ -1031,10 +1037,14 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
 
           {/* SVG Graph Area */}
           <div
-            className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none min-h-[220px] h-[260px] xl:h-[285px]"
+            className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none aspect-[760/250] w-full"
             onMouseLeave={() => setHoverIndex(null)}
           >
-            <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
+            <svg
+              viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+              className="w-full h-full overflow-visible font-mono tabular-nums"
+              style={{ fontFamily: "var(--font-mono), monospace" }}
+            >
               {/* Shaded Statutory Voltage Safe Zone (+/- 10%) */}
               <rect
                 x={padding.left}
@@ -1066,7 +1076,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                       y={y + 3.5}
                       className="fill-slate-500 dark:fill-zinc-400"
                       fontSize="10"
-                      fontWeight="500"
+                      fontWeight="600"
                       textAnchor="end"
                     >
                       {val.toFixed(0)}V
@@ -1092,9 +1102,10 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                     />
                     <text
                       x={x}
-                      y={svgHeight - padding.bottom + 18}
+                      y={svgHeight - padding.bottom + 16}
                       className="fill-slate-400 dark:fill-zinc-500"
                       fontSize="9.5"
+                      fontWeight="500"
                       textAnchor="middle"
                     >
                       {marker.label}
@@ -1104,15 +1115,15 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               })}
 
               {/* Statutory Voltage Limits (+10% / -10%) */}
-              <line x1={padding.left} y1={yOverV} x2={svgWidth - padding.right} y2={yOverV} stroke="#f43f5e" strokeWidth="1.0" strokeDasharray="4 3" />
-              <text x={svgWidth - padding.right - 6} y={yOverV - 5} fill="#f43f5e" fontSize="9" fontWeight="bold" textAnchor="end">+10% UPPER (253V)</text>
+              <line x1={padding.left} y1={yOverV} x2={svgWidth - padding.right} y2={yOverV} stroke="#f43f5e" strokeWidth="1.1" strokeDasharray="4 3" />
+              <text x={svgWidth - padding.right - 6} y={yOverV - 5} fill="#f43f5e" fontSize="9.5" fontWeight="bold" textAnchor="end">+10% UPPER (253V)</text>
 
-              <line x1={padding.left} y1={yUnderV} x2={svgWidth - padding.right} y2={yUnderV} stroke="#eab308" strokeWidth="1.0" strokeDasharray="4 3" />
-              <text x={svgWidth - padding.right - 6} y={yUnderV + 12} fill="#eab308" fontSize="9" fontWeight="bold" textAnchor="end">-10% LOWER (207V)</text>
+              <line x1={padding.left} y1={yUnderV} x2={svgWidth - padding.right} y2={yUnderV} stroke="#f59e0b" strokeWidth="1.1" strokeDasharray="4 3" />
+              <text x={svgWidth - padding.right - 6} y={yUnderV + 12} fill="#f59e0b" fontSize="9.5" fontWeight="bold" textAnchor="end">-10% LOWER (207V)</text>
 
               {/* Traces */}
-              <path d={pathV1} fill="none" stroke="#06b6d4" strokeWidth="1.4" strokeLinecap="round" />
-              <path d={pathV2} fill="none" stroke="#eab308" strokeWidth="1.4" strokeLinecap="round" />
+              <path d={pathV1} fill="none" stroke="#06b6d4" strokeWidth="1.5" strokeLinecap="round" />
+              <path d={pathV2} fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeLinecap="round" />
 
               {/* Hover Crosshair & Dots */}
               {hoverIndex !== null && data[hoverIndex] && (
@@ -1122,12 +1133,13 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                     y1={padding.top}
                     x2={getX(hoverIndex)}
                     y2={svgHeight - padding.bottom}
-                    stroke="#ffffff"
+                    stroke="currentColor"
+                    className="text-slate-400 dark:text-zinc-300"
                     strokeWidth="1.0"
                     strokeDasharray="3 3"
                   />
-                  <circle cx={getX(hoverIndex)} cy={getYCoord(data[hoverIndex].v1, minV, maxV)} r="3" fill="#06b6d4" stroke="#ffffff" strokeWidth="1" />
-                  <circle cx={getX(hoverIndex)} cy={getYCoord(data[hoverIndex].v2, minV, maxV)} r="3" fill="#eab308" stroke="#ffffff" strokeWidth="1" />
+                  <circle cx={getX(hoverIndex)} cy={getYCoord(data[hoverIndex].v1, minV, maxV)} r="3.5" fill="#06b6d4" stroke="#ffffff" strokeWidth="1.2" />
+                  <circle cx={getX(hoverIndex)} cy={getYCoord(data[hoverIndex].v2, minV, maxV)} r="3.5" fill="#f59e0b" stroke="#ffffff" strokeWidth="1.2" />
                 </g>
               )}
 
@@ -1148,13 +1160,13 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
 
             {/* High-Readability Floating HUD Tooltip */}
             {hoveredPoint && (
-              <div className="absolute top-2 left-20 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs shadow-md backdrop-blur-xs">
-                <span className="text-slate-400 dark:text-zinc-400 font-mono">{hoveredPoint.timeLabel}</span>
-                <span className="text-cyan-500 font-bold">V1: {hoveredPoint.v1.toFixed(1)}V</span>
-                <span className="text-amber-500 font-bold">V2: {hoveredPoint.v2.toFixed(1)}V</span>
-                <span className="text-purple-400 font-bold">FREQ: {(hoveredPoint.freq1 ?? 50.0).toFixed(2)}Hz</span>
-                <span className="text-slate-400 dark:text-zinc-500 text-[10px]">
-                  (Span Drop ΔV: {Math.max(0, hoveredPoint.v1 - hoveredPoint.v2).toFixed(1)}V)
+              <div className="pointer-events-none absolute top-2 left-16 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs font-mono tabular-nums shadow-md backdrop-blur-xs">
+                <span className="text-slate-500 dark:text-zinc-400 font-bold">{hoveredPoint.timeLabel}</span>
+                <span className="text-cyan-600 dark:text-cyan-400 font-bold">V1: {hoveredPoint.v1.toFixed(1)}V</span>
+                <span className="text-amber-600 dark:text-amber-400 font-bold">V2: {hoveredPoint.v2.toFixed(1)}V</span>
+                <span className="text-purple-600 dark:text-purple-400 font-bold">FREQ: {(hoveredPoint.freq1 ?? 50.0).toFixed(2)}Hz</span>
+                <span className="text-slate-500 dark:text-zinc-500 text-[10px]">
+                  (DROP ΔV: {Math.max(0, hoveredPoint.v1 - hoveredPoint.v2).toFixed(1)}V)
                 </span>
               </div>
             )}
@@ -1164,15 +1176,15 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums font-mono">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0" />
-              <span>V1 (Substation): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsV1.cur.toFixed(1)}V</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsV1.avg.toFixed(1)}V)</span></span>
+              <span>V1 (SUBSTATION): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsV1.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(AVG: {statsV1.avg.toFixed(1)}V)</span></span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#eab308] shrink-0" />
-              <span>V2 (Terminal): <span className="font-bold text-amber-600 dark:text-amber-400">{statsV2.cur.toFixed(1)}V</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsV2.avg.toFixed(1)}V)</span></span>
+              <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0" />
+              <span>V2 (TERMINAL): <span className="font-bold text-amber-600 dark:text-amber-400">{statsV2.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(AVG: {statsV2.avg.toFixed(1)}V)</span></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#a855f7] shrink-0" />
-              <span>Frequency: <span className="font-bold text-purple-600 dark:text-purple-400">{statsFreq.cur.toFixed(2)} Hz</span> <span className="text-emerald-500 font-semibold">(50Hz Nominal)</span></span>
+              <span>FREQUENCY: <span className="font-bold text-purple-600 dark:text-purple-400">{statsFreq.cur.toFixed(2)} Hz</span> <span className="text-emerald-600 dark:text-emerald-400 font-semibold">(50Hz NOM)</span></span>
             </div>
           </div>
         </div>
@@ -1180,7 +1192,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
         {/* ============================================================== */}
         {/* CHART 3: POWER TRIANGLE (ACTIVE, REACTIVE, APPARENT & PF) */}
         {/* ============================================================== */}
-        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none min-h-[300px]">
+        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none">
           {/* Card Header with Live Values */}
           <div className="flex flex-wrap items-center justify-between px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/80 border-b border-slate-200 dark:border-zinc-800/80 text-xs">
             <div className="flex items-center gap-2">
@@ -1191,19 +1203,20 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
             </div>
             {/* Live Instantaneous Pill Badges */}
             <div className="flex items-center gap-2.5 text-xs tabular-nums font-semibold">
-              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+                <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0 shadow-xs" />
                 P: <span className="font-bold">{statsP1.cur.toFixed(2)}kW</span>
               </span>
-              <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
-                <span className="h-2 w-2 rounded-full bg-rose-500" />
+              <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400" title="Dashed trace">
+                <span className="w-3.5 h-0 border-t-2 border-dashed border-[#f43f5e] shrink-0" />
                 Q: <span className="font-bold">{statsQ1.cur.toFixed(2)}kvar</span>
               </span>
-              <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
-                <span className="h-2 w-2 rounded-full bg-blue-500" />
+              <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
+                <span className="h-2 w-2 rounded-full bg-[#3b82f6] shrink-0 shadow-xs" />
                 S: <span className="font-bold">{statsS1.cur.toFixed(2)}kVA</span>
               </span>
-              <span className="flex items-center gap-1 text-amber-500">
+              <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0 shadow-xs" />
                 PF: <span className="font-bold">{statsPf.cur.toFixed(2)}</span>
               </span>
             </div>
@@ -1211,10 +1224,14 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
 
           {/* SVG Graph Area */}
           <div
-            className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none min-h-[220px] h-[260px] xl:h-[285px]"
+            className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none aspect-[760/250] w-full"
             onMouseLeave={() => setHoverIndex(null)}
           >
-            <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
+            <svg
+              viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+              className="w-full h-full overflow-visible font-mono tabular-nums"
+              style={{ fontFamily: "var(--font-mono), monospace" }}
+            >
               <defs>
                 <linearGradient id="gradPActive" x1="0%" y1="0%" x2="0%" y2="100%">
                   <stop offset="0%" stopColor="#10b981" stopOpacity="0.12" />
@@ -1243,7 +1260,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                       y={y + 3.5}
                       className="fill-slate-500 dark:fill-zinc-400"
                       fontSize="10"
-                      fontWeight="500"
+                      fontWeight="600"
                       textAnchor="end"
                     >
                       {val.toFixed(2)}kW
@@ -1269,9 +1286,10 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                     />
                     <text
                       x={x}
-                      y={svgHeight - padding.bottom + 18}
+                      y={svgHeight - padding.bottom + 16}
                       className="fill-slate-400 dark:fill-zinc-500"
                       fontSize="9.5"
+                      fontWeight="500"
                       textAnchor="middle"
                     >
                       {marker.label}
@@ -1284,9 +1302,9 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               <path d={areaPActive} fill="url(#gradPActive)" />
 
               {/* Traces */}
-              <path d={pathSApparent} fill="none" stroke="#3b82f6" strokeWidth="1.3" strokeLinecap="round" />
-              <path d={pathPActive} fill="none" stroke="#10b981" strokeWidth="1.5" strokeLinecap="round" />
-              <path d={pathQReactive} fill="none" stroke="#f43f5e" strokeWidth="1.3" strokeLinecap="round" strokeDasharray="4 3" />
+              <path d={pathSApparent} fill="none" stroke="#3b82f6" strokeWidth="1.4" strokeLinecap="round" />
+              <path d={pathPActive} fill="none" stroke="#10b981" strokeWidth="1.6" strokeLinecap="round" />
+              <path d={pathQReactive} fill="none" stroke="#f43f5e" strokeWidth="1.4" strokeLinecap="round" strokeDasharray="4 3" />
 
               {/* Hover Crosshair & Dots */}
               {hoverIndex !== null && data[hoverIndex] && (
@@ -1296,13 +1314,14 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                     y1={padding.top}
                     x2={getX(hoverIndex)}
                     y2={svgHeight - padding.bottom}
-                    stroke="#ffffff"
+                    stroke="currentColor"
+                    className="text-slate-400 dark:text-zinc-300"
                     strokeWidth="1.0"
                     strokeDasharray="3 3"
                   />
-                  <circle cx={getX(hoverIndex)} cy={getYCoord((data[hoverIndex].s1 ?? 0) / 1000, minP, maxP)} r="3" fill="#3b82f6" stroke="#ffffff" strokeWidth="1" />
-                  <circle cx={getX(hoverIndex)} cy={getYCoord((data[hoverIndex].p1 ?? 0) / 1000, minP, maxP)} r="3" fill="#10b981" stroke="#ffffff" strokeWidth="1" />
-                  <circle cx={getX(hoverIndex)} cy={getYCoord((data[hoverIndex].q1 ?? 0) / 1000, minP, maxP)} r="3" fill="#f43f5e" stroke="#ffffff" strokeWidth="1" />
+                  <circle cx={getX(hoverIndex)} cy={getYCoord((data[hoverIndex].s1 ?? 0) / 1000, minP, maxP)} r="3.5" fill="#3b82f6" stroke="#ffffff" strokeWidth="1.2" />
+                  <circle cx={getX(hoverIndex)} cy={getYCoord((data[hoverIndex].p1 ?? 0) / 1000, minP, maxP)} r="3.5" fill="#10b981" stroke="#ffffff" strokeWidth="1.2" />
+                  <circle cx={getX(hoverIndex)} cy={getYCoord((data[hoverIndex].q1 ?? 0) / 1000, minP, maxP)} r="3.5" fill="#f43f5e" stroke="#ffffff" strokeWidth="1.2" />
                 </g>
               )}
 
@@ -1323,49 +1342,61 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
 
             {/* High-Readability Floating HUD Tooltip */}
             {hoveredPoint && (
-              <div className="absolute top-2 left-20 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs shadow-md backdrop-blur-xs">
-                <span className="text-slate-400 dark:text-zinc-400 font-mono">{hoveredPoint.timeLabel}</span>
-                <span className="text-emerald-500 font-bold">P: {((hoveredPoint.p1 ?? 0) / 1000).toFixed(2)}kW</span>
-                <span className="text-rose-400 font-bold">Q: {((hoveredPoint.q1 ?? 0) / 1000).toFixed(2)}kvar</span>
-                <span className="text-blue-400 font-bold">S: {((hoveredPoint.s1 ?? 0) / 1000).toFixed(2)}kVA</span>
-                <span className="text-amber-400 font-bold">PF: {(hoveredPoint.pf1 ?? 0.96).toFixed(2)}</span>
+              <div className="pointer-events-none absolute top-2 left-16 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs font-mono tabular-nums shadow-md backdrop-blur-xs">
+                <span className="text-slate-500 dark:text-zinc-400 font-bold">{hoveredPoint.timeLabel}</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">P: {((hoveredPoint.p1 ?? 0) / 1000).toFixed(2)}kW</span>
+                <span className="text-rose-600 dark:text-rose-400 font-bold">Q: {((hoveredPoint.q1 ?? 0) / 1000).toFixed(2)}kvar</span>
+                <span className="text-blue-600 dark:text-blue-400 font-bold">S: {((hoveredPoint.s1 ?? 0) / 1000).toFixed(2)}kVA</span>
+                <span className="text-amber-600 dark:text-amber-400 font-bold">PF: {(hoveredPoint.pf1 ?? 0.96).toFixed(2)}</span>
               </div>
             )}
           </div>
 
           {/* Stats Bar */}
-          <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-4 text-xs tabular-nums">
-            <div>ACTIVE P: <span className="font-bold text-emerald-600 dark:text-emerald-400">{statsP1.cur.toFixed(2)} kW</span></div>
-            <div>REACTIVE Q: <span className="font-bold text-rose-600 dark:text-rose-400">{statsQ1.cur.toFixed(2)} kvar</span></div>
-            <div>APPARENT S: <span className="font-bold text-blue-600 dark:text-blue-400">{statsS1.cur.toFixed(2)} kVA</span></div>
-            <div>PF: <span className="font-bold text-amber-500">{statsPf.cur.toFixed(2)}</span> <span className="text-slate-400 dark:text-zinc-500">(Lagging)</span></div>
+          <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs tabular-nums font-mono">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0" />
+              <span>ACTIVE P: <span className="font-bold text-emerald-600 dark:text-emerald-400">{statsP1.cur.toFixed(2)} kW</span></span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="w-3.5 h-0 border-t-2 border-dashed border-[#f43f5e] shrink-0" />
+              <span>REACTIVE Q: <span className="font-bold text-rose-600 dark:text-rose-400">{statsQ1.cur.toFixed(2)} kvar</span></span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#3b82f6] shrink-0" />
+              <span>APPARENT S: <span className="font-bold text-blue-600 dark:text-blue-400">{statsS1.cur.toFixed(2)} kVA</span></span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0" />
+              <span>PF: <span className="font-bold text-amber-600 dark:text-amber-400">{statsPf.cur.toFixed(2)}</span> <span className="text-slate-400 dark:text-zinc-500">(LAG)</span></span>
+            </div>
           </div>
         </div>
 
         {/* ============================================================== */}
         {/* CHART 4: TECHNICAL LINE LOSS & SPAN VOLTAGE DROP */}
         {/* ============================================================== */}
-        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none min-h-[300px]">
+        <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none">
           {/* Card Header with Live Values */}
           <div className="flex flex-wrap items-center justify-between px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/80 border-b border-slate-200 dark:border-zinc-800/80 text-xs">
             <div className="flex items-center gap-2">
-              <Flame className="h-4 w-4 text-amber-500" />
+              <Flame className="h-4 w-4 text-orange-500" />
               <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs tracking-wide">
                 4. TECHNICAL LINE LOSS (ΔP) &amp; SPAN VOLTAGE DROP (ΔV)
               </span>
             </div>
             {/* Live Instantaneous Pill Badges */}
             <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
-              <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
-                <span className="h-2 w-2 rounded-full bg-[#f97316] shadow-xs" />
+              <span className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400">
+                <span className="h-2 w-2 rounded-full bg-[#f97316] shrink-0 shadow-xs" />
                 LINE LOSS ΔP: <span className="font-bold">{statsLossW.cur.toFixed(1)}W</span>
               </span>
-              <span className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400">
-                <span className="h-2 w-2 rounded-full bg-[#06b6d4] shadow-xs" />
+              <span className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400" title="Dashed trace">
+                <span className="w-3.5 h-0 border-t-2 border-dashed border-[#06b6d4] shrink-0" />
                 SPAN DROP ΔV: <span className="font-bold">{statsVDrop.cur.toFixed(1)}V</span>
               </span>
               <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
-                <span className="h-2 w-2 rounded-full bg-[#10b981] shadow-xs" />
+                <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0 shadow-xs" />
                 EFFICIENCY: <span className="font-bold">
                   {statsP1.cur > 0
                     ? `${(Math.max(0, 100 - (statsLossW.cur / (statsP1.cur * 1000)) * 100)).toFixed(2)}%`
@@ -1377,10 +1408,14 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
 
           {/* SVG Graph Area with Dual Y-Axis: Left for ΔP (Watts), Right for ΔV (Volts) */}
           <div
-            className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none min-h-[220px] h-[260px] xl:h-[285px]"
+            className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none aspect-[760/250] w-full"
             onMouseLeave={() => setHoverIndex(null)}
           >
-            <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
+            <svg
+              viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+              className="w-full h-full overflow-visible font-mono tabular-nums"
+              style={{ fontFamily: "var(--font-mono), monospace" }}
+            >
               <defs>
                 <linearGradient id="gradLoss" x1="0%" y1="0%" x2="0%" y2="100%">
                   <stop offset="0%" stopColor="#f97316" stopOpacity="0.13" />
@@ -1405,12 +1440,12 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                       strokeWidth="1"
                       strokeDasharray="3 3"
                     />
-                    {/* Left Axis: ΔP (Watts in Amber) */}
+                    {/* Left Axis: ΔP (Watts in Orange) */}
                     <text
                       x={padding.left - 8}
                       y={y + 3.5}
-                      className="fill-amber-600 dark:fill-amber-400 font-bold"
-                      fontSize="9.5"
+                      className="fill-orange-600 dark:fill-orange-400 font-bold"
+                      fontSize="10"
                       textAnchor="end"
                     >
                       {valW.toFixed(0)}W
@@ -1420,7 +1455,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                       x={svgWidth - padding.right + 8}
                       y={y + 3.5}
                       className="fill-cyan-600 dark:fill-cyan-400 font-bold"
-                      fontSize="9.5"
+                      fontSize="10"
                       textAnchor="start"
                     >
                       {valV.toFixed(1)}V
@@ -1446,9 +1481,10 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                     />
                     <text
                       x={x}
-                      y={svgHeight - padding.bottom + 18}
+                      y={svgHeight - padding.bottom + 16}
                       className="fill-slate-400 dark:fill-zinc-500"
                       fontSize="9.5"
+                      fontWeight="500"
                       textAnchor="middle"
                     >
                       {marker.label}
@@ -1461,8 +1497,8 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               <path d={areaLoss} fill="url(#gradLoss)" />
 
               {/* Traces: Smooth Derived ΔP (Watts) and ΔV (Volts) */}
-              <path d={pathLoss} fill="none" stroke="#f97316" strokeWidth="1.5" strokeLinecap="round" />
-              <path d={pathVDrop} fill="none" stroke="#06b6d4" strokeWidth="1.4" strokeLinecap="round" strokeDasharray="4 3" />
+              <path d={pathLoss} fill="none" stroke="#f97316" strokeWidth="1.6" strokeLinecap="round" />
+              <path d={pathVDrop} fill="none" stroke="#06b6d4" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="4 3" />
 
               {/* Hover Crosshair & Dots */}
               {hoverIndex !== null && data[hoverIndex] && (
@@ -1472,12 +1508,13 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                     y1={padding.top}
                     x2={getX(hoverIndex)}
                     y2={svgHeight - padding.bottom}
-                    stroke="#ffffff"
+                    stroke="currentColor"
+                    className="text-slate-400 dark:text-zinc-300"
                     strokeWidth="1.0"
                     strokeDasharray="3 3"
                   />
-                  <circle cx={getX(hoverIndex)} cy={getYCoord(data[hoverIndex].pLoss ?? 0, minLossW, maxLossW)} r="3" fill="#f97316" stroke="#ffffff" strokeWidth="1" />
-                  <circle cx={getX(hoverIndex)} cy={getYCoord(data[hoverIndex].vDrop ?? 0, minDropV, maxDropV)} r="3" fill="#06b6d4" stroke="#ffffff" strokeWidth="1" />
+                  <circle cx={getX(hoverIndex)} cy={getYCoord(data[hoverIndex].pLoss ?? 0, minLossW, maxLossW)} r="3.5" fill="#f97316" stroke="#ffffff" strokeWidth="1.2" />
+                  <circle cx={getX(hoverIndex)} cy={getYCoord(data[hoverIndex].vDrop ?? 0, minDropV, maxDropV)} r="3.5" fill="#06b6d4" stroke="#ffffff" strokeWidth="1.2" />
                 </g>
               )}
 
@@ -1498,11 +1535,11 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
 
             {/* High-Readability Floating HUD Tooltip */}
             {hoveredPoint && (
-              <div className="absolute top-2 left-20 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs shadow-md backdrop-blur-xs">
-                <span className="text-slate-400 dark:text-zinc-400 font-mono">{hoveredPoint.timeLabel}</span>
-                <span className="text-amber-500 font-bold">ΔP: {(hoveredPoint.pLoss ?? 0).toFixed(1)}W</span>
-                <span className="text-cyan-500 font-bold">ΔV: {(hoveredPoint.vDrop ?? 0).toFixed(1)}V</span>
-                <span className="text-emerald-500 font-bold">
+              <div className="pointer-events-none absolute top-2 left-16 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs font-mono tabular-nums shadow-md backdrop-blur-xs">
+                <span className="text-slate-500 dark:text-zinc-400 font-bold">{hoveredPoint.timeLabel}</span>
+                <span className="text-orange-600 dark:text-orange-400 font-bold">ΔP: {(hoveredPoint.pLoss ?? 0).toFixed(1)}W</span>
+                <span className="text-cyan-600 dark:text-cyan-400 font-bold">ΔV: {(hoveredPoint.vDrop ?? 0).toFixed(1)}V</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">
                   η: {hoveredPoint.p1 && hoveredPoint.p1 > 0
                     ? `${(Math.max(0, 100 - ((hoveredPoint.pLoss ?? 0) / hoveredPoint.p1) * 100)).toFixed(2)}%`
                     : "99.8%"}
@@ -1512,14 +1549,14 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           </div>
 
           {/* Stats Bar */}
-          <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums">
+          <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums font-mono">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#f97316] shrink-0" />
-              <span>LINE LOSS ΔP (P1 - P2): <span className="font-bold text-amber-600 dark:text-amber-400">{statsLossW.cur.toFixed(1)} W</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsLossW.avg.toFixed(1)} W)</span></span>
+              <span>LINE LOSS ΔP: <span className="font-bold text-orange-600 dark:text-orange-400">{statsLossW.cur.toFixed(1)} W</span> <span className="text-slate-400 dark:text-zinc-500">(AVG: {statsLossW.avg.toFixed(1)}W)</span></span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0" />
-              <span>SPAN DROP ΔV (V1 - V2): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsVDrop.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(Norm: &lt;3%)</span></span>
+              <span className="w-3.5 h-0 border-t-2 border-dashed border-[#06b6d4] shrink-0" />
+              <span>SPAN DROP ΔV: <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsVDrop.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(NORM: &lt;3%)</span></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0" />
@@ -1540,7 +1577,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           {/* ------------------------------------------------------------------------- */}
           {/* POLY CHART 1: 3-PHASE CURRENT & NEUTRAL DISPLACEMENT */}
           {/* ------------------------------------------------------------------------- */}
-          <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none min-h-[300px]">
+          <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none">
             <div className="flex flex-wrap items-center justify-between px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/80 border-b border-slate-200 dark:border-zinc-800/80 text-xs">
               <div className="flex items-center gap-2">
                 <GitBranch className="h-4 w-4 text-emerald-500" />
@@ -1549,37 +1586,41 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                 </span>
               </div>
               <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
-                <span className="flex items-center gap-1 text-rose-500">
-                  <span className="h-2 w-2 rounded-full bg-[#f43f5e] shadow-xs" />
+                <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                  <span className="h-2 w-2 rounded-full bg-[#f43f5e] shrink-0 shadow-xs" />
                   IR: <span className="font-bold">{statsPolyIR.cur.toFixed(3)}A</span>
                 </span>
-                <span className="flex items-center gap-1 text-amber-500">
-                  <span className="h-2 w-2 rounded-full bg-[#f59e0b] shadow-xs" />
+                <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                  <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0 shadow-xs" />
                   IY: <span className="font-bold">{statsPolyIY.cur.toFixed(3)}A</span>
                 </span>
-                <span className="flex items-center gap-1 text-cyan-500">
-                  <span className="h-2 w-2 rounded-full bg-[#06b6d4] shadow-xs" />
+                <span className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400">
+                  <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0 shadow-xs" />
                   IB: <span className="font-bold">{statsPolyIB.cur.toFixed(3)}A</span>
                 </span>
-                <span className="flex items-center gap-1 text-purple-400">
-                  <span className="h-2 w-2 rounded-full bg-[#a855f7] shadow-xs" />
+                <span className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400" title="Dashed trace">
+                  <span className="w-3.5 h-0 border-t-2 border-dashed border-[#a855f7] shrink-0" />
                   IN: <span className="font-bold">{statsPolyIN.cur.toFixed(3)}A</span>
                 </span>
               </div>
             </div>
 
             <div
-              className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none min-h-[220px] h-[260px] xl:h-[285px]"
+              className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none aspect-[760/250] w-full"
               onMouseLeave={() => setHoverIndex(null)}
             >
-              <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
+              <svg
+                viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                className="w-full h-full overflow-visible font-mono tabular-nums"
+                style={{ fontFamily: "var(--font-mono), monospace" }}
+              >
                 {yTicks.map((p, idx) => {
                   const val = minPolyI + p * (maxPolyI - minPolyI);
                   const y = getYCoord(val, minPolyI, maxPolyI);
                   return (
                     <g key={idx}>
                       <line x1={padding.left} y1={y} x2={svgWidth - padding.right} y2={y} stroke="currentColor" className="text-slate-200 dark:text-zinc-800" strokeWidth="1" strokeDasharray="3 3" />
-                      <text x={padding.left - 8} y={y + 3.5} className="fill-slate-500 dark:fill-zinc-400" fontSize="10" fontWeight="500" textAnchor="end">
+                      <text x={padding.left - 8} y={y + 3.5} className="fill-slate-500 dark:fill-zinc-400" fontSize="10" fontWeight="600" textAnchor="end">
                         {val.toFixed(2)}A
                       </text>
                     </g>
@@ -1591,7 +1632,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                   return (
                     <g key={idx}>
                       <line x1={x} y1={padding.top} x2={x} y2={svgHeight - padding.bottom} stroke="currentColor" className="text-slate-200 dark:text-zinc-800/60" strokeWidth="1" strokeDasharray="2 3" />
-                      <text x={x} y={svgHeight - padding.bottom + 18} className="fill-slate-400 dark:fill-zinc-500" fontSize="9.5" textAnchor="middle">
+                      <text x={x} y={svgHeight - padding.bottom + 16} className="fill-slate-400 dark:fill-zinc-500" fontSize="9.5" fontWeight="500" textAnchor="middle">
                         {marker.label}
                       </text>
                     </g>
@@ -1601,7 +1642,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                 <path d={pathPolyIR} fill="none" stroke="#f43f5e" strokeWidth="1.6" strokeLinecap="round" />
                 <path d={pathPolyIY} fill="none" stroke="#f59e0b" strokeWidth="1.6" strokeLinecap="round" />
                 <path d={pathPolyIB} fill="none" stroke="#06b6d4" strokeWidth="1.6" strokeLinecap="round" />
-                <path d={pathPolyIN} fill="none" stroke="#a855f7" strokeWidth="1.2" strokeLinecap="round" strokeDasharray="3 3" />
+                <path d={pathPolyIN} fill="none" stroke="#a855f7" strokeWidth="1.35" strokeLinecap="round" strokeDasharray="4 3" />
 
                 {/* DFR Trip Event Marker Line */}
                 {networkSnapshot && networkSnapshot.detections.length > 0 && polyHistory.length > 1 && (
@@ -1619,7 +1660,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                       x={getPolyX(polyHistory.length - 1, polyHistory.length) - 6}
                       y={padding.top + 14}
                       className="fill-rose-500 font-bold"
-                      fontSize="9"
+                      fontSize="9.5"
                       textAnchor="end"
                     >
                       ⚡ TRIP EXCURSION
@@ -1629,10 +1670,20 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
 
                 {hoverIndex !== null && polyHistory[hoverIndex] && (
                   <g>
-                    <line x1={getPolyX(hoverIndex, polyHistory.length)} y1={padding.top} x2={getPolyX(hoverIndex, polyHistory.length)} y2={svgHeight - padding.bottom} stroke="#ffffff" strokeWidth="1.0" strokeDasharray="3 3" />
-                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].iR, minPolyI, maxPolyI)} r="3" fill="#f43f5e" stroke="#fff" strokeWidth="1" />
-                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].iY, minPolyI, maxPolyI)} r="3" fill="#f59e0b" stroke="#fff" strokeWidth="1" />
-                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].iB, minPolyI, maxPolyI)} r="3" fill="#06b6d4" stroke="#fff" strokeWidth="1" />
+                    <line
+                      x1={getPolyX(hoverIndex, polyHistory.length)}
+                      y1={padding.top}
+                      x2={getPolyX(hoverIndex, polyHistory.length)}
+                      y2={svgHeight - padding.bottom}
+                      stroke="currentColor"
+                      className="text-slate-400 dark:text-zinc-300"
+                      strokeWidth="1.0"
+                      strokeDasharray="3 3"
+                    />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].iR, minPolyI, maxPolyI)} r="3.5" fill="#f43f5e" stroke="#ffffff" strokeWidth="1.2" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].iY, minPolyI, maxPolyI)} r="3.5" fill="#f59e0b" stroke="#ffffff" strokeWidth="1.2" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].iB, minPolyI, maxPolyI)} r="3.5" fill="#06b6d4" stroke="#ffffff" strokeWidth="1.2" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].iNeutral, minPolyI, maxPolyI)} r="3" fill="#a855f7" stroke="#ffffff" strokeWidth="1.2" />
                   </g>
                 )}
 
@@ -1642,24 +1693,24 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               </svg>
 
               {hoveredPolyPoint && (
-                <div className="absolute top-2 left-20 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs shadow-md backdrop-blur-xs">
-                  <span className="text-slate-400 dark:text-zinc-400 font-mono">{hoveredPolyPoint.timeLabel}</span>
-                  <span className="text-rose-500 font-bold">IR: {hoveredPolyPoint.iR.toFixed(3)}A</span>
-                  <span className="text-amber-500 font-bold">IY: {hoveredPolyPoint.iY.toFixed(3)}A</span>
-                  <span className="text-cyan-500 font-bold">IB: {hoveredPolyPoint.iB.toFixed(3)}A</span>
-                  <span className="text-purple-400 font-bold">IN: {hoveredPolyPoint.iNeutral.toFixed(3)}A</span>
+                <div className="pointer-events-none absolute top-2 left-16 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs font-mono tabular-nums shadow-md backdrop-blur-xs">
+                  <span className="text-slate-500 dark:text-zinc-400 font-bold">{hoveredPolyPoint.timeLabel}</span>
+                  <span className="text-rose-600 dark:text-rose-400 font-bold">IR: {hoveredPolyPoint.iR.toFixed(3)}A</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">IY: {hoveredPolyPoint.iY.toFixed(3)}A</span>
+                  <span className="text-cyan-600 dark:text-cyan-400 font-bold">IB: {hoveredPolyPoint.iB.toFixed(3)}A</span>
+                  <span className="text-purple-600 dark:text-purple-400 font-bold">IN: {hoveredPolyPoint.iNeutral.toFixed(3)}A</span>
                 </div>
               )}
             </div>
 
-            <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums">
+            <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums font-mono">
               <div className="flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-[#f43f5e] shrink-0" />
                 <span>PEAK CURRENT: <span className="font-bold text-slate-800 dark:text-zinc-200">{Math.max(statsPolyIR.max, statsPolyIY.max, statsPolyIB.max).toFixed(3)} A</span></span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="h-2 w-2 rounded-full bg-[#a855f7] shrink-0" />
-                <span>NEUTRAL RETURN: <span className="font-bold text-purple-600 dark:text-purple-400">{statsPolyIN.cur.toFixed(3)} A</span> (Vector Sum)</span>
+                <span className="w-3.5 h-0 border-t-2 border-dashed border-[#a855f7] shrink-0" />
+                <span>NEUTRAL RETURN: <span className="font-bold text-purple-600 dark:text-purple-400">{statsPolyIN.cur.toFixed(3)} A</span> <span className="text-slate-400 dark:text-zinc-500">(VEC SUM)</span></span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0" />
@@ -1671,60 +1722,78 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           {/* ------------------------------------------------------------------------- */}
           {/* POLY CHART 2: 3-PHASE VOLTAGES & TOLERANCE BAND */}
           {/* ------------------------------------------------------------------------- */}
-          <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none min-h-[300px]">
+          <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none">
             <div className="flex flex-wrap items-center justify-between px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/80 border-b border-slate-200 dark:border-zinc-800/80 text-xs">
               <div className="flex items-center gap-2">
-                <Activity className="h-4 w-4 text-cyan-400" />
+                <Activity className="h-4 w-4 text-cyan-500" />
                 <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs tracking-wide">
                   2. 3-PHASE VOLTAGES &amp; TOLERANCE BAND (230V NOMINAL ±6%)
                 </span>
               </div>
               <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
-                <span className="flex items-center gap-1 text-rose-500">
-                  <span className="h-2 w-2 rounded-full bg-[#f43f5e] shadow-xs" />
+                <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                  <span className="h-2 w-2 rounded-full bg-[#f43f5e] shrink-0 shadow-xs" />
                   VR: <span className="font-bold">{statsPolyVR.cur.toFixed(1)}V</span>
                 </span>
-                <span className="flex items-center gap-1 text-amber-500">
-                  <span className="h-2 w-2 rounded-full bg-[#f59e0b] shadow-xs" />
+                <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                  <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0 shadow-xs" />
                   VY: <span className="font-bold">{statsPolyVY.cur.toFixed(1)}V</span>
                 </span>
-                <span className="flex items-center gap-1 text-cyan-500">
-                  <span className="h-2 w-2 rounded-full bg-[#06b6d4] shadow-xs" />
+                <span className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400">
+                  <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0 shadow-xs" />
                   VB: <span className="font-bold">{statsPolyVB.cur.toFixed(1)}V</span>
                 </span>
-                <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded-xs ${latestVUnb > 2.0 ? "bg-amber-500/20 text-amber-500" : "text-emerald-500 font-bold"}`}>
+                <span className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-xs ${latestVUnb > 2.0 ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold" : "text-emerald-600 dark:text-emerald-400 font-bold"}`}>
+                  <span className={`h-2 w-2 rounded-full shrink-0 shadow-xs ${latestVUnb > 2.0 ? "bg-[#f59e0b]" : "bg-[#10b981]"}`} />
                   V-UNB: {latestVUnb.toFixed(2)}%
                 </span>
               </div>
             </div>
 
             <div
-              className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none min-h-[220px] h-[260px] xl:h-[285px]"
+              className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none aspect-[760/250] w-full"
               onMouseLeave={() => setHoverIndex(null)}
             >
-              <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
+              <svg
+                viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                className="w-full h-full overflow-visible font-mono tabular-nums"
+                style={{ fontFamily: "var(--font-mono), monospace" }}
+              >
+                {/* Shaded Statutory Voltage Safe Zone (+/- 6%) */}
+                <rect
+                  x={padding.left}
+                  y={Math.min(yUpperV, yLowerV)}
+                  width={graphWidth}
+                  height={Math.abs(yLowerV - yUpperV)}
+                  fill="#10b981"
+                  fillOpacity="0.04"
+                />
+
                 {yTicks.map((p, idx) => {
                   const val = minPolyV + p * (maxPolyV - minPolyV);
                   const y = getYCoord(val, minPolyV, maxPolyV);
                   return (
                     <g key={idx}>
                       <line x1={padding.left} y1={y} x2={svgWidth - padding.right} y2={y} stroke="currentColor" className="text-slate-200 dark:text-zinc-800" strokeWidth="1" strokeDasharray="3 3" />
-                      <text x={padding.left - 8} y={y + 3.5} className="fill-slate-500 dark:fill-zinc-400" fontSize="10" fontWeight="500" textAnchor="end">
+                      <text x={padding.left - 8} y={y + 3.5} className="fill-slate-500 dark:fill-zinc-400" fontSize="10" fontWeight="600" textAnchor="end">
                         {val.toFixed(0)}V
                       </text>
                     </g>
                   );
                 })}
 
-                <line x1={padding.left} y1={yUpperV} x2={svgWidth - padding.right} y2={yUpperV} stroke="#f59e0b" strokeWidth="1.2" strokeDasharray="4 3" opacity="0.7" />
-                <line x1={padding.left} y1={yLowerV} x2={svgWidth - padding.right} y2={yLowerV} stroke="#f59e0b" strokeWidth="1.2" strokeDasharray="4 3" opacity="0.7" />
+                <line x1={padding.left} y1={yUpperV} x2={svgWidth - padding.right} y2={yUpperV} stroke="#f59e0b" strokeWidth="1.1" strokeDasharray="4 3" opacity="0.8" />
+                <text x={svgWidth - padding.right - 6} y={yUpperV - 5} fill="#f59e0b" fontSize="9.5" fontWeight="bold" textAnchor="end">+6% UPPER (243.8V)</text>
+
+                <line x1={padding.left} y1={yLowerV} x2={svgWidth - padding.right} y2={yLowerV} stroke="#f59e0b" strokeWidth="1.1" strokeDasharray="4 3" opacity="0.8" />
+                <text x={svgWidth - padding.right - 6} y={yLowerV + 12} fill="#f59e0b" fontSize="9.5" fontWeight="bold" textAnchor="end">-6% LOWER (216.2V)</text>
 
                 {xTimeMarkers.map((marker, idx) => {
                   const x = padding.left + marker.p * graphWidth;
                   return (
                     <g key={idx}>
                       <line x1={x} y1={padding.top} x2={x} y2={svgHeight - padding.bottom} stroke="currentColor" className="text-slate-200 dark:text-zinc-800/60" strokeWidth="1" strokeDasharray="2 3" />
-                      <text x={x} y={svgHeight - padding.bottom + 18} className="fill-slate-400 dark:fill-zinc-500" fontSize="9.5" textAnchor="middle">
+                      <text x={x} y={svgHeight - padding.bottom + 16} className="fill-slate-400 dark:fill-zinc-500" fontSize="9.5" fontWeight="500" textAnchor="middle">
                         {marker.label}
                       </text>
                     </g>
@@ -1751,7 +1820,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                       x={getPolyX(polyHistory.length - 1, polyHistory.length) - 6}
                       y={padding.top + 14}
                       className="fill-rose-500 font-bold"
-                      fontSize="9"
+                      fontSize="9.5"
                       textAnchor="end"
                     >
                       ⚡ TRIP EXCURSION
@@ -1761,10 +1830,19 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
 
                 {hoverIndex !== null && polyHistory[hoverIndex] && (
                   <g>
-                    <line x1={getPolyX(hoverIndex, polyHistory.length)} y1={padding.top} x2={getPolyX(hoverIndex, polyHistory.length)} y2={svgHeight - padding.bottom} stroke="#ffffff" strokeWidth="1.0" strokeDasharray="3 3" />
-                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].vR, minPolyV, maxPolyV)} r="3" fill="#f43f5e" stroke="#fff" strokeWidth="1" />
-                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].vY, minPolyV, maxPolyV)} r="3" fill="#f59e0b" stroke="#fff" strokeWidth="1" />
-                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].vB, minPolyV, maxPolyV)} r="3" fill="#06b6d4" stroke="#fff" strokeWidth="1" />
+                    <line
+                      x1={getPolyX(hoverIndex, polyHistory.length)}
+                      y1={padding.top}
+                      x2={getPolyX(hoverIndex, polyHistory.length)}
+                      y2={svgHeight - padding.bottom}
+                      stroke="currentColor"
+                      className="text-slate-400 dark:text-zinc-300"
+                      strokeWidth="1.0"
+                      strokeDasharray="3 3"
+                    />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].vR, minPolyV, maxPolyV)} r="3.5" fill="#f43f5e" stroke="#ffffff" strokeWidth="1.2" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].vY, minPolyV, maxPolyV)} r="3.5" fill="#f59e0b" stroke="#ffffff" strokeWidth="1.2" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].vB, minPolyV, maxPolyV)} r="3.5" fill="#06b6d4" stroke="#ffffff" strokeWidth="1.2" />
                   </g>
                 )}
 
@@ -1774,28 +1852,28 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               </svg>
 
               {hoveredPolyPoint && (
-                <div className="absolute top-2 left-20 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs shadow-md backdrop-blur-xs">
-                  <span className="text-slate-400 dark:text-zinc-400 font-mono">{hoveredPolyPoint.timeLabel}</span>
-                  <span className="text-rose-500 font-bold">VR: {hoveredPolyPoint.vR.toFixed(1)}V</span>
-                  <span className="text-amber-500 font-bold">VY: {hoveredPolyPoint.vY.toFixed(1)}V</span>
-                  <span className="text-cyan-500 font-bold">VB: {hoveredPolyPoint.vB.toFixed(1)}V</span>
-                  <span className="text-emerald-500 font-bold">Unb: {hoveredPolyPoint.vUnb.toFixed(2)}%</span>
+                <div className="pointer-events-none absolute top-2 left-16 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs font-mono tabular-nums shadow-md backdrop-blur-xs">
+                  <span className="text-slate-500 dark:text-zinc-400 font-bold">{hoveredPolyPoint.timeLabel}</span>
+                  <span className="text-rose-600 dark:text-rose-400 font-bold">VR: {hoveredPolyPoint.vR.toFixed(1)}V</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">VY: {hoveredPolyPoint.vY.toFixed(1)}V</span>
+                  <span className="text-cyan-600 dark:text-cyan-400 font-bold">VB: {hoveredPolyPoint.vB.toFixed(1)}V</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">UNB: {hoveredPolyPoint.vUnb.toFixed(2)}%</span>
                 </div>
               )}
             </div>
 
-            <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums">
+            <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums font-mono">
               <div className="flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-[#f43f5e] shrink-0" />
-                <span>VR (PHASE R): <span className="font-bold text-slate-800 dark:text-zinc-200">{statsPolyVR.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsPolyVR.avg.toFixed(1)}V)</span></span>
+                <span>VR (PHASE R): <span className="font-bold text-rose-600 dark:text-rose-400">{statsPolyVR.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(AVG: {statsPolyVR.avg.toFixed(1)}V)</span></span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0" />
-                <span>VY (PHASE Y): <span className="font-bold text-slate-800 dark:text-zinc-200">{statsPolyVY.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsPolyVY.avg.toFixed(1)}V)</span></span>
+                <span>VY (PHASE Y): <span className="font-bold text-amber-600 dark:text-amber-400">{statsPolyVY.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(AVG: {statsPolyVY.avg.toFixed(1)}V)</span></span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0" />
-                <span>VB (PHASE B): <span className="font-bold text-slate-800 dark:text-zinc-200">{statsPolyVB.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(Avg: {statsPolyVB.avg.toFixed(1)}V)</span></span>
+                <span>VB (PHASE B): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsPolyVB.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(AVG: {statsPolyVB.avg.toFixed(1)}V)</span></span>
               </div>
             </div>
           </div>
@@ -1803,35 +1881,43 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           {/* ------------------------------------------------------------------------- */}
           {/* POLY CHART 3: 3-PHASE ACTIVE LOAD & TOTAL DEMAND */}
           {/* ------------------------------------------------------------------------- */}
-          <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none min-h-[300px]">
+          <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none">
             <div className="flex flex-wrap items-center justify-between px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/80 border-b border-slate-200 dark:border-zinc-800/80 text-xs">
               <div className="flex items-center gap-2">
-                <Zap className="h-4 w-4 text-amber-400" />
+                <Zap className="h-4 w-4 text-amber-500" />
                 <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs tracking-wide">
                   3. 3-PHASE ACTIVE LOAD &amp; POLE CONSUMPTION (WATTS)
                 </span>
               </div>
               <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
-                <span className="flex items-center gap-1 text-rose-500">
+                <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                  <span className="h-2 w-2 rounded-full bg-[#f43f5e] shrink-0 shadow-xs" />
                   PR: <span className="font-bold">{statsPolyPR.cur}W</span>
                 </span>
-                <span className="flex items-center gap-1 text-amber-500">
+                <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                  <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0 shadow-xs" />
                   PY: <span className="font-bold">{statsPolyPY.cur}W</span>
                 </span>
-                <span className="flex items-center gap-1 text-cyan-500">
+                <span className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400">
+                  <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0 shadow-xs" />
                   PB: <span className="font-bold">{statsPolyPB.cur}W</span>
                 </span>
-                <span className="flex items-center gap-1 text-emerald-500 font-bold">
+                <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0 shadow-xs" />
                   TOTAL: {(statsPolyPTotal.cur / 1000).toFixed(2)} kW
                 </span>
               </div>
             </div>
 
             <div
-              className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none min-h-[220px] h-[260px] xl:h-[285px]"
+              className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none aspect-[760/250] w-full"
               onMouseLeave={() => setHoverIndex(null)}
             >
-              <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
+              <svg
+                viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                className="w-full h-full overflow-visible font-mono tabular-nums"
+                style={{ fontFamily: "var(--font-mono), monospace" }}
+              >
                 <defs>
                   <linearGradient id="gradPolyPTotal" x1="0%" y1="0%" x2="0%" y2="100%">
                     <stop offset="0%" stopColor="#10b981" stopOpacity="0.16" />
@@ -1845,7 +1931,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                   return (
                     <g key={idx}>
                       <line x1={padding.left} y1={y} x2={svgWidth - padding.right} y2={y} stroke="currentColor" className="text-slate-200 dark:text-zinc-800" strokeWidth="1" strokeDasharray="3 3" />
-                      <text x={padding.left - 8} y={y + 3.5} className="fill-slate-500 dark:fill-zinc-400" fontSize="10" fontWeight="500" textAnchor="end">
+                      <text x={padding.left - 8} y={y + 3.5} className="fill-slate-500 dark:fill-zinc-400" fontSize="10" fontWeight="600" textAnchor="end">
                         {val.toFixed(0)}W
                       </text>
                     </g>
@@ -1857,7 +1943,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                   return (
                     <g key={idx}>
                       <line x1={x} y1={padding.top} x2={x} y2={svgHeight - padding.bottom} stroke="currentColor" className="text-slate-200 dark:text-zinc-800/60" strokeWidth="1" strokeDasharray="2 3" />
-                      <text x={x} y={svgHeight - padding.bottom + 18} className="fill-slate-400 dark:fill-zinc-500" fontSize="9.5" textAnchor="middle">
+                      <text x={x} y={svgHeight - padding.bottom + 16} className="fill-slate-400 dark:fill-zinc-500" fontSize="9.5" fontWeight="500" textAnchor="middle">
                         {marker.label}
                       </text>
                     </g>
@@ -1866,14 +1952,26 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
 
                 <path d={areaPolyPTotal} fill="url(#gradPolyPTotal)" />
                 <path d={pathPolyPTotal} fill="none" stroke="#10b981" strokeWidth="1.8" strokeLinecap="round" />
-                <path d={pathPolyPR} fill="none" stroke="#f43f5e" strokeWidth="1.2" strokeLinecap="round" />
-                <path d={pathPolyPY} fill="none" stroke="#f59e0b" strokeWidth="1.2" strokeLinecap="round" />
-                <path d={pathPolyPB} fill="none" stroke="#06b6d4" strokeWidth="1.2" strokeLinecap="round" />
+                <path d={pathPolyPR} fill="none" stroke="#f43f5e" strokeWidth="1.3" strokeLinecap="round" />
+                <path d={pathPolyPY} fill="none" stroke="#f59e0b" strokeWidth="1.3" strokeLinecap="round" />
+                <path d={pathPolyPB} fill="none" stroke="#06b6d4" strokeWidth="1.3" strokeLinecap="round" />
 
                 {hoverIndex !== null && polyHistory[hoverIndex] && (
                   <g>
-                    <line x1={getPolyX(hoverIndex, polyHistory.length)} y1={padding.top} x2={getPolyX(hoverIndex, polyHistory.length)} y2={svgHeight - padding.bottom} stroke="#ffffff" strokeWidth="1.0" strokeDasharray="3 3" />
-                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].pTotal, minPolyP, maxPolyP)} r="3" fill="#10b981" stroke="#fff" strokeWidth="1" />
+                    <line
+                      x1={getPolyX(hoverIndex, polyHistory.length)}
+                      y1={padding.top}
+                      x2={getPolyX(hoverIndex, polyHistory.length)}
+                      y2={svgHeight - padding.bottom}
+                      stroke="currentColor"
+                      className="text-slate-400 dark:text-zinc-300"
+                      strokeWidth="1.0"
+                      strokeDasharray="3 3"
+                    />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].pTotal, minPolyP, maxPolyP)} r="3.5" fill="#10b981" stroke="#ffffff" strokeWidth="1.2" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].pR, minPolyP, maxPolyP)} r="3" fill="#f43f5e" stroke="#ffffff" strokeWidth="1" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].pY, minPolyP, maxPolyP)} r="3" fill="#f59e0b" stroke="#ffffff" strokeWidth="1" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].pB, minPolyP, maxPolyP)} r="3" fill="#06b6d4" stroke="#ffffff" strokeWidth="1" />
                   </g>
                 )}
 
@@ -1883,17 +1981,17 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               </svg>
 
               {hoveredPolyPoint && (
-                <div className="absolute top-2 left-20 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs shadow-md backdrop-blur-xs">
-                  <span className="text-slate-400 dark:text-zinc-400 font-mono">{hoveredPolyPoint.timeLabel}</span>
-                  <span className="text-emerald-400 font-bold">TOTAL: {hoveredPolyPoint.pTotal}W</span>
-                  <span className="text-rose-400">R: {hoveredPolyPoint.pR}W</span>
-                  <span className="text-amber-400">Y: {hoveredPolyPoint.pY}W</span>
-                  <span className="text-cyan-400">B: {hoveredPolyPoint.pB}W</span>
+                <div className="pointer-events-none absolute top-2 left-16 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs font-mono tabular-nums shadow-md backdrop-blur-xs">
+                  <span className="text-slate-500 dark:text-zinc-400 font-bold">{hoveredPolyPoint.timeLabel}</span>
+                  <span className="text-emerald-600 dark:text-emerald-400 font-bold">TOTAL: {hoveredPolyPoint.pTotal}W</span>
+                  <span className="text-rose-600 dark:text-rose-400 font-bold">PR: {hoveredPolyPoint.pR}W</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">PY: {hoveredPolyPoint.pY}W</span>
+                  <span className="text-cyan-600 dark:text-cyan-400 font-bold">PB: {hoveredPolyPoint.pB}W</span>
                 </div>
               )}
             </div>
 
-            <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums">
+            <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums font-mono">
               <div className="flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0" />
                 <span>TOTAL DEMAND: <span className="font-bold text-emerald-600 dark:text-emerald-400">{(statsPolyPTotal.cur / 1000).toFixed(2)} kW</span> <span className="text-slate-400 dark:text-zinc-500">({statsPolyPTotal.cur} W)</span></span>
@@ -1912,56 +2010,65 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           {/* ------------------------------------------------------------------------- */}
           {/* POLY CHART 4: 3-PHASE POWER FACTOR & DISPLACEMENT QUALITY */}
           {/* ------------------------------------------------------------------------- */}
-          <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none min-h-[300px]">
+          <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm flex flex-col overflow-hidden shadow-xs dark:shadow-none">
             <div className="flex flex-wrap items-center justify-between px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/80 border-b border-slate-200 dark:border-zinc-800/80 text-xs">
               <div className="flex items-center gap-2">
-                <Gauge className="h-4 w-4 text-purple-400" />
+                <Gauge className="h-4 w-4 text-purple-500" />
                 <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs tracking-wide">
                   4. POWER FACTOR PER PHASE &amp; DISPLACEMENT QUALITY
                 </span>
               </div>
               <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
-                <span className="flex items-center gap-1 text-rose-500">
+                <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
+                  <span className="h-2 w-2 rounded-full bg-[#f43f5e] shrink-0 shadow-xs" />
                   PFR: <span className="font-bold">{statsPolyPfR.cur.toFixed(2)}</span>
                 </span>
-                <span className="flex items-center gap-1 text-amber-500">
+                <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
+                  <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0 shadow-xs" />
                   PFY: <span className="font-bold">{statsPolyPfY.cur.toFixed(2)}</span>
                 </span>
-                <span className="flex items-center gap-1 text-cyan-500">
+                <span className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400">
+                  <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0 shadow-xs" />
                   PFB: <span className="font-bold">{statsPolyPfB.cur.toFixed(2)}</span>
                 </span>
-                <span className="flex items-center gap-1 text-emerald-400 font-bold">
+                <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                  <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0 shadow-xs" />
                   AVG: {((statsPolyPfR.cur + statsPolyPfY.cur + statsPolyPfB.cur) / 3).toFixed(2)}
                 </span>
               </div>
             </div>
 
             <div
-              className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none min-h-[220px] h-[260px] xl:h-[285px]"
+              className="relative flex-1 bg-slate-50/50 dark:bg-[#070809] p-2 select-none aspect-[760/250] w-full"
               onMouseLeave={() => setHoverIndex(null)}
             >
-              <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} className="w-full h-full overflow-visible" preserveAspectRatio="none">
+              <svg
+                viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+                className="w-full h-full overflow-visible font-mono tabular-nums"
+                style={{ fontFamily: "var(--font-mono), monospace" }}
+              >
                 {yTicks.map((p, idx) => {
                   const val = minPolyPf + p * (maxPolyPf - minPolyPf);
                   const y = getYCoord(val, minPolyPf, maxPolyPf);
                   return (
                     <g key={idx}>
                       <line x1={padding.left} y1={y} x2={svgWidth - padding.right} y2={y} stroke="currentColor" className="text-slate-200 dark:text-zinc-800" strokeWidth="1" strokeDasharray="3 3" />
-                      <text x={padding.left - 8} y={y + 3.5} className="fill-slate-500 dark:fill-zinc-400" fontSize="10" fontWeight="500" textAnchor="end">
+                      <text x={padding.left - 8} y={y + 3.5} className="fill-slate-500 dark:fill-zinc-400" fontSize="10" fontWeight="600" textAnchor="end">
                         {val.toFixed(2)}
                       </text>
                     </g>
                   );
                 })}
 
-                <line x1={padding.left} y1={yPfNominal} x2={svgWidth - padding.right} y2={yPfNominal} stroke="#a855f7" strokeWidth="1.2" strokeDasharray="4 3" opacity="0.7" />
+                <line x1={padding.left} y1={yPfNominal} x2={svgWidth - padding.right} y2={yPfNominal} stroke="#a855f7" strokeWidth="1.1" strokeDasharray="4 3" opacity="0.85" />
+                <text x={svgWidth - padding.right - 6} y={yPfNominal + 12} fill="#a855f7" fontSize="9.5" fontWeight="bold" textAnchor="end">0.90 PF STATUTORY MIN</text>
 
                 {xTimeMarkers.map((marker, idx) => {
                   const x = padding.left + marker.p * graphWidth;
                   return (
                     <g key={idx}>
                       <line x1={x} y1={padding.top} x2={x} y2={svgHeight - padding.bottom} stroke="currentColor" className="text-slate-200 dark:text-zinc-800/60" strokeWidth="1" strokeDasharray="2 3" />
-                      <text x={x} y={svgHeight - padding.bottom + 18} className="fill-slate-400 dark:fill-zinc-500" fontSize="9.5" textAnchor="middle">
+                      <text x={x} y={svgHeight - padding.bottom + 16} className="fill-slate-400 dark:fill-zinc-500" fontSize="9.5" fontWeight="500" textAnchor="middle">
                         {marker.label}
                       </text>
                     </g>
@@ -1974,10 +2081,19 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
 
                 {hoverIndex !== null && polyHistory[hoverIndex] && (
                   <g>
-                    <line x1={getPolyX(hoverIndex, polyHistory.length)} y1={padding.top} x2={getPolyX(hoverIndex, polyHistory.length)} y2={svgHeight - padding.bottom} stroke="#ffffff" strokeWidth="1.0" strokeDasharray="3 3" />
-                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].pfR, minPolyPf, maxPolyPf)} r="3" fill="#f43f5e" stroke="#fff" strokeWidth="1" />
-                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].pfY, minPolyPf, maxPolyPf)} r="3" fill="#f59e0b" stroke="#fff" strokeWidth="1" />
-                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].pfB, minPolyPf, maxPolyPf)} r="3" fill="#06b6d4" stroke="#fff" strokeWidth="1" />
+                    <line
+                      x1={getPolyX(hoverIndex, polyHistory.length)}
+                      y1={padding.top}
+                      x2={getPolyX(hoverIndex, polyHistory.length)}
+                      y2={svgHeight - padding.bottom}
+                      stroke="currentColor"
+                      className="text-slate-400 dark:text-zinc-300"
+                      strokeWidth="1.0"
+                      strokeDasharray="3 3"
+                    />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].pfR, minPolyPf, maxPolyPf)} r="3.5" fill="#f43f5e" stroke="#ffffff" strokeWidth="1.2" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].pfY, minPolyPf, maxPolyPf)} r="3.5" fill="#f59e0b" stroke="#ffffff" strokeWidth="1.2" />
+                    <circle cx={getPolyX(hoverIndex, polyHistory.length)} cy={getYCoord(polyHistory[hoverIndex].pfB, minPolyPf, maxPolyPf)} r="3.5" fill="#06b6d4" stroke="#ffffff" strokeWidth="1.2" />
                   </g>
                 )}
 
@@ -1987,27 +2103,27 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               </svg>
 
               {hoveredPolyPoint && (
-                <div className="absolute top-2 left-20 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs shadow-md backdrop-blur-xs">
-                  <span className="text-slate-400 dark:text-zinc-400 font-mono">{hoveredPolyPoint.timeLabel}</span>
-                  <span className="text-rose-400">PFR: {hoveredPolyPoint.pfR.toFixed(2)}</span>
-                  <span className="text-amber-400">PFY: {hoveredPolyPoint.pfY.toFixed(2)}</span>
-                  <span className="text-cyan-400">PFB: {hoveredPolyPoint.pfB.toFixed(2)}</span>
+                <div className="pointer-events-none absolute top-2 left-16 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 text-slate-800 dark:text-zinc-100 px-3 py-1 rounded-sm flex items-center gap-3 text-xs font-mono tabular-nums shadow-md backdrop-blur-xs">
+                  <span className="text-slate-500 dark:text-zinc-400 font-bold">{hoveredPolyPoint.timeLabel}</span>
+                  <span className="text-rose-600 dark:text-rose-400 font-bold">PFR: {hoveredPolyPoint.pfR.toFixed(2)}</span>
+                  <span className="text-amber-600 dark:text-amber-400 font-bold">PFY: {hoveredPolyPoint.pfY.toFixed(2)}</span>
+                  <span className="text-cyan-600 dark:text-cyan-400 font-bold">PFB: {hoveredPolyPoint.pfB.toFixed(2)}</span>
                 </div>
               )}
             </div>
 
-            <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums">
+            <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums font-mono">
               <div className="flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-[#f43f5e] shrink-0" />
-                <span>PF (R): <span className="font-bold text-slate-800 dark:text-zinc-200">{statsPolyPfR.cur.toFixed(2)}</span> <span className="text-slate-400 dark:text-zinc-500">IND</span></span>
+                <span>PF (PHASE R): <span className="font-bold text-rose-600 dark:text-rose-400">{statsPolyPfR.cur.toFixed(2)}</span> <span className="text-slate-400 dark:text-zinc-500">(IND)</span></span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0" />
-                <span>PF (Y): <span className="font-bold text-slate-800 dark:text-zinc-200">{statsPolyPfY.cur.toFixed(2)}</span> <span className="text-slate-400 dark:text-zinc-500">IND</span></span>
+                <span>PF (PHASE Y): <span className="font-bold text-amber-600 dark:text-amber-400">{statsPolyPfY.cur.toFixed(2)}</span> <span className="text-slate-400 dark:text-zinc-500">(IND)</span></span>
               </div>
               <div className="flex items-center gap-1.5">
                 <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0" />
-                <span>PF (B): <span className="font-bold text-slate-800 dark:text-zinc-200">{statsPolyPfB.cur.toFixed(2)}</span> <span className="text-slate-400 dark:text-zinc-500">IND</span></span>
+                <span>PF (PHASE B): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsPolyPfB.cur.toFixed(2)}</span> <span className="text-slate-400 dark:text-zinc-500">(IND)</span></span>
               </div>
             </div>
           </div>
