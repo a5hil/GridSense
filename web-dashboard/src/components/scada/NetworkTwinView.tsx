@@ -73,15 +73,19 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
   const [showFaultsOnly, setShowFaultsOnly] = React.useState(false);
   const [showSecondaryFdir, setShowSecondaryFdir] = React.useState(false);
 
-  // Identify root-cause trips vs secondary cascade sags
+  // Identify root-cause electrical trips vs secondary cascade sags (exclude pure comms offline alerts)
   const rootDetections = React.useMemo(() => {
     if (!snapshot) return [];
-    return snapshot.detections.filter((d) => !d.ansi.includes("27") || d.severity === "CRITICAL");
+    return snapshot.detections.filter(
+      (d) => d.type !== "NODE_OFFLINE" && (!d.ansi.includes("27") || d.severity === "CRITICAL")
+    );
   }, [snapshot]);
 
   const cascadeDetections = React.useMemo(() => {
     if (!snapshot) return [];
-    return snapshot.detections.filter((d) => d.ansi.includes("27") && d.severity !== "CRITICAL");
+    return snapshot.detections.filter(
+      (d) => d.type !== "NODE_OFFLINE" && d.ansi.includes("27") && d.severity !== "CRITICAL"
+    );
   }, [snapshot]);
 
   const totalFaultedPoles = React.useMemo(() => {
@@ -529,8 +533,8 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
         </div>
       )}
 
-      {/* 4. ACTIVE DETECTIONS & FLISR ISOLATION MATRIX */}
-      {detections.length > 0 && (
+      {/* 4. ACTIVE DETECTIONS & FLISR ISOLATION MATRIX (Electrical protection trips only) */}
+      {(rootDetections.length > 0 || cascadeDetections.length > 0) && (
         <div className="border border-rose-500/60 bg-rose-500/10 dark:bg-rose-950/40 p-3 rounded-sm flex flex-col gap-2 font-mono text-xs shadow-md">
           <div className="flex items-center justify-between border-b border-rose-500/30 pb-1.5">
             <div className="flex items-center gap-2 text-rose-600 dark:text-rose-300 font-bold">
