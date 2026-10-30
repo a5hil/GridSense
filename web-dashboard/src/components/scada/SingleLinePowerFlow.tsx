@@ -346,7 +346,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
               const isSelected = selectedPoleId?.toLowerCase() === node.id.toLowerCase();
               const isNodeTripped = node.status === "ALARM";
               const isNodeWarn = node.status === "WARN";
-              const isNodeDeenergized = node.status === "DEENERGIZED" || !node.energized || isPowerCut;
+              const isNodeDeenergized = node.status === "DEENERGIZED" || !node.energized || isPowerCut || isGatewayOffline;
 
               // Check if span to this node has a detection or tripped section
               const spanDetection = networkSnapshot?.detections.find(
@@ -356,9 +356,9 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
               const isLiveSpan = viewScope === "LT-1" && (node.id === "F1-P02" || node.id === "POLE-B");
               const isP1 = node.id === "F1-P01" || node.id === "POLE-A";
               const isP2 = node.id === "F1-P02" || node.id === "POLE-B";
-              const liveV = isP1 ? (v1 > 0 ? v1 : node.phases.R.v) : isP2 ? (v2 > 0 ? v2 : node.phases.R.v) : node.phases.R.v;
-              const liveI = isP1 ? (i1 > 0 ? i1 : node.phases.R.i) : isP2 ? (i2 > 0 ? i2 : node.phases.R.i) : node.phases.R.i;
-              const liveP = isP1 ? (p1 > 0 ? p1 : node.phases.R.p) : isP2 ? (p2 > 0 ? p2 : node.phases.R.p) : (node.phases.R.p + node.phases.Y.p + node.phases.B.p);
+              const liveV = isNodeDeenergized ? 0 : (isP1 ? (v1 > 0 ? v1 : node.phases.R.v) : isP2 ? (v2 > 0 ? v2 : node.phases.R.v) : node.phases.R.v);
+              const liveI = isNodeDeenergized ? 0 : (isP1 ? (i1 > 0 ? i1 : node.phases.R.i) : isP2 ? (i2 > 0 ? i2 : node.phases.R.i) : node.phases.R.i);
+              const liveP = isNodeDeenergized ? 0 : (isP1 ? (p1 > 0 ? p1 : node.phases.R.p) : isP2 ? (p2 > 0 ? p2 : node.phases.R.p) : (node.phases.R.p + node.phases.Y.p + node.phases.B.p));
 
               return (
                 <React.Fragment key={node.id}>
@@ -534,19 +534,19 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
                         <div className="flex justify-between items-baseline">
                           <span className="text-amber-700 dark:text-amber-500 font-bold">VY:</span>
                           <span className="text-slate-800 dark:text-zinc-200 font-bold tabular-nums">
-                            {node.phases.Y.v.toFixed(1)}V
+                            {isNodeDeenergized ? "0.0V" : `${node.phases.Y.v.toFixed(1)}V`}
                           </span>
                           <span className="text-slate-600 dark:text-zinc-400 tabular-nums">
-                            {node.phases.Y.i.toFixed(2)}A
+                            {isNodeDeenergized ? "0.00A" : `${node.phases.Y.i.toFixed(2)}A`}
                           </span>
                         </div>
                         <div className="flex justify-between items-baseline">
                           <span className="text-blue-700 dark:text-cyan-500 font-bold">VB:</span>
                           <span className="text-slate-800 dark:text-zinc-200 font-bold tabular-nums">
-                            {node.phases.B.v.toFixed(1)}V
+                            {isNodeDeenergized ? "0.0V" : `${node.phases.B.v.toFixed(1)}V`}
                           </span>
                           <span className="text-slate-600 dark:text-zinc-400 tabular-nums">
-                            {node.phases.B.i.toFixed(2)}A
+                            {isNodeDeenergized ? "0.00A" : `${node.phases.B.i.toFixed(2)}A`}
                           </span>
                         </div>
                       </div>

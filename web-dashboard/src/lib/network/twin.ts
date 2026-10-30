@@ -265,6 +265,15 @@ class NetworkTwin extends EventEmitter {
       subtree(f.spanChildId!).forEach((id) => dead[f.phase!].add(id));
     }
 
+    // If hardware feeder LT-1 is de-energized or offline at root F1-P01/P02,
+    // mark Phase R dead for the entire downstream lateral so 0V = 0A.
+    const isLt1OfflineOrDead = !live.linkUp || !live.a.online || (live.a.v < 50 && (!live.b.online || live.b.v < 50));
+    if (isLt1OfflineOrDead) {
+      for (const id of benchSub) {
+        dead.R.add(id);
+      }
+    }
+
     // Classify each phase of each node
     const srcOf = (id: string, p: Phase): PhaseReading["source"] => {
       const n = NODE_BY_ID[id];
@@ -399,12 +408,15 @@ class NetworkTwin extends EventEmitter {
       for (const p of PHASES) {
         const src = id === "DTR-01" ? "SIM" : srcOf(id, p);
         const isSimMeter = src === "SIM";
-        const i = id === "DTR-01" ? (CHILDREN[id] || []).reduce((a, c) => a + iSpan[c][p], 0) : iIn[id][p];
-        const iMeas = isSimMeter && i > 0 ? i * (1 + 0.002 * this.gauss()) : i;
-        const vMeas = isSimMeter && volt[id][p] > 0 ? volt[id][p] + 0.1 * this.gauss() : volt[id][p];
+        const rawV = volt[id][p];
+        const isPhaseDead = dead[p].has(id) || rawV < 10;
+        const i = (id === "DTR-01" ? (CHILDREN[id] || []).reduce((a, c) => a + iSpan[c][p], 0) : iIn[id][p]);
+        const finalI = isPhaseDead ? 0 : i;
+        const iMeas = isSimMeter && finalI > 0 ? finalI * (1 + 0.002 * this.gauss()) : finalI;
+        const vMeas = isSimMeter && rawV > 0 && !isPhaseDead ? rawV + 0.1 * this.gauss() : (isPhaseDead ? 0 : rawV);
         const pfPhaseOffset = p === "R" ? 0.014 : p === "Y" ? -0.008 : -0.021;
         const pf =
-          src === "OFFLINE" || src === "NOT_INSTRUMENTED" || vMeas < 10
+          src === "OFFLINE" || src === "NOT_INSTRUMENTED" || vMeas < 10 || isPhaseDead
             ? 0
             : src === "LIVE"
             ? liveSide(id).pf
@@ -414,7 +426,9 @@ class NetworkTwin extends EventEmitter {
           v: round(vMeas, 1),
           i: round(iMeas, 3),
           p: round(
-            src === "LIVE"
+            isPhaseDead
+              ? 0
+              : src === "LIVE"
               ? (liveP > 0 ? liveP : (iMeas > 0 ? vMeas * iMeas * pf : 0))
               : vMeas * iMeas * pf,
             1

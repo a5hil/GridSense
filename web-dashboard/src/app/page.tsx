@@ -1146,10 +1146,12 @@ export default function SCADADashboard() {
                 </CardHeader>
                 <CardContent className="pt-2 pb-2.5">
                   <div className="flex items-center gap-2.5">
-                    <GitBranch className={`h-7 w-7 shrink-0 ${isPowerCut ? "text-slate-500 dark:text-zinc-500" : isFault ? "text-rose-600 dark:text-rose-500" : "text-emerald-600 dark:text-emerald-400"}`} />
+                    <GitBranch className={`h-7 w-7 shrink-0 ${isGatewayOffline || isPowerCut ? "text-slate-500 dark:text-zinc-500" : isFault ? "text-rose-600 dark:text-rose-500" : "text-emerald-600 dark:text-emerald-400"}`} />
                     <div className="min-w-0">
-                      <div className={`text-xl font-bold font-mono tabular-nums ${isPowerCut ? "text-slate-600 dark:text-zinc-400" : "text-slate-900 dark:text-emerald-400"}`}>
-                        {networkSnapshot
+                      <div className={`text-xl font-bold font-mono tabular-nums ${isGatewayOffline || isPowerCut ? "text-slate-600 dark:text-zinc-400" : "text-slate-900 dark:text-emerald-400"}`}>
+                        {isGatewayOffline
+                          ? "--- "
+                          : networkSnapshot
                           ? (
                               networkSnapshot.dtr.current.R +
                               networkSnapshot.dtr.current.Y +
@@ -1159,19 +1161,21 @@ export default function SCADADashboard() {
                         <span className="text-sm text-slate-600 dark:text-zinc-500 font-normal">A (3Φ SUM)</span>
                       </div>
                       <div className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono mt-0.5 space-x-1 tabular-nums truncate">
-                        <span>P01: {i1.toFixed(2)}A</span>
+                        <span>P01: {isGatewayOffline ? "---" : `${i1.toFixed(2)}A`}</span>
                         <span>•</span>
-                        <span>P02: {i2.toFixed(2)}A</span>
+                        <span>P02: {isGatewayOffline ? "---" : `${i2.toFixed(2)}A`}</span>
                         <span>•</span>
-                        <span className={idiff >= tripLimit ? "text-rose-600 dark:text-rose-400 font-bold" : isPowerCut ? "text-slate-600 dark:text-zinc-400" : "text-emerald-700 dark:text-emerald-400"}>ΔI: {idiff.toFixed(3)}A</span>
+                        <span className={idiff >= tripLimit && !isGatewayOffline ? "text-rose-600 dark:text-rose-400 font-bold" : isGatewayOffline || isPowerCut ? "text-slate-600 dark:text-zinc-400" : "text-emerald-700 dark:text-emerald-400"}>
+                          ΔI: {isGatewayOffline ? "---" : `${idiff.toFixed(3)}A`}
+                        </span>
                       </div>
                     </div>
                   </div>
                 </CardContent>
                 <div className="border-t border-slate-200/80 dark:border-zinc-800/80 px-3.5 py-1.5 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between bg-slate-50/60 dark:bg-zinc-950/40">
                   <span>CORRIDOR: F1-P01 ↔ F1-P02</span>
-                  <span className={isPowerCut ? "text-slate-600 dark:text-zinc-400 font-semibold" : isFault ? "text-rose-600 dark:text-rose-500 font-bold" : "text-emerald-600 dark:text-emerald-500 font-semibold"}>
-                    {isPowerCut ? "0A SUPPLY" : isFault ? "DIFF TRIP" : "28 NODES ENERGIZED"}
+                  <span className={isGatewayOffline ? "text-amber-600 dark:text-amber-500 font-semibold" : isPowerCut ? "text-slate-600 dark:text-zinc-400 font-semibold" : isFault ? "text-rose-600 dark:text-rose-500 font-bold" : "text-emerald-600 dark:text-emerald-500 font-semibold"}>
+                    {isGatewayOffline ? "GATEWAY OFFLINE" : isPowerCut ? "0A SUPPLY" : isFault ? "DIFF TRIP" : "28 NODES ENERGIZED"}
                   </span>
                 </div>
               </Card>
