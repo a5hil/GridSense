@@ -512,13 +512,13 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
     const pY = activeNode.phases.Y.p > 0 ? activeNode.phases.Y.p : (iY > 0 ? vY * iY * pfY : 0);
     const pB = activeNode.phases.B.p > 0 ? activeNode.phases.B.p : (iB > 0 ? vB * iB * pfB : 0);
 
-    const vAvg = (vR + vY + vB) / 3 || 1;
+    const vAvg = (vR + vY + vB) / 3;
     const vMaxDev = Math.max(Math.abs(vR - vAvg), Math.abs(vY - vAvg), Math.abs(vB - vAvg));
-    const vUnb = (vMaxDev / vAvg) * 100;
+    const vUnb = vAvg > 10 ? (vMaxDev / vAvg) * 100 : 0;
 
-    const iAvg = (iR + iY + iB) / 3 || 1;
+    const iAvg = (iR + iY + iB) / 3;
     const iMaxDev = Math.max(Math.abs(iR - iAvg), Math.abs(iY - iAvg), Math.abs(iB - iAvg));
-    const iUnb = (iMaxDev / iAvg) * 100;
+    const iUnb = iAvg > 0.05 ? (iMaxDev / iAvg) * 100 : 0;
 
     // Neutral return current magnitude
     const iNeutral = Math.sqrt(
@@ -627,9 +627,12 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
   const statsPolyIN = calcStats(polyHistory.map((p) => p.iNeutral));
   const latestIUnb = polyHistory.length > 0 ? polyHistory[polyHistory.length - 1].iUnb : 0;
 
-  const allPolyV = polyHistory.flatMap((p) => [p.vR, p.vY, p.vB, 216, 244]);
-  const minPolyV = Math.max(180, Math.floor(Math.min(...(allPolyV.length ? allPolyV : [200])) - 5));
-  const maxPolyV = Math.min(270, Math.ceil(Math.max(...(allPolyV.length ? allPolyV : [250])) + 5));
+  const allPolyV = polyHistory.flatMap((p) => [p.vR, p.vY, p.vB]);
+  const hasZeroV = allPolyV.some((v) => v < 50);
+  const minPolyV = hasZeroV
+    ? 0
+    : Math.max(180, Math.floor(Math.min(...(allPolyV.length ? allPolyV : [200])) - 5));
+  const maxPolyV = Math.min(270, Math.max(255, Math.ceil(Math.max(...(allPolyV.length ? allPolyV : [250])) + 5)));
   const pathPolyVR = generatePolyPath((p) => p.vR, minPolyV, maxPolyV);
   const pathPolyVY = generatePolyPath((p) => p.vY, minPolyV, maxPolyV);
   const pathPolyVB = generatePolyPath((p) => p.vB, minPolyV, maxPolyV);
@@ -1657,7 +1660,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                       strokeDasharray="4 2"
                     />
                     <text
-                      x={getPolyX(polyHistory.length - 1, polyHistory.length) - 6}
+                      x={Math.max(padding.left + 10, getPolyX(polyHistory.length - 1, polyHistory.length) - 8)}
                       y={padding.top + 14}
                       className="fill-rose-500 font-bold"
                       fontSize="9.5"
@@ -1782,11 +1785,19 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                   );
                 })}
 
-                <line x1={padding.left} y1={yUpperV} x2={svgWidth - padding.right} y2={yUpperV} stroke="#f59e0b" strokeWidth="1.1" strokeDasharray="4 3" opacity="0.8" />
-                <text x={svgWidth - padding.right - 6} y={yUpperV - 5} fill="#f59e0b" fontSize="9.5" fontWeight="bold" textAnchor="end">+6% UPPER (243.8V)</text>
+                {yUpperV >= padding.top && yUpperV <= svgHeight - padding.bottom && (
+                  <>
+                    <line x1={padding.left} y1={yUpperV} x2={svgWidth - padding.right} y2={yUpperV} stroke="#f59e0b" strokeWidth="1.1" strokeDasharray="4 3" opacity="0.8" />
+                    <text x={svgWidth - padding.right - 6} y={yUpperV - 5} fill="#f59e0b" fontSize="9.5" fontWeight="bold" textAnchor="end">+6% UPPER (243.8V)</text>
+                  </>
+                )}
 
-                <line x1={padding.left} y1={yLowerV} x2={svgWidth - padding.right} y2={yLowerV} stroke="#f59e0b" strokeWidth="1.1" strokeDasharray="4 3" opacity="0.8" />
-                <text x={svgWidth - padding.right - 6} y={yLowerV + 12} fill="#f59e0b" fontSize="9.5" fontWeight="bold" textAnchor="end">-6% LOWER (216.2V)</text>
+                {yLowerV >= padding.top && yLowerV <= svgHeight - padding.bottom && (
+                  <>
+                    <line x1={padding.left} y1={yLowerV} x2={svgWidth - padding.right} y2={yLowerV} stroke="#f59e0b" strokeWidth="1.1" strokeDasharray="4 3" opacity="0.8" />
+                    <text x={svgWidth - padding.right - 6} y={yLowerV + 12} fill="#f59e0b" fontSize="9.5" fontWeight="bold" textAnchor="end">-6% LOWER (216.2V)</text>
+                  </>
+                )}
 
                 {xTimeMarkers.map((marker, idx) => {
                   const x = padding.left + marker.p * graphWidth;
@@ -1817,7 +1828,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                       strokeDasharray="4 2"
                     />
                     <text
-                      x={getPolyX(polyHistory.length - 1, polyHistory.length) - 6}
+                      x={Math.max(padding.left + 10, getPolyX(polyHistory.length - 1, polyHistory.length) - 8)}
                       y={padding.top + 14}
                       className="fill-rose-500 font-bold"
                       fontSize="9.5"

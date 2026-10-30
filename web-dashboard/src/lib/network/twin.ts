@@ -402,7 +402,13 @@ class NetworkTwin extends EventEmitter {
         const i = id === "DTR-01" ? (CHILDREN[id] || []).reduce((a, c) => a + iSpan[c][p], 0) : iIn[id][p];
         const iMeas = isSimMeter && i > 0 ? i * (1 + 0.002 * this.gauss()) : i;
         const vMeas = isSimMeter && volt[id][p] > 0 ? volt[id][p] + 0.1 * this.gauss() : volt[id][p];
-        const pf = src === "LIVE" ? liveSide(id).pf : this.pf[id] ?? 0.95;
+        const pfPhaseOffset = p === "R" ? 0.014 : p === "Y" ? -0.008 : -0.021;
+        const pf =
+          src === "OFFLINE" || src === "NOT_INSTRUMENTED" || vMeas < 10
+            ? 0
+            : src === "LIVE"
+            ? liveSide(id).pf
+            : Math.min(0.99, Math.max(0.82, (this.pf[id] ?? 0.94) + pfPhaseOffset + 0.002 * this.gauss()));
         const liveP = liveSide(id).phases?.[p]?.p ?? (p === "R" ? liveSide(id).p : 0);
         phases[p] = {
           v: round(vMeas, 1),
