@@ -788,7 +788,7 @@ export default function SCADADashboard() {
       {activeFault && (
         <div className={`border border-rose-400 dark:border-rose-600 bg-rose-50 dark:bg-rose-950/80 p-3 rounded-sm flex flex-wrap items-center justify-between gap-3 ring-1 ring-rose-300 dark:ring-rose-500 font-mono shadow-sm dark:shadow-lg transition-colors ${isAlarmUnacked ? "animate-pulse" : ""}`}>
           <div className="flex items-center gap-3">
-            <AlertOctagon className={`h-6 w-6 text-rose-600 dark:text-rose-400 shrink-0 ${isAlarmUnacked ? "animate-bounce" : ""}`} />
+            <AlertOctagon className="h-6 w-6 text-rose-600 dark:text-rose-400 shrink-0" />
             <div>
               <div className="text-xs font-bold uppercase tracking-wider text-rose-900 dark:text-rose-200 flex flex-wrap items-center gap-2">
                 <span className="bg-rose-600 text-white dark:bg-rose-900 border border-rose-500 dark:border-rose-400 font-mono px-2 py-0.5 rounded-xs text-[10px] font-black">

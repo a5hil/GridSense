@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, X, CheckCircle, ShieldAlert } from "lucide-react";
+import { AlertOctagon, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -98,13 +98,16 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-center gap-2">
                 {toast.type === "destructive" && (
-                  <ShieldAlert className="h-4 w-4 text-rose-600 dark:text-rose-500 animate-bounce shrink-0" />
+                  <AlertOctagon className="h-4 w-4 text-rose-600 dark:text-rose-500 animate-pulse shrink-0" />
                 )}
                 {toast.type === "warning" && (
                   <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-500 shrink-0" />
                 )}
                 {toast.type === "success" && (
-                  <CheckCircle className="h-4 w-4 text-emerald-600 dark:text-emerald-500 shrink-0" />
+                  <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-500 shrink-0" />
+                )}
+                {(!toast.type || toast.type === "info") && (
+                  <Info className="h-4 w-4 text-cyan-600 dark:text-cyan-400 shrink-0" />
                 )}
                 <span className="text-xs font-bold uppercase tracking-wider font-mono">
                   {toast.title}

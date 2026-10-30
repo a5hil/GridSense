@@ -3,6 +3,7 @@
 import * as React from "react";
 import {
   Activity,
+  AlertOctagon,
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
@@ -670,7 +671,7 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
           <>
             <div className="flex items-center gap-2">
               {(viewScope === "LT-1" && isFault) || isFeederFaulted ? (
-                <AlertTriangle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0 animate-bounce" />
+                <AlertOctagon className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
               ) : (
                 <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
               )}

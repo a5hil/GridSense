@@ -6,7 +6,6 @@ import {
   AlertTriangle,
   Clock,
   Download,
-  Flame,
   Gauge,
   GitBranch,
   Layers,
@@ -15,6 +14,7 @@ import {
   Radio,
   ShieldAlert,
   ShieldCheck,
+  TrendingDown,
   TrendingUp,
   Zap,
 } from "lucide-react";
@@ -1399,7 +1399,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           {/* Card Header with Live Values */}
           <div className="flex flex-wrap items-center justify-between px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/80 border-b border-slate-200 dark:border-zinc-800/80 text-xs">
             <div className="flex items-center gap-2">
-              <Flame className="h-4 w-4 text-orange-500" />
+              <TrendingDown className="h-4 w-4 text-orange-500" />
               <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs tracking-wide">
                 4. TECHNICAL LINE LOSS (ΔP) &amp; SPAN VOLTAGE DROP (ΔV)
               </span>

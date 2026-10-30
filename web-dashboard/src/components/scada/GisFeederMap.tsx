@@ -15,7 +15,7 @@ import {
   Radio,
   RotateCcw,
   Settings,
-  ShieldAlert,
+  AlertOctagon,
   Zap,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -928,7 +928,7 @@ export const GisFeederMap = React.memo(function GisFeederMap({
         {isFault && (
           <div className="absolute top-14 left-3 border border-rose-500 bg-rose-50/95 dark:bg-zinc-950/95 p-2.5 rounded-sm shadow-2xl flex items-center justify-between gap-3 text-xs font-mono text-rose-900 dark:text-rose-200 animate-pulse z-10 max-w-md">
             <div className="flex items-center gap-2">
-              <ShieldAlert className="h-4 w-4 text-rose-600 dark:text-rose-500 animate-bounce shrink-0" />
+              <AlertOctagon className="h-4 w-4 text-rose-600 dark:text-rose-500 shrink-0" />
               <div>
                 <span className="font-bold uppercase tracking-wider block">
                   ANSI 87L FAULT LOCALIZED // SPAN F1-P01 ↔ F1-P02

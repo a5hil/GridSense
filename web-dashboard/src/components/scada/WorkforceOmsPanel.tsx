@@ -444,7 +444,7 @@ export function WorkforceOmsPanel({
               Soak Watchlist
             </div>
             <div className="text-sm font-bold flex items-center gap-1.5 mt-0.5">
-              <Clock className={`h-3.5 w-3.5 ${isSoakActive ? "text-amber-500 animate-spin" : "text-slate-400 dark:text-zinc-500"}`} />
+              <Clock className={`h-3.5 w-3.5 ${isSoakActive ? "text-amber-500 animate-pulse" : "text-slate-400 dark:text-zinc-500"}`} />
               <span className={isSoakActive ? "text-amber-700 dark:text-amber-400 font-bold" : "text-slate-800 dark:text-zinc-300 font-bold"}>
                 {watchingTickets.length > 0 || isSoakActive ? `${Math.max(1, watchingTickets.length)} In Observation` : "0 Monitoring"}
               </span>
@@ -462,7 +462,7 @@ export function WorkforceOmsPanel({
               Action Required
             </div>
             <div className="text-sm font-bold flex items-center gap-1.5 mt-0.5">
-              <AlertTriangle className={`h-3.5 w-3.5 ${isEscalated ? "text-rose-600 dark:text-rose-500 animate-bounce" : "text-slate-400 dark:text-zinc-500"}`} />
+              <AlertOctagon className={`h-3.5 w-3.5 ${isEscalated ? "text-rose-600 dark:text-rose-500 animate-pulse" : "text-slate-400 dark:text-zinc-500"}`} />
               <span className={isEscalated ? "text-rose-600 dark:text-rose-400 font-bold" : "text-slate-800 dark:text-zinc-300 font-bold"}>
                 {escalatedTickets.length > 0 || isEscalated ? `${Math.max(1, escalatedTickets.length)} Escalated` : "0 Pending"}
               </span>
@@ -523,7 +523,7 @@ export function WorkforceOmsPanel({
       <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm p-3.5 shadow-xs dark:shadow-none flex flex-col shrink-0 space-y-2">
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-2">
           <div className="flex items-center gap-2">
-            <Radio className="h-4 w-4 text-rose-600 dark:text-rose-400 animate-pulse" />
+            <Radio className="h-4 w-4 text-slate-500 dark:text-zinc-400" />
             <span className="font-bold uppercase tracking-wider text-xs text-slate-900 dark:text-zinc-100">
               Live Outage Supervision &amp; Soak Watchlist
             </span>

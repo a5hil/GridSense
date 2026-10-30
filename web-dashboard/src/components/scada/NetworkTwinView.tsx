@@ -10,7 +10,7 @@ import {
   ChevronDown,
   ChevronRight,
   Cpu,
-  Flame,
+  FlaskConical,
   Info,
   Layers,
   Lock,
@@ -245,7 +245,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
                 : "border-slate-300 dark:border-zinc-700"
             }`}
           >
-            <Flame className="h-3 w-3 mr-1 text-amber-500" />
+            <FlaskConical className="h-3 w-3 mr-1 text-purple-600 dark:text-purple-400" />
             <span>CONTINGENCY SIMULATOR (OTS) {injectedFaults.length > 0 ? `(${injectedFaults.length})` : ""}</span>
           </Button>
         </div>
@@ -349,7 +349,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
         <div className="border border-amber-500/50 bg-amber-500/5 dark:bg-amber-950/30 p-3.5 rounded-sm flex flex-col gap-3 text-xs">
           <div className="flex items-center justify-between border-b border-amber-500/30 pb-2">
             <div className="flex items-center gap-2">
-              <Flame className="h-4 w-4 text-amber-500 animate-pulse" />
+              <FlaskConical className="h-4 w-4 text-purple-600 dark:text-purple-400" />
               <span className="font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
                 OPERATOR TRAINING SIMULATOR (OTS) // CONTINGENCY CONSOLE
               </span>
@@ -534,7 +534,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
         <div className="border border-rose-500/60 bg-rose-500/10 dark:bg-rose-950/40 p-3 rounded-sm flex flex-col gap-2 font-mono text-xs shadow-md">
           <div className="flex items-center justify-between border-b border-rose-500/30 pb-1.5">
             <div className="flex items-center gap-2 text-rose-600 dark:text-rose-300 font-bold">
-              <AlertOctagon className="h-4 w-4 animate-bounce" />
+              <AlertOctagon className="h-4 w-4 shrink-0" />
               <span>
                 CENTRAL FDIR &amp; AUTOMATION // {rootDetections.length} ROOT-CAUSE RELAY TRIP{rootDetections.length > 1 ? "S" : ""}
                 {cascadeDetections.length > 0 ? ` (+${cascadeDetections.length} SYMPATHETIC SAGS)` : ""}
