@@ -1427,7 +1427,7 @@ export default function SCADADashboard() {
                         <div>
                           <div className="text-xs font-bold text-cyan-600 dark:text-cyan-400 flex items-center gap-1.5">
                             <Wrench className="h-3.5 w-3.5" />
-                            <span>CREW DISPATCHED ({dispatchedTicket.assignedCrew || "Line Crew"})</span>
+                            <span>CREW DISPATCHED • {dispatchedTicket.assignedCrew || "Line Crew"}</span>
                           </div>
                           <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
                             Status: {dispatchedTicket.status.replace(/_/g, " ")} • Ticket #{dispatchedTicket.ticketId}

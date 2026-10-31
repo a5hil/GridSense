@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { HistoricalTelemetryPoint } from "@/lib/types";
 import { NetworkSnapshot } from "@/lib/network/types";
+import { Badge } from "@/components/ui/badge";
 
 export interface PolyphaseHistoricalPoint {
   timeLabel: string;
@@ -820,13 +821,20 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                   )}
                 </div>
               ) : activeNode ? (
-                <span className={`text-[10px] px-2 py-0.5 rounded-xs font-bold border ${
-                  activeNode.isLive
-                    ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
-                    : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30"
-                }`}>
-                  {activeNode.id === "F1-P01" ? "SECTION 1 INCOMER" : activeNode.id === "F1-P02" ? "SECTION 1 TERMINAL" : "DISTRIBUTION POLE"}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[10px] px-2 py-0.5 rounded-xs font-bold border ${
+                    activeNode.isLive
+                      ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30"
+                      : "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/30"
+                  }`}>
+                    {activeNode.id === "F1-P01" ? "SECTION 1 INCOMER" : activeNode.id === "F1-P02" ? "SECTION 1 TERMINAL" : "DISTRIBUTION POLE"}
+                  </span>
+                  {!liveLinkUp && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-xs font-bold border bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30">
+                      GATEWAY OFFLINE
+                    </span>
+                  )}
+                </div>
               ) : null}
             </div>
           )}
@@ -1673,6 +1681,11 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                 <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs tracking-wide">
                   1. 3-PHASE CURRENT &amp; NEUTRAL DISPLACEMENT ({activeNode?.id || activePoleId})
                 </span>
+                {!liveLinkUp && (
+                  <Badge variant="outline" className="text-[9px] py-0 px-1 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-bold">
+                    OFFLINE
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
                 <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
@@ -1828,6 +1841,11 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                 <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs tracking-wide">
                   2. 3-PHASE VOLTAGES &amp; TOLERANCE BAND (230V NOMINAL ±6%)
                 </span>
+                {!liveLinkUp && (
+                  <Badge variant="outline" className="text-[9px] py-0 px-1 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-bold">
+                    OFFLINE
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
                 <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
@@ -2005,6 +2023,11 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                 <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs tracking-wide">
                   3. 3-PHASE ACTIVE LOAD &amp; POLE CONSUMPTION (WATTS)
                 </span>
+                {!liveLinkUp && (
+                  <Badge variant="outline" className="text-[9px] py-0 px-1 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-bold">
+                    OFFLINE
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
                 <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">
@@ -2134,6 +2157,11 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
                 <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs tracking-wide">
                   4. POWER FACTOR PER PHASE &amp; DISPLACEMENT QUALITY
                 </span>
+                {!liveLinkUp && (
+                  <Badge variant="outline" className="text-[9px] py-0 px-1 border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 font-bold">
+                    OFFLINE
+                  </Badge>
+                )}
               </div>
               <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
                 <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400">

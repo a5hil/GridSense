@@ -99,6 +99,24 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
         }
       })
       .catch(() => {});
+
+    fetch("/api/network/snapshot", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.snapshot) {
+          setNetworkSnapshot(data.snapshot);
+          if (data.snapshot.detections && data.snapshot.detections.length > 0) {
+            setIsFault(true);
+            setActiveFaultAnsi(data.snapshot.detections[0].ansiCode || "87L");
+            setActiveFaultTitle(data.snapshot.detections[0].title || "Feeder Anomaly");
+          } else if (!data.snapshot.liveLinkUp) {
+            setIsFault(true);
+            setActiveFaultAnsi("COMMS");
+            setActiveFaultTitle("Node Offline // Gateway Disconnected");
+          }
+        }
+      })
+      .catch(() => {});
   }, [pathname]);
 
   const toggleSidebar = React.useCallback(() => setIsSidebarCollapsed((prev) => !prev), []);

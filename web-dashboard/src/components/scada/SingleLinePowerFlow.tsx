@@ -214,6 +214,14 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
               <AlertTriangle className="h-3 w-3" />
               <span>{viewScope} FAULT ({feederDetections.length} ANOMALIES)</span>
             </Badge>
+          ) : isGatewayOffline ? (
+            <Badge
+              variant="outline"
+              className="flex items-center gap-1.5 py-0.5 text-[10px] border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+              <span>{viewScope} RADIAL LINE DE-ENERGIZED (OFFLINE)</span>
+            </Badge>
           ) : (
             <Badge
               variant="healthy"
