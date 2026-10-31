@@ -59,7 +59,8 @@ import { FeederAssetTree } from "@/components/scada/FeederAssetTree";
 import { SingleLinePowerFlow } from "@/components/scada/SingleLinePowerFlow";
 import { ScadaUser } from "@/lib/auth";
 import { PlatformLoadingOverlay } from "@/components/scada/PlatformLoadingOverlay";
-import { NetworkSnapshot } from "@/lib/network/types";
+import { NetworkSnapshot, NodeState } from "@/lib/network/types";
+import { NODE_BY_ID } from "@/lib/network/topology";
 import { useDashboard } from "@/context/DashboardContext";
 import { ENTERPRISE_CONFIG } from "@/lib/constants";
 
@@ -1215,154 +1216,131 @@ export default function SCADADashboard() {
 
               {/* Right (4 cols): Operations & Incident Dispatch Hub */}
               <div className="col-span-12 lg:col-span-4 flex flex-col gap-2.5 font-mono h-full">
-                {/* Feeder Status Overview */}
-                <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm space-y-2.5 shadow-xs dark:shadow-none transition-colors">
-                  <div className="flex items-center justify-between text-xs text-slate-800 dark:text-zinc-300 font-bold border-b border-slate-200 dark:border-zinc-800/80 pb-2">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                      <span>FEEDER ASSET HEALTH &amp; SPAN</span>
-                    </div>
-                    <Badge variant="outline" className="text-[10px]">
-                      {networkSnapshot ? `${networkSnapshot.nodes.filter((n) => n.id !== "DTR-01").length || 28} POLES • 3 LT FEEDERS` : "28 POLES • 3 FEEDERS"}
-                    </Badge>
-                  </div>
+                {/* Dynamic Asset & Feeder Telemetry Inspector (Option B) */}
+                {(() => {
+                  const targetPoleId = selectedPoleId || "F1-P01";
+                  const selectedNode = networkSnapshot?.nodes.find((n) => n.id.toLowerCase() === targetPoleId.toLowerCase());
+                  const topoNode = NODE_BY_ID[targetPoleId] || (targetPoleId === "Pole-A" ? NODE_BY_ID["F1-P01"] : targetPoleId === "Pole-B" ? NODE_BY_ID["F1-P02"] : undefined);
+                  const isLivePole = Boolean(selectedNode?.isLive || topoNode?.liveBinding);
+                  const isP1 = targetPoleId === "F1-P01" || targetPoleId === "Pole-A";
+                  const isP2 = targetPoleId === "F1-P02" || targetPoleId === "Pole-B";
+                  const liveData = isP1 ? telemetry?.p1 : isP2 ? telemetry?.p2 : null;
+                  const isNodeDeenergized = isGatewayOffline || isPowerCut || selectedNode?.status === "DEENERGIZED";
 
-                  <div className="space-y-1.5 text-xs">
-                    {/* Node 1: F1-P01 Live Incomer */}
-                    <div
-                      onClick={() => handlePoleSelect("F1-P01")}
-                      className={`flex items-center justify-between p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm cursor-pointer hover:border-emerald-500/50 transition-all ${
-                        selectedPoleId === "F1-P01" || selectedPoleId === "Pole-A"
-                          ? "ring-1 ring-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20"
-                          : ""
-                      } ${isP1Stale ? "border-amber-400/70 dark:border-amber-500/50" : ""}`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span className={`h-2 w-2 rounded-full ${isPowerCut ? "bg-slate-400 dark:bg-zinc-600" : !isGatewayOffline && telemetry?.p1?.isOnline ? "bg-emerald-500 dark:bg-emerald-400" : "bg-slate-400 dark:bg-zinc-600"}`} />
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-slate-800 dark:text-zinc-200 font-bold">F1-P01</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-xs font-bold ${
-                              isPowerCut
-                                ? "bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700"
-                                : "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/40"
-                            }`}>
-                              {isPowerCut ? "INCOMER (0V)" : "INCOMER TERMINAL"}
+                  return (
+                    <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm space-y-2.5 shadow-xs dark:shadow-none transition-colors">
+                      <div className="flex items-center justify-between text-xs text-slate-800 dark:text-zinc-300 font-bold border-b border-slate-200 dark:border-zinc-800/80 pb-2">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                          <span>ASSET INSPECTOR // {targetPoleId}</span>
+                        </div>
+                        <Badge
+                          variant={
+                            isGatewayOffline
+                              ? "outline"
+                              : selectedNode?.status === "ALARM"
+                              ? "destructive"
+                              : selectedNode?.status === "WARN"
+                              ? "warning"
+                              : isLivePole
+                              ? "healthy"
+                              : "outline"
+                          }
+                          className="text-[10px]"
+                        >
+                          {isGatewayOffline
+                            ? "OFFLINE"
+                            : selectedNode?.status === "ALARM"
+                            ? "ALARM / TRIP"
+                            : isLivePole
+                            ? "PHYSICAL RTU"
+                            : "SIMULATED POLE"}
+                        </Badge>
+                      </div>
+
+                      {/* Pole Details & 3-Phase Metrics */}
+                      <div className="space-y-1.5 text-xs font-mono">
+                        <div className="flex items-center justify-between p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm">
+                          <div>
+                            <div className="text-[10px] text-slate-500 dark:text-zinc-400">FEEDER &amp; SPAN</div>
+                            <div className="font-bold text-slate-800 dark:text-zinc-200">
+                              {topoNode?.feederId || selectedNode?.feederId || "LT-1"} • Span {topoNode?.spanM ?? 40}m
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[10px] text-slate-500 dark:text-zinc-400">CONSUMERS</div>
+                            <div className="font-bold text-slate-800 dark:text-zinc-200">
+                              {topoNode?.customers ?? 4} Service Drops
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Telemetry Measurements */}
+                        <div className="grid grid-cols-3 gap-1.5 p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm tabular-nums">
+                          <div className="p-1 rounded-xs bg-rose-500/10 border border-rose-500/20">
+                            <div className="text-[10px] font-bold text-rose-600 dark:text-rose-400">PHASE R</div>
+                            <div className="font-bold text-slate-900 dark:text-zinc-100">
+                              {isNodeDeenergized
+                                ? "0.0V"
+                                : isLivePole && liveData
+                                ? `${liveData.v.toFixed(1)}V`
+                                : `${(selectedNode?.phases.R.v ?? 0).toFixed(1)}V`}
+                            </div>
+                            <div className="text-[10px] text-slate-600 dark:text-zinc-400">
+                              {isNodeDeenergized
+                                ? "0.00A"
+                                : isLivePole && liveData
+                                ? `${liveData.i.toFixed(2)}A`
+                                : `${(selectedNode?.phases.R.i ?? 0).toFixed(2)}A`}
+                            </div>
+                          </div>
+
+                          <div className="p-1 rounded-xs bg-amber-500/10 border border-amber-500/20">
+                            <div className="text-[10px] font-bold text-amber-700 dark:text-amber-400">PHASE Y</div>
+                            <div className="font-bold text-slate-900 dark:text-zinc-100">
+                              {isNodeDeenergized ? "0.0V" : `${(selectedNode?.phases.Y.v ?? 0).toFixed(1)}V`}
+                            </div>
+                            <div className="text-[10px] text-slate-600 dark:text-zinc-400">
+                              {isNodeDeenergized ? "0.00A" : `${(selectedNode?.phases.Y.i ?? 0).toFixed(2)}A`}
+                            </div>
+                          </div>
+
+                          <div className="p-1 rounded-xs bg-blue-500/10 border border-blue-500/20">
+                            <div className="text-[10px] font-bold text-blue-700 dark:text-cyan-400">PHASE B</div>
+                            <div className="font-bold text-slate-900 dark:text-zinc-100">
+                              {isNodeDeenergized ? "0.0V" : `${(selectedNode?.phases.B.v ?? 0).toFixed(1)}V`}
+                            </div>
+                            <div className="text-[10px] text-slate-600 dark:text-zinc-400">
+                              {isNodeDeenergized ? "0.00A" : `${(selectedNode?.phases.B.i ?? 0).toFixed(2)}A`}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* GPS Coordinates & Field Comms */}
+                        <div className="p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm text-[11px] space-y-1">
+                          <div className="flex items-center justify-between text-slate-600 dark:text-zinc-400">
+                            <span>GPS Coordinates:</span>
+                            <span className="font-bold text-slate-800 dark:text-zinc-200 tabular-nums">
+                              {topoNode?.lat?.toFixed(5) ?? "10.23180"}°N, {topoNode?.lng?.toFixed(5) ?? "76.40850"}°E
                             </span>
                           </div>
-                          <span className="text-[10px] text-slate-600 dark:text-zinc-400">Substation Tap (Phase R Metered)</span>
-                        </div>
-                      </div>
-                      <div className="text-slate-600 dark:text-zinc-400 tabular-nums flex items-center gap-1.5">
-                        {isP1Stale && (
-                          <Badge variant="warning" className="text-[10px] py-0 border-amber-400 dark:border-amber-500 text-amber-800 dark:text-amber-400 animate-pulse font-bold">
-                            {isGatewayOffline ? "OFFLINE" : "STALE"}
-                          </Badge>
-                        )}
-                        <span className="font-bold text-slate-700 dark:text-zinc-200">
-                          {isPowerCut ? (
-                            "0.0V • 0.00A"
-                          ) : !isGatewayOffline && telemetry?.p1?.isOnline ? (
-                            `${telemetry.p1.v.toFixed(1)}V • ${telemetry.p1.i.toFixed(2)}A`
-                          ) : (
-                            "OFFLINE // NO FEED"
-                          )}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Node 2: F1-P02 Live Outgoing */}
-                    <div
-                      onClick={() => handlePoleSelect("F1-P02")}
-                      className={`flex items-center justify-between p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm cursor-pointer hover:border-emerald-500/50 transition-all ${
-                        selectedPoleId === "F1-P02" || selectedPoleId === "Pole-B"
-                          ? "ring-1 ring-emerald-500 bg-emerald-50/40 dark:bg-emerald-950/20"
-                          : ""
-                      } ${isP2Stale ? "border-amber-400/70 dark:border-amber-500/50" : ""}`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`h-2 w-2 rounded-full ${
-                            isGatewayOffline || isPowerCut
-                              ? "bg-slate-400 dark:bg-zinc-600"
-                              : telemetry?.p2?.isOnline === false
-                              ? "bg-rose-500 animate-pulse"
-                              : "bg-emerald-500 dark:bg-emerald-400"
-                          }`}
-                        />
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-slate-800 dark:text-zinc-200 font-bold">F1-P02</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded-xs font-bold ${
-                              isPowerCut
-                                ? "bg-slate-200 dark:bg-zinc-800 text-slate-700 dark:text-zinc-400 border border-slate-300 dark:border-zinc-700"
-                                : "bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 border border-emerald-500/40"
-                            }`}>
-                              {isPowerCut ? "BOUNDARY (0V)" : "SECTION TERMINAL"}
+                          <div className="flex items-center justify-between text-slate-600 dark:text-zinc-400">
+                            <span>Conductor Span:</span>
+                            <span className="font-bold text-slate-800 dark:text-zinc-200">
+                              {topoNode?.parentId ? `From ${topoNode.parentId}` : "Substation Incomer"}
                             </span>
                           </div>
-                          <span className="text-[10px] text-slate-600 dark:text-zinc-400">Differential Boundary (Phase R Metered)</span>
+                          <div className="flex items-center justify-between text-slate-600 dark:text-zinc-400">
+                            <span>Field Bus Link:</span>
+                            <span className={`font-bold ${isGatewayOffline ? "text-amber-500" : "text-emerald-600 dark:text-emerald-400"}`}>
+                              {isGatewayOffline ? "GATEWAY OFFLINE" : isLivePole ? "SUB-GHz LoRa (ACTIVE)" : "TOPOLOGY TWIN"}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                      <div className="text-slate-600 dark:text-zinc-400 tabular-nums flex items-center gap-1.5">
-                        {isP2Stale && (
-                          <Badge variant="warning" className="text-[10px] py-0 border-amber-400 dark:border-amber-500 text-amber-800 dark:text-amber-400 animate-pulse font-bold">
-                            {isGatewayOffline ? "OFFLINE" : "STALE"}
-                          </Badge>
-                        )}
-                        <span className="font-bold text-slate-700 dark:text-zinc-200">
-                          {isPowerCut ? (
-                            "0.0V • 0.00A"
-                          ) : isGatewayOffline || telemetry?.p2?.isOnline === false ? (
-                            <span className="text-slate-700 dark:text-zinc-400 font-bold">OFFLINE // NO FEED</span>
-                          ) : (
-                            `${telemetry?.p2?.v.toFixed(1)}V • ${telemetry?.p2?.i.toFixed(2)}A`
-                          )}
-                        </span>
-                      </div>
                     </div>
-
-                    {/* Downstream Radial Feeders Summary */}
-                    <div className="p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm text-[11px] space-y-1">
-                      <div className="flex items-center justify-between text-slate-600 dark:text-zinc-400">
-                        <span>Feeder LT-1 Downstream:</span>
-                        <span className="font-bold text-slate-800 dark:text-zinc-200">F1-P03 ➔ F1-P10 (8 Spans)</span>
-                      </div>
-                      <div className="flex items-center justify-between text-slate-600 dark:text-zinc-400">
-                        <span>Feeder LT-2 &amp; LT-3:</span>
-                        <span className="font-bold text-slate-800 dark:text-zinc-200">18 Spans Supervised</span>
-                      </div>
-                    </div>
-
-                    {/* RF Telemetry Bus */}
-                    <div className="flex items-center justify-between p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm font-mono text-[11px]">
-                      <div className="flex items-center gap-2">
-                        <Radio className={`h-3.5 w-3.5 ${isGatewayOffline ? "text-amber-500 animate-pulse" : "text-emerald-500 dark:text-emerald-400"}`} />
-                        <span className="text-slate-800 dark:text-zinc-200">SCADA WIRELESS FIELD BUS:</span>
-                      </div>
-                      <Badge
-                        variant={isGatewayOffline ? "warning" : "healthy"}
-                        className={`text-[10px] py-0.5 ${isGatewayOffline ? "border-amber-500 text-amber-500 font-bold" : ""}`}
-                      >
-                        {isGatewayOffline ? "GATEWAY OFFLINE" : "866.3 MHz IN865 (MESH OK)"}
-                      </Badge>
-                    </div>
-
-                    {/* Protected Differential Zone Span Summary */}
-                    <div className="flex items-center justify-between p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm font-mono text-[11px]">
-                      <div className="flex items-center gap-2">
-                        <Activity className={`h-3.5 w-3.5 ${isPowerCut ? "text-zinc-500" : isFault ? "text-rose-500 animate-pulse" : "text-emerald-500 dark:text-emerald-400"}`} />
-                        <span className="text-slate-800 dark:text-zinc-200">ZONE 1 DIFFERENTIAL SPAN:</span>
-                      </div>
-                      <Badge
-                        variant={isPowerCut ? "outline" : isFault ? "destructive" : "outline"}
-                        className={`text-[10px] py-0.5 ${isPowerCut ? "text-slate-600 dark:text-zinc-400 border-slate-300 dark:border-zinc-700" : !isFault ? "text-emerald-700 dark:text-emerald-400 border-emerald-500/30" : ""}`}
-                      >
-                        {isPowerCut ? "DE-ENERGIZED // NO FLOW (0A)" : isFault ? `TRIP: I_diff = ${(telemetry?.idiff ?? 0).toFixed(3)}A` : `120m • INTACT (I_diff ${(telemetry?.idiff ?? 0).toFixed(3)}A)`}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* Section 1 Protection & Operational Incident Station */}
                 <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm space-y-2.5 flex-1 flex flex-col justify-between shadow-xs dark:shadow-none transition-colors">
