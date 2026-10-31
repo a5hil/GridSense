@@ -348,11 +348,11 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
               const isNodeWarn = node.status === "WARN";
               const isNodeDeenergized = node.status === "DEENERGIZED" || !node.energized || isPowerCut || isGatewayOffline;
 
-              // Check if span to this node has a detection or tripped section
+              // Check if span to this node has an electrical detection or tripped section
               const spanDetection = networkSnapshot?.detections.find(
-                (d) => d.nodeId === node.id || d.sectionId === node.parentId
+                (d) => (d.nodeId === node.id || d.sectionId === node.parentId) && d.type !== "NODE_OFFLINE"
               );
-              const isSpanTripped = spanDetection !== undefined;
+              const isSpanTripped = !isGatewayOffline && spanDetection !== undefined;
               const isLiveSpan = viewScope === "LT-1" && (node.id === "F1-P02" || node.id === "POLE-B");
               const isP1 = node.id === "F1-P01" || node.id === "POLE-A";
               const isP2 = node.id === "F1-P02" || node.id === "POLE-B";
