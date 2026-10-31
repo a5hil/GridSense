@@ -132,10 +132,10 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
 
   const feederDetections = React.useMemo(() => {
     if (!networkSnapshot) return [];
-    return networkSnapshot.detections.filter((d) => d.feederId === viewScope);
+    return networkSnapshot.detections.filter((d) => d.feederId === viewScope && d.type !== "NODE_OFFLINE");
   }, [networkSnapshot, viewScope]);
 
-  const isFeederFaulted = feederDetections.length > 0 || (viewScope === "LT-1" && isFault);
+  const isFeederFaulted = !isGatewayOffline && (feederDetections.length > 0 || (viewScope === "LT-1" && isFault));
 
   return (
     <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm p-3.5 flex flex-col gap-3 font-mono transition-colors shadow-xs dark:shadow-none">

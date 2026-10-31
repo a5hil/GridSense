@@ -625,6 +625,8 @@ export default function SCADADashboard() {
   if (activeFault?.ansiCode === "ANSI 27") {
     isPowerCut = true;
   }
+  // A physical electrical fault (breaker trip, leakage, etc.) vs pure communications offline
+  const isElectricalFault = activeFault !== null && !isCommsOnlyAlarm && !isGatewayOffline;
   const isFault = activeFault !== null;
   const isAlarmUnacked = isFault && systemStatus?.operatorAck === false;
   const openTicketsCount = tickets.filter((t) => t.status !== "CLOSED" && t.status !== "MAINTENANCE_SUPPRESSED").length;
@@ -1351,10 +1353,10 @@ export default function SCADADashboard() {
                         <span>SECTION 1 SUPERVISORY CONTROL (FDIR)</span>
                       </div>
                       <Badge
-                        variant={isPowerCut ? "outline" : isFault ? "destructive" : "healthy"}
-                        className={`text-[10px] ${isPowerCut ? "border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-400" : ""}`}
+                        variant={isPowerCut ? "outline" : isElectricalFault ? "destructive" : isGatewayOffline ? "outline" : "healthy"}
+                        className={`text-[10px] ${isPowerCut || isGatewayOffline ? "border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-400" : ""}`}
                       >
-                        {isPowerCut ? "DE-ENERGIZED (0V)" : isFault ? "TRIPPED & ISOLATED (OPEN)" : "ENERGIZED (CLOSED)"}
+                        {isPowerCut ? "DE-ENERGIZED (0V)" : isElectricalFault ? "TRIPPED & ISOLATED (OPEN)" : isGatewayOffline ? "OFFLINE // UNKNOWN" : "ENERGIZED (CLOSED)"}
                       </Badge>
                     </div>
 
@@ -1366,8 +1368,8 @@ export default function SCADADashboard() {
                       </div>
                       <div className="flex items-center justify-between text-[11px] tabular-nums">
                         <span className="text-slate-600 dark:text-zinc-400">Differential Current (I_diff):</span>
-                        <span className={`font-bold ${isPowerCut ? "text-slate-600 dark:text-zinc-400" : isFault ? "text-rose-600 dark:text-rose-500" : "text-emerald-600 dark:text-emerald-500"}`}>
-                          {(telemetry?.idiff ?? 0).toFixed(3)} A / {tripLimit.toFixed(3)} A
+                        <span className={`font-bold ${isGatewayOffline || isPowerCut ? "text-slate-600 dark:text-zinc-400" : isElectricalFault ? "text-rose-600 dark:text-rose-500" : "text-emerald-600 dark:text-emerald-500"}`}>
+                          {isGatewayOffline ? "--- A" : `${(telemetry?.idiff ?? 0).toFixed(3)} A`} / {tripLimit.toFixed(3)} A
                         </span>
                       </div>
                     </div>
