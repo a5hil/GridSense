@@ -777,9 +777,9 @@ export default function SCADADashboard() {
 
       {/* SSE STREAM DISCONNECTION HIGH-CONTRAST WARNING */}
       {isStreamDisconnected && (
-        <div className="border border-rose-400 dark:border-rose-600 bg-rose-50 dark:bg-rose-950 px-4 py-2.5 rounded-sm flex items-center justify-between text-rose-900 dark:text-rose-100 font-mono text-xs shadow-sm dark:shadow-xl animate-pulse transition-colors">
+        <div className="border border-rose-400 dark:border-rose-600 bg-rose-50 dark:bg-rose-950 px-4 py-2.5 rounded-sm flex items-center justify-between text-rose-900 dark:text-rose-100 font-mono text-xs shadow-sm dark:shadow-xl transition-colors">
           <div className="flex items-center gap-2.5">
-            <WifiOff className="h-5 w-5 text-rose-600 dark:text-rose-400 shrink-0 animate-bounce" />
+            <WifiOff className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0" />
             <div>
               <span className="font-bold text-white bg-rose-600 dark:bg-rose-900 px-1.5 py-0.5 rounded-xs mr-2">
                 CRITICAL: TELEMETRY STREAM DISCONNECTED
@@ -787,8 +787,15 @@ export default function SCADADashboard() {
               <span>No heartbeat received from Next.js SSE endpoint (&gt;5s). Reconnecting to /api/telemetry/stream...</span>
             </div>
           </div>
-          <Badge variant="destructive" className="animate-ping font-bold">
-            RECONNECTING
+          <Badge
+            variant="destructive"
+            className="font-semibold text-[10px] tracking-wider px-2.5 py-0.5 flex items-center gap-1.5 bg-rose-600 dark:bg-rose-800 text-white border border-rose-500/50"
+          >
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-200 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white"></span>
+            </span>
+            <span className="animate-pulse">RECONNECTING</span>
           </Badge>
         </div>
       )}
