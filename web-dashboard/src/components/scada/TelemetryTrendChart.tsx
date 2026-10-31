@@ -242,9 +242,43 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
   };
 
   // Enforce Radial Line Physics (V1 >= V2), strictly derived ΔI = |I1 - I2|, and direct data passthrough for ΔP = Math.max(0, P1 - P2) and ΔV = Math.max(0, V1 - V2)
+  const liveLinkUp = networkSnapshot?.liveLinkUp ?? false;
+
   const data = React.useMemo(() => {
+    // If hardware gateway is disconnected, enforce Option 2 Complete Hardware Dark Mode:
+    // Flatline all differential span metrics to zero so the graph truthful reflects the offline state
+    if (!liveLinkUp) {
+      const count = rawData.length > 0 ? rawData.length : 20;
+      return Array.from({ length: count }).map((_, idx): HistoricalTelemetryPoint => {
+        const timeLabel = rawData[idx]?.timeLabel || "";
+        return {
+          timestamp: rawData[idx]?.timestamp || "",
+          timeLabel,
+          v1: 0.0,
+          v2: 0.0,
+          i1: 0.000,
+          i2: 0.000,
+          idiff: 0.000,
+          tripLimit,
+          isFault: false,
+          p1: 0.0,
+          p2: 0.0,
+          q1: 0.0,
+          q2: 0.0,
+          s1: 0.0,
+          s2: 0.0,
+          pLoss: 0.0,
+          vDrop: 0.0,
+          pf1: 0.0,
+          pf2: 0.0,
+          freq1: 0.0,
+          freq2: 0.0,
+        };
+      });
+    }
+
     // 1. First pass: compute clean physical electrical variables for each point
-    const points = rawData.map((d) => {
+    const points = rawData.map((d): HistoricalTelemetryPoint => {
       const v1 = Number(d.v1.toFixed(1));
       let v2 = Number(d.v2.toFixed(1));
       if (v1 > 10 && v2 > v1) {
@@ -267,6 +301,11 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
         p2 = p1;
       }
 
+      const s1 = Number((v1 * i1).toFixed(1));
+      const s2 = Number((v2 * i2).toFixed(1));
+      const q1 = Number(Math.sqrt(Math.max(0, s1 * s1 - p1 * p1)).toFixed(1));
+      const q2 = Number(Math.sqrt(Math.max(0, s2 * s2 - p2 * p2)).toFixed(1));
+
       return {
         ...d,
         v1,
@@ -276,12 +315,16 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
         idiff,
         p1,
         p2,
+        s1,
+        s2,
+        q1,
+        q2,
       };
     });
 
     // 2. Compute true physical line loss and span drop for every point
     const mapped = points.map((p) => {
-      const pLoss = Number(Math.max(0, p.p1 - p.p2).toFixed(1));
+      const pLoss = Number(Math.max(0, (p.p1 ?? 0) - (p.p2 ?? 0)).toFixed(1));
       const vDrop = Number(Math.max(0, p.v1 - p.v2).toFixed(1));
       return {
         ...p,
@@ -304,7 +347,7 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
         vDrop: Number(((prev.vDrop + p.vDrop + next.vDrop) / 3).toFixed(1)),
       };
     });
-  }, [rawData, tripLimit]);
+  }, [rawData, tripLimit, liveLinkUp]);
 
   // Helper to compute min, max, avg, current
   const calcStats = (vals: number[]) => {
@@ -766,9 +809,16 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               </select>
 
               {channelScope === "ANCHOR" ? (
-                <span className="text-[10px] px-2 py-0.5 rounded-xs font-bold border bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30">
-                  SPAN: F1-P01 (INCOMER) ↔ F1-P02 (TERMINAL)
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] px-2 py-0.5 rounded-xs font-bold border bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/30">
+                    SPAN: F1-P01 (INCOMER) ↔ F1-P02 (TERMINAL)
+                  </span>
+                  {!liveLinkUp && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded-xs font-bold border bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30">
+                      GATEWAY OFFLINE
+                    </span>
+                  )}
+                </div>
               ) : activeNode ? (
                 <span className={`text-[10px] px-2 py-0.5 rounded-xs font-bold border ${
                   activeNode.isLive
@@ -835,20 +885,25 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs tracking-wide">
                 1. CURRENT &amp; DIFFERENTIAL PROTECTION (ANSI 87L)
               </span>
+              {!liveLinkUp && (
+                <span className="text-[9.5px] px-1.5 py-0.5 rounded-xs font-bold border bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30">
+                  OFFLINE
+                </span>
+              )}
             </div>
             {/* Live Instantaneous Pill Badges with explicit color keys */}
             <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
               <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
                 <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0 shadow-xs" />
-                I1 (INCOMER): <span className="font-bold">{statsI1.cur.toFixed(3)}A</span>
+                I1 (INCOMER): <span className="font-bold">{liveLinkUp ? `${statsI1.cur.toFixed(3)}A` : "--- A"}</span>
               </span>
               <span className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400">
                 <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0 shadow-xs" />
-                I2 (OUTGOING): <span className="font-bold">{statsI2.cur.toFixed(3)}A</span>
+                I2 (OUTGOING): <span className="font-bold">{liveLinkUp ? `${statsI2.cur.toFixed(3)}A` : "--- A"}</span>
               </span>
-              <span className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-xs ${statsIdiff.cur > tripLimit ? "bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/50 animate-pulse font-bold" : "text-rose-600 dark:text-rose-400"}`}>
+              <span className={`flex items-center gap-1.5 px-1.5 py-0.5 rounded-xs ${liveLinkUp && statsIdiff.cur > tripLimit ? "bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/50 animate-pulse font-bold" : "text-rose-600 dark:text-rose-400"}`}>
                 <span className="h-2 w-2 rounded-full bg-[#f43f5e] shrink-0 shadow-xs" />
-                ΔI (|I1 - I2|): <span className="font-bold">{statsIdiff.cur.toFixed(3)}A</span>
+                ΔI (|I1 - I2|): <span className="font-bold">{liveLinkUp ? `${statsIdiff.cur.toFixed(3)}A` : "0.000A"}</span>
               </span>
             </div>
           </div>
@@ -1012,15 +1067,15 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums font-mono">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0" />
-              <span>I1 (INCOMER): <span className="font-bold text-emerald-600 dark:text-emerald-400">{statsI1.cur.toFixed(3)} A</span> <span className="text-slate-400 dark:text-zinc-500">(AVG: {statsI1.avg.toFixed(2)}A)</span></span>
+              <span>I1 (INCOMER): <span className="font-bold text-emerald-600 dark:text-emerald-400">{liveLinkUp ? `${statsI1.cur.toFixed(3)} A` : "--- A"}</span> <span className="text-slate-400 dark:text-zinc-500">({liveLinkUp ? `AVG: ${statsI1.avg.toFixed(2)}A` : "OFFLINE"})</span></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0" />
-              <span>I2 (TERMINAL): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsI2.cur.toFixed(3)} A</span> <span className="text-slate-400 dark:text-zinc-500">(AVG: {statsI2.avg.toFixed(2)}A)</span></span>
+              <span>I2 (TERMINAL): <span className="font-bold text-cyan-600 dark:text-cyan-400">{liveLinkUp ? `${statsI2.cur.toFixed(3)} A` : "--- A"}</span> <span className="text-slate-400 dark:text-zinc-500">({liveLinkUp ? `AVG: ${statsI2.avg.toFixed(2)}A` : "OFFLINE"})</span></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#f43f5e] shrink-0" />
-              <span>DIFF ΔI: <span className={`font-bold ${statsIdiff.cur > tripLimit ? "text-rose-500 animate-pulse" : "text-rose-600 dark:text-rose-400"}`}>{statsIdiff.cur.toFixed(3)} A</span> <span className="text-slate-400 dark:text-zinc-500">(|I1 - I2|)</span></span>
+              <span>DIFF ΔI: <span className={`font-bold ${liveLinkUp && statsIdiff.cur > tripLimit ? "text-rose-500 animate-pulse" : "text-rose-600 dark:text-rose-400"}`}>{liveLinkUp ? `${statsIdiff.cur.toFixed(3)} A` : "0.000 A"}</span> <span className="text-slate-400 dark:text-zinc-500">({liveLinkUp ? "|I1 - I2|" : "BALANCED"})</span></span>
             </div>
           </div>
         </div>
@@ -1036,20 +1091,25 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs tracking-wide">
                 2. BUS VOLTAGE STABILITY &amp; GRID FREQUENCY
               </span>
+              {!liveLinkUp && (
+                <span className="text-[9.5px] px-1.5 py-0.5 rounded-xs font-bold border bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30">
+                  OFFLINE
+                </span>
+              )}
             </div>
             {/* Live Instantaneous Pill Badges (V1 Substation >= V2 Load End) */}
             <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
               <span className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400">
                 <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0 shadow-xs" />
-                V1 (SUBSTATION): <span className="font-bold">{statsV1.cur.toFixed(1)}V</span>
+                V1 (SUBSTATION): <span className="font-bold">{liveLinkUp ? `${statsV1.cur.toFixed(1)}V` : "--- V"}</span>
               </span>
               <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
                 <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0 shadow-xs" />
-                V2 (LOAD END): <span className="font-bold">{statsV2.cur.toFixed(1)}V</span>
+                V2 (LOAD END): <span className="font-bold">{liveLinkUp ? `${statsV2.cur.toFixed(1)}V` : "--- V"}</span>
               </span>
               <span className="flex items-center gap-1.5 text-purple-600 dark:text-purple-400">
                 <span className="h-2 w-2 rounded-full bg-[#a855f7] shrink-0 shadow-xs" />
-                FREQ: <span className="font-bold">{statsFreq.cur.toFixed(2)}Hz</span>
+                FREQ: <span className="font-bold">{liveLinkUp ? `${statsFreq.cur.toFixed(2)}Hz` : "--- Hz"}</span>
               </span>
             </div>
           </div>
@@ -1195,15 +1255,15 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums font-mono">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#06b6d4] shrink-0" />
-              <span>V1 (SUBSTATION): <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsV1.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(AVG: {statsV1.avg.toFixed(1)}V)</span></span>
+              <span>V1 (SUBSTATION): <span className="font-bold text-cyan-600 dark:text-cyan-400">{liveLinkUp ? `${statsV1.cur.toFixed(1)} V` : "--- V"}</span> <span className="text-slate-400 dark:text-zinc-500">({liveLinkUp ? `AVG: ${statsV1.avg.toFixed(1)}V` : "OFFLINE"})</span></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0" />
-              <span>V2 (TERMINAL): <span className="font-bold text-amber-600 dark:text-amber-400">{statsV2.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(AVG: {statsV2.avg.toFixed(1)}V)</span></span>
+              <span>V2 (TERMINAL): <span className="font-bold text-amber-600 dark:text-amber-400">{liveLinkUp ? `${statsV2.cur.toFixed(1)} V` : "--- V"}</span> <span className="text-slate-400 dark:text-zinc-500">({liveLinkUp ? `AVG: ${statsV2.avg.toFixed(1)}V` : "OFFLINE"})</span></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#a855f7] shrink-0" />
-              <span>FREQUENCY: <span className="font-bold text-purple-600 dark:text-purple-400">{statsFreq.cur.toFixed(2)} Hz</span> <span className="text-emerald-600 dark:text-emerald-400 font-semibold">(50Hz NOM)</span></span>
+              <span>FREQUENCY: <span className="font-bold text-purple-600 dark:text-purple-400">{liveLinkUp ? `${statsFreq.cur.toFixed(2)} Hz` : "--- Hz"}</span> <span className="text-slate-400 dark:text-zinc-500 font-semibold">{liveLinkUp ? "(50Hz NOM)" : "(OFFLINE)"}</span></span>
             </div>
           </div>
         </div>
@@ -1219,24 +1279,29 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs tracking-wide">
                 3. POWER TRIANGLE (P / Q / S) &amp; POWER FACTOR
               </span>
+              {!liveLinkUp && (
+                <span className="text-[9.5px] px-1.5 py-0.5 rounded-xs font-bold border bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30">
+                  OFFLINE
+                </span>
+              )}
             </div>
             {/* Live Instantaneous Pill Badges */}
             <div className="flex items-center gap-2.5 text-xs tabular-nums font-semibold">
               <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
                 <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0 shadow-xs" />
-                P: <span className="font-bold">{statsP1.cur.toFixed(2)}kW</span>
+                P: <span className="font-bold">{liveLinkUp ? `${statsP1.cur.toFixed(2)}kW` : "0.00kW"}</span>
               </span>
               <span className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400" title="Dashed trace">
                 <span className="w-3.5 h-0 border-t-2 border-dashed border-[#f43f5e] shrink-0" />
-                Q: <span className="font-bold">{statsQ1.cur.toFixed(2)}kvar</span>
+                Q: <span className="font-bold">{liveLinkUp ? `${statsQ1.cur.toFixed(2)}kvar` : "0.00kvar"}</span>
               </span>
               <span className="flex items-center gap-1.5 text-blue-600 dark:text-blue-400">
                 <span className="h-2 w-2 rounded-full bg-[#3b82f6] shrink-0 shadow-xs" />
-                S: <span className="font-bold">{statsS1.cur.toFixed(2)}kVA</span>
+                S: <span className="font-bold">{liveLinkUp ? `${statsS1.cur.toFixed(2)}kVA` : "0.00kVA"}</span>
               </span>
               <span className="flex items-center gap-1.5 text-amber-600 dark:text-amber-400">
                 <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0 shadow-xs" />
-                PF: <span className="font-bold">{statsPf.cur.toFixed(2)}</span>
+                PF: <span className="font-bold">{liveLinkUp ? statsPf.cur.toFixed(2) : "0.00"}</span>
               </span>
             </div>
           </div>
@@ -1375,19 +1440,19 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs tabular-nums font-mono">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0" />
-              <span>ACTIVE P: <span className="font-bold text-emerald-600 dark:text-emerald-400">{statsP1.cur.toFixed(2)} kW</span></span>
+              <span>ACTIVE P: <span className="font-bold text-emerald-600 dark:text-emerald-400">{liveLinkUp ? `${statsP1.cur.toFixed(2)} kW` : "0.00 kW"}</span></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-3.5 h-0 border-t-2 border-dashed border-[#f43f5e] shrink-0" />
-              <span>REACTIVE Q: <span className="font-bold text-rose-600 dark:text-rose-400">{statsQ1.cur.toFixed(2)} kvar</span></span>
+              <span>REACTIVE Q: <span className="font-bold text-rose-600 dark:text-rose-400">{liveLinkUp ? `${statsQ1.cur.toFixed(2)} kvar` : "0.00 kvar"}</span></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#3b82f6] shrink-0" />
-              <span>APPARENT S: <span className="font-bold text-blue-600 dark:text-blue-400">{statsS1.cur.toFixed(2)} kVA</span></span>
+              <span>APPARENT S: <span className="font-bold text-blue-600 dark:text-blue-400">{liveLinkUp ? `${statsS1.cur.toFixed(2)} kVA` : "0.00 kVA"}</span></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#f59e0b] shrink-0" />
-              <span>PF: <span className="font-bold text-amber-600 dark:text-amber-400">{statsPf.cur.toFixed(2)}</span> <span className="text-slate-400 dark:text-zinc-500">(LAG)</span></span>
+              <span>PF: <span className="font-bold text-amber-600 dark:text-amber-400">{liveLinkUp ? statsPf.cur.toFixed(2) : "0.00"}</span> <span className="text-slate-400 dark:text-zinc-500">({liveLinkUp ? "LAG" : "OFFLINE"})</span></span>
             </div>
           </div>
         </div>
@@ -1403,23 +1468,28 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
               <span className="font-bold text-slate-800 dark:text-zinc-200 text-xs tracking-wide">
                 4. TECHNICAL LINE LOSS (ΔP) &amp; SPAN VOLTAGE DROP (ΔV)
               </span>
+              {!liveLinkUp && (
+                <span className="text-[9.5px] px-1.5 py-0.5 rounded-xs font-bold border bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30">
+                  OFFLINE
+                </span>
+              )}
             </div>
             {/* Live Instantaneous Pill Badges */}
             <div className="flex items-center gap-3 text-xs tabular-nums font-semibold">
               <span className="flex items-center gap-1.5 text-orange-600 dark:text-orange-400">
                 <span className="h-2 w-2 rounded-full bg-[#f97316] shrink-0 shadow-xs" />
-                LINE LOSS ΔP: <span className="font-bold">{statsLossW.cur.toFixed(1)}W</span>
+                LINE LOSS ΔP: <span className="font-bold">{liveLinkUp ? `${statsLossW.cur.toFixed(1)}W` : "0.0W"}</span>
               </span>
               <span className="flex items-center gap-1.5 text-cyan-600 dark:text-cyan-400" title="Dashed trace">
                 <span className="w-3.5 h-0 border-t-2 border-dashed border-[#06b6d4] shrink-0" />
-                SPAN DROP ΔV: <span className="font-bold">{statsVDrop.cur.toFixed(1)}V</span>
+                SPAN DROP ΔV: <span className="font-bold">{liveLinkUp ? `${statsVDrop.cur.toFixed(1)}V` : "0.0V"}</span>
               </span>
               <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
                 <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0 shadow-xs" />
                 EFFICIENCY: <span className="font-bold">
-                  {statsP1.cur > 0
+                  {liveLinkUp && statsP1.cur > 0
                     ? `${(Math.max(0, 100 - (statsLossW.cur / (statsP1.cur * 1000)) * 100)).toFixed(2)}%`
-                    : "99.8%"}
+                    : liveLinkUp ? "99.8%" : "---"}
                 </span>
               </span>
             </div>
@@ -1571,18 +1641,18 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
           <div className="border-t border-slate-200 dark:border-zinc-800/80 px-3.5 py-2 bg-slate-50 dark:bg-zinc-950/70 grid grid-cols-1 md:grid-cols-3 gap-2 text-xs tabular-nums font-mono">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#f97316] shrink-0" />
-              <span>LINE LOSS ΔP: <span className="font-bold text-orange-600 dark:text-orange-400">{statsLossW.cur.toFixed(1)} W</span> <span className="text-slate-400 dark:text-zinc-500">(AVG: {statsLossW.avg.toFixed(1)}W)</span></span>
+              <span>LINE LOSS ΔP: <span className="font-bold text-orange-600 dark:text-orange-400">{liveLinkUp ? `${statsLossW.cur.toFixed(1)} W` : "0.0 W"}</span> <span className="text-slate-400 dark:text-zinc-500">({liveLinkUp ? `AVG: ${statsLossW.avg.toFixed(1)}W` : "OFFLINE"})</span></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="w-3.5 h-0 border-t-2 border-dashed border-[#06b6d4] shrink-0" />
-              <span>SPAN DROP ΔV: <span className="font-bold text-cyan-600 dark:text-cyan-400">{statsVDrop.cur.toFixed(1)} V</span> <span className="text-slate-400 dark:text-zinc-500">(NORM: &lt;3%)</span></span>
+              <span>SPAN DROP ΔV: <span className="font-bold text-cyan-600 dark:text-cyan-400">{liveLinkUp ? `${statsVDrop.cur.toFixed(1)} V` : "0.0 V"}</span> <span className="text-slate-400 dark:text-zinc-500">({liveLinkUp ? "NORM: <3%" : "OFFLINE"})</span></span>
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-[#10b981] shrink-0" />
               <span>SPAN EFFICIENCY: <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                {statsP1.cur > 0
+                {liveLinkUp && statsP1.cur > 0
                   ? `${(Math.max(0, 100 - (statsLossW.cur / (statsP1.cur * 1000)) * 100)).toFixed(2)}%`
-                  : "99.8%"}
+                  : liveLinkUp ? "99.8%" : "---"}
               </span></span>
             </div>
           </div>
