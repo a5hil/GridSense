@@ -54,8 +54,6 @@ import {
   TroubleTicket,
 } from "@/lib/types";
 import dynamic from "next/dynamic";
-import { GisFeederMap } from "@/components/scada/GisFeederMap";
-import { FeederAssetTree } from "@/components/scada/FeederAssetTree";
 import { SingleLinePowerFlow } from "@/components/scada/SingleLinePowerFlow";
 import { ScadaUser } from "@/lib/auth";
 import { PlatformLoadingOverlay } from "@/components/scada/PlatformLoadingOverlay";
@@ -65,6 +63,29 @@ import { useDashboard } from "@/context/DashboardContext";
 import { ENTERPRISE_CONFIG } from "@/lib/constants";
 
 // Lazy-load secondary/below-the-fold SCADA tab modules to reduce initial JS parse/compile time
+const GisFeederMap = dynamic(
+  () => import("@/components/scada/GisFeederMap").then((m) => m.GisFeederMap),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full min-h-[300px] bg-slate-100 dark:bg-[#070809] border border-slate-200 dark:border-zinc-800 rounded-sm flex flex-col items-center justify-center font-mono gap-2 text-slate-500 dark:text-zinc-400 select-none">
+        <div className="flex items-center gap-2 text-xs">
+          <span className="h-2 w-2 rounded-full bg-cyan-500 animate-ping" />
+          <span className="font-bold uppercase tracking-wider text-slate-700 dark:text-zinc-300">
+            GEOSPATIAL TOPOLOGY ENGINE
+          </span>
+        </div>
+        <span className="text-[10px] text-slate-400 dark:text-zinc-500">
+          Mounting Mapbox vector canvas &amp; feeder network...
+        </span>
+      </div>
+    ),
+  }
+);
+const FeederAssetTree = dynamic(
+  () => import("@/components/scada/FeederAssetTree").then((m) => m.FeederAssetTree),
+  { ssr: false }
+);
 const TelemetryTrendChart = dynamic(
   () => import("@/components/scada/TelemetryTrendChart").then((m) => m.TelemetryTrendChart),
   { ssr: false }
