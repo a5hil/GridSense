@@ -429,6 +429,58 @@ export default function SCADADashboard() {
     }
   };
 
+  const [isResettingLatch, setIsResettingLatch] = React.useState(false);
+
+  // Remote Sectionalizer Reclose & Trip Latch Reset ('n')
+  const handleResetLatch = async () => {
+    if (isGatewayOffline) {
+      addToast({
+        title: "RECLOSE INHIBITED",
+        description: "Cannot reclose sectionalizer while hardware gateway telemetry is offline.",
+        type: "warning",
+      });
+      return;
+    }
+    if (isPtwLocked) {
+      addToast({
+        title: "SAFETY INTERLOCK ACTIVE",
+        description: "Reclose is mechanically locked out while Lineman Permit to Work (PTW) is active.",
+        type: "warning",
+      });
+      return;
+    }
+    setIsResettingLatch(true);
+    try {
+      const res = await fetch("/api/telemetry/ports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "command", command: "n" }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success !== false) {
+        addToast({
+          title: "SUPERVISORY RECLOSE COMMAND SENT ('n')",
+          description: "Section 1 sectionalizer reclose & protection latch reset command transmitted to RTU.",
+          type: "success",
+        });
+      } else {
+        addToast({
+          title: "RECLOSE TRANSMISSION FAILED",
+          description: data.error || "Gateway RTU did not acknowledge command.",
+          type: "warning",
+        });
+      }
+    } catch (err: any) {
+      addToast({
+        title: "COMMAND ERROR",
+        description: err?.message || "Failed to reach SCADA gateway interface.",
+        type: "warning",
+      });
+    } finally {
+      setIsResettingLatch(false);
+    }
+  };
+
   // Rescan available serial ports handler
   const handleRefreshPorts = React.useCallback(async () => {
     try {
@@ -788,7 +840,7 @@ export default function SCADADashboard() {
   const isDataReady = Boolean(networkSnapshot && (connectedSSE || telemetry));
 
   return (
-    <div className="min-h-full flex-1 flex flex-col gap-2.5 font-mono">
+    <div className="min-h-full flex-1 flex flex-col gap-2.5 font-mono pb-3 sm:pb-5">
       {!isPlatformReady && (
         <PlatformLoadingOverlay
           isDataReady={isDataReady}
@@ -1486,24 +1538,49 @@ export default function SCADADashboard() {
 
                   {/* Alarm Silencing / Reset Action */}
                   {isFault ? (
-                    <Button
-                      variant={isPtwLocked ? "outline" : isPowerCut ? "secondary" : "destructive"}
-                      size="sm"
-                      className={`w-full font-mono font-bold text-xs shadow-sm ${
-                        isPowerCut ? "bg-slate-200 hover:bg-slate-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-zinc-200 border border-slate-300 dark:border-zinc-700" : ""
-                      }`}
-                      onClick={handleAcknowledgeAlarm}
-                      disabled={isAcking}
-                    >
-                      <Check className="h-3.5 w-3.5 mr-1" />
-                      {isAcking
-                        ? "CLEARING..."
-                        : isPowerCut
-                        ? "ACKNOWLEDGE OUTAGE (ESC)"
-                        : isAlarmUnacked
-                        ? "ACKNOWLEDGE TRIP ALARM (ESC)"
-                        : "RESET TRIP LATCH // RECLOSE SECTIONALIZER"}
-                    </Button>
+                    isAlarmUnacked ? (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        className="w-full font-mono font-bold text-xs shadow-sm animate-pulse"
+                        onClick={handleAcknowledgeAlarm}
+                        disabled={isAcking}
+                      >
+                        <Check className="h-3.5 w-3.5 mr-1" />
+                        {isAcking ? "CLEARING..." : "ACKNOWLEDGE TRIP ALARM (ESC)"}
+                      </Button>
+                    ) : (
+                      <Button
+                        variant={isPtwLocked || isGatewayOffline ? "outline" : "default"}
+                        size="sm"
+                        className={`w-full font-mono font-bold text-xs shadow-sm ${
+                          isPtwLocked
+                            ? "border-amber-400 bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-700/60 cursor-not-allowed opacity-80"
+                            : isGatewayOffline
+                            ? "border-slate-300 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-900 text-slate-500 dark:text-zinc-400 cursor-not-allowed opacity-75"
+                            : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                        }`}
+                        onClick={handleResetLatch}
+                        disabled={isResettingLatch || isPtwLocked || isGatewayOffline}
+                      >
+                        {isPtwLocked ? (
+                          <>
+                            <Lock className="h-3.5 w-3.5 mr-1 text-amber-600 dark:text-amber-400" />
+                            RECLOSE INTERLOCKED (PTW ACTIVE)
+                          </>
+                        ) : isGatewayOffline ? (
+                          <>
+                            <Zap className="h-3.5 w-3.5 mr-1 text-slate-400" />
+                            RECLOSE UNAVAILABLE (GATEWAY OFFLINE)
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="h-3.5 w-3.5 mr-1 text-emerald-200" />
+                            {isResettingLatch ? "TRANSMITTING RECLOSE..." : "RESET TRIP LATCH // RECLOSE SECTIONALIZER ('N')"}
+                          </>
+                        )}
+                      </Button>
+                    )
                   ) : (
                     <div className="border border-slate-200 dark:border-zinc-800/60 bg-slate-50 dark:bg-zinc-950/40 p-2 rounded-sm text-[10px] text-slate-600 dark:text-zinc-400 flex items-center justify-between font-mono">
                       <span className="text-slate-700 dark:text-zinc-300">SCADA Field Bus Telemetry</span>
