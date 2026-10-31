@@ -300,7 +300,7 @@ class NetworkTwin extends EventEmitter {
       const l = zero();
       for (const p of PHASES) {
         const src = srcOf(id, p);
-        if (dead[p].has(id) || src === "NOT_INSTRUMENTED" || src === "OFFLINE") continue;
+        if (dead[p].has(id) || src === "NOT_INSTRUMENTED" || src === "OFFLINE" || !live.linkUp) continue;
         if (src === "LIVE") {
           // Terminal live pole: everything it measures is its own downstream load.
           const side = liveSide(id);
@@ -350,16 +350,26 @@ class NetworkTwin extends EventEmitter {
     }
 
     // 2. Voltages top-down. Anchor DTR phase R to live V1 when available.
+    // In complete hardware-coupled mode (Option 2): if the gateway link is offline or no live nodes are online,
+    // zero out the DTR bus voltages and load flow so phantom values do not display.
+    const isLiveSystemOnline = live.linkUp && (live.a.online || live.b.online);
     const pathToA: string[] = [];
     for (let cur: string | null = "F1-P01"; cur && cur !== "DTR-01"; cur = NODE_BY_ID[cur]?.parentId ?? null) pathToA.push(cur);
-    if (live.a.online && live.a.v > 180) {
+    if (isLiveSystemOnline && live.a.online && live.a.v > 50) {
       const drop = pathToA.reduce((acc, id) => acc + iSpan[id].R * ohm(id), 0);
       this.dtrV.R = live.a.v + drop;
-    } else {
+      this.dtrV.Y = this.dtrV.R + this.dtrOffset.Y;
+      this.dtrV.B = this.dtrV.R + this.dtrOffset.B;
+    } else if (isLiveSystemOnline) {
       this.dtrV.R += 0.05 * (240 - this.dtrV.R);
+      this.dtrV.Y = this.dtrV.R + this.dtrOffset.Y;
+      this.dtrV.B = this.dtrV.R + this.dtrOffset.B;
+    } else {
+      // Complete hardware dark-mode: gateway offline -> 0V supply at DTR
+      this.dtrV.R = 0;
+      this.dtrV.Y = 0;
+      this.dtrV.B = 0;
     }
-    this.dtrV.Y = this.dtrV.R + this.dtrOffset.Y;
-    this.dtrV.B = this.dtrV.R + this.dtrOffset.B;
 
     const volt: Record<string, PhaseNums> = { "DTR-01": { ...this.dtrV } };
     for (const id of TOPO_ORDER) {

@@ -982,7 +982,9 @@ export default function SCADADashboard() {
                     </span>
                     <Badge
                       variant={
-                        (networkSnapshot?.dtr.loadingPct ?? 0) > 85
+                        isGatewayOffline
+                          ? "outline"
+                          : (networkSnapshot?.dtr.loadingPct ?? 0) > 85
                           ? "destructive"
                           : (networkSnapshot?.dtr.loadingPct ?? 0) > 65
                           ? "warning"
@@ -990,43 +992,45 @@ export default function SCADADashboard() {
                       }
                       className="text-[10px] shrink-0"
                     >
-                      {networkSnapshot ? `${networkSnapshot.dtr.loadingPct.toFixed(1)}%` : "--%"} CAPACITY
+                      {isGatewayOffline ? "OFFLINE" : networkSnapshot ? `${networkSnapshot.dtr.loadingPct.toFixed(1)}% CAPACITY` : "--%"}
                     </Badge>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-2 pb-2.5">
                   <div className="flex items-center gap-2.5">
-                    <Zap className="h-7 w-7 text-amber-500 shrink-0" />
+                    <Zap className={`h-7 w-7 ${isGatewayOffline ? "text-slate-400 dark:text-zinc-600" : "text-amber-500"} shrink-0`} />
                     <div className="flex-1 min-w-0">
-                      <div className="text-xl font-bold font-mono text-slate-900 dark:text-zinc-100 tabular-nums">
-                        {networkSnapshot ? networkSnapshot.dtr.kw.toFixed(1) : feederLoadKW}{" "}
+                      <div className={`text-xl font-bold font-mono ${isGatewayOffline ? "text-slate-600 dark:text-zinc-400" : "text-slate-900 dark:text-zinc-100"} tabular-nums`}>
+                        {isGatewayOffline ? "---" : networkSnapshot ? networkSnapshot.dtr.kw.toFixed(1) : feederLoadKW}{" "}
                         <span className="text-sm text-slate-600 dark:text-zinc-400 font-normal">kW</span>
                         <span className="text-xs text-slate-500 dark:text-zinc-400 font-normal ml-1.5 font-mono">
-                          ({networkSnapshot ? networkSnapshot.dtr.kva.toFixed(1) : "---"} kVA)
+                          ({isGatewayOffline ? "---" : networkSnapshot ? networkSnapshot.dtr.kva.toFixed(1) : "---"} kVA)
                         </span>
                       </div>
                       <div className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono truncate">
-                        LT-1 HEAD: <span className="text-slate-900 dark:text-zinc-200 font-semibold tabular-nums">{feederLoadKW} kW</span>
-                        <span className="ml-1 text-slate-600 dark:text-zinc-400">• I²R LOSS: {gridMetrics ? gridMetrics.technicalLossKw.toFixed(2) : lineLossW.toFixed(1)} kW</span>
+                        LT-1 HEAD: <span className="text-slate-900 dark:text-zinc-200 font-semibold tabular-nums">{isGatewayOffline ? "0.00" : feederLoadKW} kW</span>
+                        <span className="ml-1 text-slate-600 dark:text-zinc-400">• I²R LOSS: {isGatewayOffline ? "0.00" : gridMetrics ? gridMetrics.technicalLossKw.toFixed(2) : lineLossW.toFixed(1)} kW</span>
                       </div>
                       {/* Visual Capacity Utilization Bar */}
                       <div className="mt-1.5 h-1 w-full bg-slate-200 dark:bg-zinc-800 rounded-full overflow-hidden">
                         <div
                           className={`h-full transition-all duration-300 ${
-                            (networkSnapshot?.dtr.loadingPct ?? 0) > 85
+                            isGatewayOffline
+                              ? "bg-slate-300 dark:bg-zinc-700"
+                              : (networkSnapshot?.dtr.loadingPct ?? 0) > 85
                               ? "bg-rose-500"
                               : (networkSnapshot?.dtr.loadingPct ?? 0) > 65
                               ? "bg-amber-500"
                               : "bg-emerald-500"
                           }`}
-                          style={{ width: `${Math.min(100, Math.max(0, networkSnapshot?.dtr.loadingPct ?? 26))}%` }}
+                          style={{ width: `${isGatewayOffline ? 0 : Math.min(100, Math.max(0, networkSnapshot?.dtr.loadingPct ?? 26))}%` }}
                         />
                       </div>
                     </div>
                   </div>
                 </CardContent>
                 <div className="border-t border-slate-200/80 dark:border-zinc-800/80 px-3.5 py-1.5 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between bg-slate-50/60 dark:bg-zinc-950/40">
-                  <span>RADIAL: F1: {gridMetrics?.f1Kw.toFixed(0) ?? feederLoadKW}k • F2: {gridMetrics?.f2Kw.toFixed(0) ?? 0}k • F3: {gridMetrics?.f3Kw.toFixed(0) ?? 0}k</span>
+                  <span>RADIAL: F1: {isGatewayOffline ? "0" : gridMetrics?.f1Kw.toFixed(0) ?? feederLoadKW}k • F2: {isGatewayOffline ? "0" : gridMetrics?.f2Kw.toFixed(0) ?? 0}k • F3: {isGatewayOffline ? "0" : gridMetrics?.f3Kw.toFixed(0) ?? 0}k</span>
                   <span className="text-blue-600 dark:text-cyan-500 font-semibold">250 kVA BASE</span>
                 </div>
               </Card>
@@ -1036,14 +1040,14 @@ export default function SCADADashboard() {
                 isP1Stale ? "opacity-75 border-amber-500/50" : ""
               }`}>
                 {(() => {
-                  const dtrVr = v1 > 0 ? v1 : networkSnapshot ? networkSnapshot.dtr.voltage.R : 230;
-                  const dtrVy = networkSnapshot ? networkSnapshot.dtr.voltage.Y : 230;
-                  const dtrVb = networkSnapshot ? networkSnapshot.dtr.voltage.B : 230;
+                  const dtrVr = isGatewayOffline ? 0 : (v1 > 0 ? v1 : networkSnapshot ? networkSnapshot.dtr.voltage.R : 230);
+                  const dtrVy = isGatewayOffline ? 0 : (networkSnapshot ? networkSnapshot.dtr.voltage.Y : 230);
+                  const dtrVb = isGatewayOffline ? 0 : (networkSnapshot ? networkSnapshot.dtr.voltage.B : 230);
                   const minV = Math.min(dtrVr, dtrVy, dtrVb);
                   const maxV = Math.max(dtrVr, dtrVy, dtrVb);
-                  const isUnderVoltage = minV > 15 && minV < 207; // < -10% nominal 230V
-                  const isOverVoltage = maxV > 253; // > +10% nominal 230V
-                  const unbalance = networkSnapshot ? networkSnapshot.dtr.unbalancePct : 0;
+                  const isUnderVoltage = !isGatewayOffline && minV > 15 && minV < 207; // < -10% nominal 230V
+                  const isOverVoltage = !isGatewayOffline && maxV > 253; // > +10% nominal 230V
+                  const unbalance = isGatewayOffline ? 0 : (networkSnapshot ? networkSnapshot.dtr.unbalancePct : 0);
                   const isUnbalanced = unbalance > 3.0;
 
                   return (
@@ -1055,13 +1059,17 @@ export default function SCADADashboard() {
                           </span>
                           <Badge
                             variant={
-                              isUnderVoltage || isOverVoltage || isUnbalanced
+                              isGatewayOffline
+                                ? "outline"
+                                : isUnderVoltage || isOverVoltage || isUnbalanced
                                 ? "destructive"
                                 : "healthy"
                             }
                             className="text-[10px] shrink-0"
                           >
-                            {isUnderVoltage
+                            {isGatewayOffline
+                              ? "OFFLINE"
+                              : isUnderVoltage
                               ? `UNDERVOLTAGE (${minV.toFixed(0)}V)`
                               : isOverVoltage
                               ? `OVERVOLTAGE (${maxV.toFixed(0)}V)`
@@ -1073,32 +1081,34 @@ export default function SCADADashboard() {
                       </CardHeader>
                       <CardContent className="pt-2 pb-2.5">
                         <div className="flex items-center gap-2.5">
-                          <Activity className={`h-7 w-7 shrink-0 ${isUnderVoltage || isOverVoltage ? "text-rose-600 dark:text-rose-400" : "text-blue-600 dark:text-cyan-400"}`} />
+                          <Activity className={`h-7 w-7 shrink-0 ${isGatewayOffline ? "text-slate-400 dark:text-zinc-600" : isUnderVoltage || isOverVoltage ? "text-rose-600 dark:text-rose-400" : "text-blue-600 dark:text-cyan-400"}`} />
                           <div className="flex-1 min-w-0">
                             <div className="grid grid-cols-3 gap-1 font-mono tabular-nums">
                               <div className="px-1.5 py-0.5 rounded-xs bg-rose-500/10 border border-rose-500/25 flex items-center justify-between text-[11px]">
                                 <span className="font-bold text-rose-600 dark:text-rose-400">R</span>
-                                <span className="font-bold text-slate-900 dark:text-zinc-100">{dtrVr.toFixed(0)}V</span>
+                                <span className="font-bold text-slate-900 dark:text-zinc-100">{isGatewayOffline ? "---" : `${dtrVr.toFixed(0)}V`}</span>
                               </div>
                               <div className="px-1.5 py-0.5 rounded-xs bg-amber-500/10 border border-amber-500/25 flex items-center justify-between text-[11px]">
                                 <span className="font-bold text-amber-700 dark:text-amber-400">Y</span>
-                                <span className="font-bold text-slate-900 dark:text-zinc-100">{dtrVy.toFixed(0)}V</span>
+                                <span className="font-bold text-slate-900 dark:text-zinc-100">{isGatewayOffline ? "---" : `${dtrVy.toFixed(0)}V`}</span>
                               </div>
                               <div className="px-1.5 py-0.5 rounded-xs bg-blue-500/10 border border-blue-500/25 flex items-center justify-between text-[11px]">
                                 <span className="font-bold text-blue-700 dark:text-cyan-400">B</span>
-                                <span className="font-bold text-slate-900 dark:text-zinc-100">{dtrVb.toFixed(0)}V</span>
+                                <span className="font-bold text-slate-900 dark:text-zinc-100">{isGatewayOffline ? "---" : `${dtrVb.toFixed(0)}V`}</span>
                               </div>
                             </div>
                             <div className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono mt-1 flex items-center justify-between">
-                              <span>Freq: <strong className="text-slate-900 dark:text-zinc-200">{!isGatewayOffline && telemetry?.p1?.freq !== undefined && telemetry.p1.freq > 0 ? `${telemetry.p1.freq.toFixed(2)} Hz` : "50.00 Hz"}</strong></span>
-                              <span>Unbalance: <strong className="text-slate-900 dark:text-zinc-200">{unbalance.toFixed(2)}%</strong></span>
+                              <span>Freq: <strong className="text-slate-900 dark:text-zinc-200">{!isGatewayOffline && telemetry?.p1?.freq !== undefined && telemetry.p1.freq > 0 ? `${telemetry.p1.freq.toFixed(2)} Hz` : isGatewayOffline ? "---" : "50.00 Hz"}</strong></span>
+                              <span>Unbalance: <strong className="text-slate-900 dark:text-zinc-200">{isGatewayOffline ? "---" : `${unbalance.toFixed(2)}%`}</strong></span>
                             </div>
                           </div>
                         </div>
                       </CardContent>
                       <div className="border-t border-slate-200/80 dark:border-zinc-800/80 px-3.5 py-1.5 text-[10px] text-slate-500 dark:text-zinc-400 font-mono flex justify-between bg-slate-50/60 dark:bg-zinc-950/40">
                         <span>415V L-L / 240V L-N</span>
-                        {isUnderVoltage ? (
+                        {isGatewayOffline ? (
+                          <span className="text-amber-600 dark:text-amber-500 font-semibold">BUS TELEMETRY OFFLINE</span>
+                        ) : isUnderVoltage ? (
                           <span className="text-rose-600 dark:text-rose-500 font-bold">
                             ANSI 27 EXCURSION ({(((minV - 230) / 230) * 100).toFixed(0)}%)
                           </span>

@@ -261,19 +261,25 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
         <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3 rounded-sm flex flex-col justify-between">
           <div className="text-[11px] text-slate-500 dark:text-zinc-400 flex items-center justify-between">
             <span>DTR-01 TOTAL LOAD</span>
-            <span className="font-bold text-slate-800 dark:text-zinc-200">{dtr.loadingPct.toFixed(1)}%</span>
+            <span className="font-bold text-slate-800 dark:text-zinc-200">
+              {!liveLinkUp ? "OFFLINE" : `${dtr.loadingPct.toFixed(1)}%`}
+            </span>
           </div>
           <div className="mt-1 flex items-baseline gap-1.5">
-            <span className="text-lg font-bold text-slate-900 dark:text-zinc-100">{dtr.kva.toFixed(1)}</span>
+            <span className="text-lg font-bold text-slate-900 dark:text-zinc-100">
+              {!liveLinkUp ? "---" : dtr.kva.toFixed(1)}
+            </span>
             <span className="text-[11px] text-slate-400">kVA</span>
-            <span className="text-[11px] text-slate-400">({dtr.kw.toFixed(1)} kW)</span>
+            <span className="text-[11px] text-slate-400">
+              ({!liveLinkUp ? "--- kW" : `${dtr.kw.toFixed(1)} kW`})
+            </span>
           </div>
           <div className="w-full bg-slate-100 dark:bg-zinc-800 h-1.5 rounded-full mt-2 overflow-hidden">
             <div
               className={`h-full ${
-                dtr.loadingPct > 90 ? "bg-rose-500" : dtr.loadingPct > 75 ? "bg-amber-500" : "bg-emerald-500"
+                !liveLinkUp ? "bg-slate-300 dark:bg-zinc-700" : dtr.loadingPct > 90 ? "bg-rose-500" : dtr.loadingPct > 75 ? "bg-amber-500" : "bg-emerald-500"
               }`}
-              style={{ width: `${Math.min(100, dtr.loadingPct)}%` }}
+              style={{ width: `${!liveLinkUp ? 0 : Math.min(100, dtr.loadingPct)}%` }}
             />
           </div>
         </div>
@@ -286,17 +292,21 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
               PHASE R
             </span>
             <Badge variant="outline" className="text-[9px] border-rose-500/50 text-rose-500 py-0 font-bold">
-              PRIMARY METERED
+              {!liveLinkUp ? "OFFLINE" : "PRIMARY METERED"}
             </Badge>
           </div>
           <div className="mt-1 grid grid-cols-2 gap-2">
             <div>
               <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">VOLTAGE</div>
-              <div className="text-base font-bold text-slate-900 dark:text-zinc-100">{dtr.voltage.R.toFixed(1)} V</div>
+              <div className="text-base font-bold text-slate-900 dark:text-zinc-100">
+                {!liveLinkUp ? "--- V" : `${dtr.voltage.R.toFixed(1)} V`}
+              </div>
             </div>
             <div>
               <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">TOTAL CURRENT</div>
-              <div className="text-base font-bold text-rose-600 dark:text-rose-400">{dtr.current.R.toFixed(1)} A</div>
+              <div className="text-base font-bold text-rose-600 dark:text-rose-400">
+                {!liveLinkUp ? "--- A" : `${dtr.current.R.toFixed(1)} A`}
+              </div>
             </div>
           </div>
         </div>
@@ -309,17 +319,21 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
               PHASE Y
             </span>
             <Badge variant="outline" className="text-[9px] border-amber-500/50 text-amber-700 dark:text-amber-500 py-0 font-normal">
-              120° LAG
+              {!liveLinkUp ? "OFFLINE" : "120° LAG"}
             </Badge>
           </div>
           <div className="mt-1 grid grid-cols-2 gap-2">
             <div>
               <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">VOLTAGE</div>
-              <div className="text-base font-bold text-slate-900 dark:text-zinc-100">{dtr.voltage.Y.toFixed(1)} V</div>
+              <div className="text-base font-bold text-slate-900 dark:text-zinc-100">
+                {!liveLinkUp ? "--- V" : `${dtr.voltage.Y.toFixed(1)} V`}
+              </div>
             </div>
             <div>
               <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">TOTAL CURRENT</div>
-              <div className="text-base font-bold text-amber-700 dark:text-amber-400">{dtr.current.Y.toFixed(1)} A</div>
+              <div className="text-base font-bold text-amber-700 dark:text-amber-400">
+                {!liveLinkUp ? "--- A" : `${dtr.current.Y.toFixed(1)} A`}
+              </div>
             </div>
           </div>
         </div>
@@ -332,17 +346,21 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
               PHASE B
             </span>
             <Badge variant="outline" className="text-[9px] border-cyan-500/50 text-blue-700 dark:text-cyan-500 py-0 font-normal">
-              240° LAG
+              {!liveLinkUp ? "OFFLINE" : "240° LAG"}
             </Badge>
           </div>
           <div className="mt-1 grid grid-cols-2 gap-2">
             <div>
               <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">VOLTAGE</div>
-              <div className="text-base font-bold text-slate-900 dark:text-zinc-100">{dtr.voltage.B.toFixed(1)} V</div>
+              <div className="text-base font-bold text-slate-900 dark:text-zinc-100">
+                {!liveLinkUp ? "--- V" : `${dtr.voltage.B.toFixed(1)} V`}
+              </div>
             </div>
             <div>
               <div className="text-[10px] text-slate-500 dark:text-slate-400 font-semibold">TOTAL CURRENT</div>
-              <div className="text-base font-bold text-blue-700 dark:text-cyan-400">{dtr.current.B.toFixed(1)} A</div>
+              <div className="text-base font-bold text-blue-700 dark:text-cyan-400">
+                {!liveLinkUp ? "--- A" : `${dtr.current.B.toFixed(1)} A`}
+              </div>
             </div>
           </div>
         </div>
