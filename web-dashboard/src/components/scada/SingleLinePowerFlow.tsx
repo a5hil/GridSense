@@ -86,9 +86,11 @@ export const SingleLinePowerFlow = React.memo(function SingleLinePowerFlow({
   }, [networkSnapshot, selectedPoleId]);
 
   const isGatewayOffline =
+    !telemetry ||
     telemetry?.status === "DISCONNECTED" ||
     telemetry?.status === "WAITING_DATA" ||
-    telemetry?.fault_code === "GATEWAY_DISCONNECTED";
+    telemetry?.fault_code === "GATEWAY_DISCONNECTED" ||
+    networkSnapshot?.liveLinkUp === false;
 
   const idiff = isGatewayOffline ? 0.0 : (telemetry?.idiff ?? 0.0);
   const tripLimit = telemetry?.trip_limit ?? 0.35;

@@ -656,18 +656,19 @@ export const GisFeederMap = React.memo(function GisFeederMap({
     );
 
     // 2. DTR-01 Circular Hub with % Load Arc
-    const dtrKva = networkSnapshot ? networkSnapshot.dtr.kva : 65.7;
-    const dtrPct = networkSnapshot ? networkSnapshot.dtr.loadingPct : 26.3;
+    const liveLinkUp = networkSnapshot?.liveLinkUp ?? false;
+    const dtrKva = networkSnapshot && liveLinkUp ? networkSnapshot.dtr.kva : 0;
+    const dtrPct = networkSnapshot && liveLinkUp ? networkSnapshot.dtr.loadingPct : 0;
     upsertCircularNodeMarker(
       ASSETS.dtr.coords,
       {
         id: "DTR-01",
         label: "DTR-01 (250 kVA)",
-        badgeText: `DTR • ${dtrKva.toFixed(0)}kVA`,
-        color: "#10b981",
+        badgeText: liveLinkUp ? `DTR • ${dtrKva.toFixed(0)}kVA` : "DTR • 0kVA",
+        color: liveLinkUp ? "#10b981" : "#94a3b8",
         iconType: "DTR",
         loadingPct: dtrPct,
-        statusText: `ONLINE (${dtrPct}% LOAD)`,
+        statusText: liveLinkUp ? `ONLINE (${dtrPct}% LOAD)` : "OFFLINE // NO FEED",
       },
       () => setSelectedAsset(ASSETS.dtr)
     );
