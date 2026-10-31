@@ -109,7 +109,8 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
                       networkSnapshot.topology.feeders.map((f) => {
                         const isExpanded = !!expandedFeeders[f.id];
                         const poles = networkSnapshot.nodes.filter((n) => n.feederId === f.id);
-                        const hasFault = networkSnapshot.detections.some((d) => d.feederId === f.id);
+                        const hasFault = networkSnapshot.detections.some((d) => d.feederId === f.id && d.type !== "NODE_OFFLINE");
+                        const isOffline = !networkSnapshot.liveLinkUp && f.id === "LT-1";
 
                         return (
                           <div key={f.id} className="space-y-1">
@@ -125,10 +126,10 @@ export const FeederAssetTree = React.memo(function FeederAssetTree({
                               <Layers className="h-3 w-3" style={{ color: f.color }} />
                               <span>{f.name}</span>
                               <Badge
-                                variant={hasFault ? "destructive" : "outline"}
-                                className="ml-auto text-[9px] py-0"
+                                variant={isOffline ? "outline" : hasFault ? "destructive" : "outline"}
+                                className={`ml-auto text-[9px] py-0 ${isOffline ? "text-slate-500 border-slate-300 dark:border-zinc-700" : ""}`}
                               >
-                                {hasFault ? "TRIP" : `${poles.length} POLES`}
+                                {isOffline ? "OFFLINE" : hasFault ? "TRIP" : `${poles.length} POLES`}
                               </Badge>
                             </button>
 
