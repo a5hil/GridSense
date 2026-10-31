@@ -18,6 +18,15 @@ export const metadata: Metadata = {
   title: "GridSense // SCADA Power Telemetry & FDIR Control",
   description:
     "Distribution Office Real-Time SCADA Dashboard for Power Telemetry and Central FDIR Grid Protection",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180" },
+    ],
+  },
 };
 
 import { DashboardProvider } from "@/context/DashboardContext";
