@@ -5,9 +5,11 @@ import { useRouter } from "next/navigation";
 import { Lock, User, Zap, AlertTriangle, Eye, EyeOff, KeyRound, Clock } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useDashboard } from "@/context/DashboardContext";
+import { HairlineTransmissionGrid } from "@/components/scada/HairlineTransmissionGrid";
 
-const IST_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "Asia/Kolkata",
+// ZULU / GMT 24-hour timestamp formatter for SCADA operator logging
+const ZULU_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "UTC",
   hour: "2-digit",
   minute: "2-digit",
   second: "2-digit",
@@ -23,10 +25,10 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [clockTime, setClockTime] = useState<string>("");
+  const [zuluTime, setZuluTime] = useState<string>("");
 
   useEffect(() => {
-    const updateTime = () => setClockTime(IST_TIME_FORMATTER.format(new Date()));
+    const updateTime = () => setZuluTime(ZULU_TIME_FORMATTER.format(new Date()));
     updateTime();
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
@@ -79,12 +81,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 dark:bg-[#08090b] text-slate-900 dark:text-[#fafafa] flex flex-col justify-between p-3 md:p-4 font-mono select-none transition-colors">
-      {/* Background Subtle Substation Grid Aesthetics */}
-      <div className="absolute inset-0 bg-[radial-gradient(#94a3b8_1px,transparent_1px)] dark:bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-25 pointer-events-none" />
+    <div className="relative min-h-screen bg-slate-50 dark:bg-[#050608] text-slate-900 dark:text-[#fafafa] flex flex-col justify-between p-3 md:p-4 font-mono select-none transition-colors overflow-hidden">
+      {/* 0. ISOMETRIC HAIRLINE TRANSMISSION GRID BACKGROUND (z-index: 0) */}
+      <HairlineTransmissionGrid />
 
-      {/* 1. TOP SCADA HEADER BAR */}
-      <header className="relative z-10 border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm flex items-center justify-between shadow-xs dark:shadow-none transition-colors">
+      {/* 1. TOP SCADA HEADER BAR (z-index: 10) */}
+      <header className="relative z-10 border border-slate-200/90 dark:border-zinc-800/90 bg-white/95 dark:bg-[#0c0d10]/95 backdrop-blur-md p-3.5 rounded-sm flex items-center justify-between shadow-xs dark:shadow-none transition-colors">
         <div className="flex items-center gap-3">
           <div className="p-2 border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 rounded-sm">
             <Zap className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
@@ -97,28 +99,31 @@ export default function LoginPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* SCADA DARK / DAY LIGHT Theme Switcher */}
           <ThemeToggle />
+
+          {/* Real-time ZULU / GMT timestamp tracker */}
           <div
             suppressHydrationWarning
             className="h-8 flex items-center gap-1.5 px-2.5 rounded-sm border border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-950/80 text-[11px] text-slate-500 dark:text-zinc-400 tabular-nums hidden sm:flex font-mono shadow-2xs"
           >
             <Clock className="h-3 w-3 text-slate-400 dark:text-zinc-500 shrink-0" />
             <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 tracking-wider">
-              IST:
+              ZULU / GMT:
             </span>
-            <span className="text-slate-900 dark:text-zinc-200 font-bold">{clockTime || "--:--:--"}</span>
+            <span className="text-slate-900 dark:text-zinc-200 font-bold">{zuluTime || "--:--:--"}</span>
           </div>
         </div>
       </header>
 
-      {/* 2. CENTER OPERATOR AUTHENTICATION CARD */}
+      {/* 2. CENTER OPERATOR AUTHENTICATION CARD (z-index: 10, protected legibility guardrails) */}
       <main className="relative z-10 flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-8 rounded-sm shadow-xl transition-colors">
+        <div className="w-full max-w-md border border-slate-200 dark:border-zinc-800 bg-white/95 dark:bg-[#0c0d10]/95 backdrop-blur-md p-8 rounded-sm shadow-2xl transition-colors">
           <div className="mb-6 pb-3 border-b border-slate-200 dark:border-zinc-800">
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-zinc-100">
               OPERATOR AUTHENTICATION
             </h2>
-            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
+            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1 leading-relaxed">
               Authorized substation personnel only. All access is logged to the Sequence of Events (SOE) ledger.
             </p>
           </div>
@@ -139,7 +144,7 @@ export default function LoginPage() {
           >
             <div>
               <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 uppercase tracking-wider mb-2">
-                Operator ID / Username
+                OPERATOR ID / USERNAME
               </label>
               <div className="relative">
                 <User className="absolute left-3.5 top-3 h-4 w-4 text-slate-400 dark:text-zinc-500" />
@@ -157,7 +162,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-600 dark:text-zinc-400 uppercase tracking-wider mb-2">
-                Keyphrase / Password
+                KEYPHRASE / PASSWORD
               </label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-3 h-4 w-4 text-slate-400 dark:text-zinc-500" />
@@ -173,26 +178,27 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-3 text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors"
+                  className="absolute right-3.5 top-3 text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300 transition-colors cursor-pointer"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
             </div>
 
-            {/* Quick Demo Fill Pill (convenient for lab bench evaluations) */}
+            {/* Quick Demo Modes helper and teal fill trigger */}
             <div className="flex items-center justify-between text-[11px] pt-1">
-              <span className="text-slate-400 dark:text-zinc-500">Bench Demo Mode:</span>
+              <span className="text-slate-400 dark:text-zinc-500">Quick Demo Modes:</span>
               <button
                 type="button"
                 onClick={fillDemoCredentials}
-                className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-bold transition-colors cursor-pointer"
+                className="flex items-center gap-1 text-teal-600 dark:text-teal-400 hover:text-teal-500 font-bold transition-colors cursor-pointer"
               >
-                <KeyRound className="h-3 w-3" />
-                <span>Fill Operator Credentials</span>
+                <KeyRound className="h-3.5 w-3.5" />
+                <span>Fill operator credentials</span>
               </button>
             </div>
 
+            {/* High-contrast solid green rectangular action button */}
             <button
               type="submit"
               disabled={isLoading || isAuthorized}
@@ -201,15 +207,20 @@ export default function LoginPage() {
               {isLoading || isAuthorized ? (
                 <>
                   <div className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Authorizing Session...</span>
+                  <span>AUTHORIZING DISPATCH SESSION...</span>
                 </>
               ) : (
-                <span>Authorize Dispatch Access</span>
+                <span>AUTHORIZE DISPATCH ACCESS</span>
               )}
             </button>
           </form>
         </div>
       </main>
+
+      {/* 3. FOOTER LEDGER NOTICE */}
+      <footer className="relative z-10 text-center py-2 text-[10px] text-slate-400 dark:text-zinc-600 font-mono tracking-wider">
+        GRIDSENSE ADMS v2.0 • SUBSTATION DISPATCH GATEWAY • PROTOCOL IEEE C37.118 / IEC 61850
+      </footer>
     </div>
   );
 }
