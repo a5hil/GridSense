@@ -141,7 +141,7 @@ export function Sidebar() {
     <aside
       aria-label="Primary Navigation"
       data-collapsed={isCollapsed}
-      className={`relative h-screen flex flex-col justify-between border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] font-mono select-none shrink-0 z-40 transition-[width] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+      className={`relative h-full flex flex-col justify-between border-r border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] font-mono select-none shrink-0 z-40 transition-[width] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
         isCollapsed ? "w-[60px]" : "w-[248px]"
       }`}
     >
