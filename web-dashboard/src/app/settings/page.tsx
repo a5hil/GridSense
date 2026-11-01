@@ -745,56 +745,6 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
-
-      {/* SECTION 6: PERSISTENCE & AUDIT ACTION DOCK */}
-      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-sm border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] shadow-2xs">
-        <div className="flex items-center gap-2 text-slate-600 dark:text-zinc-400">
-          <Shield className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-          <div className="flex flex-col">
-            <span className="font-bold text-[11px] text-slate-800 dark:text-zinc-200">
-              Database &amp; Engine Persistence
-            </span>
-            <span className="text-[10px] text-slate-500 dark:text-zinc-400">
-              Changes sync across MongoDB collection <code className="text-emerald-600 dark:text-emerald-400">scada_settings</code> and live SCADA FDIR engines.
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => window.location.reload()}
-            className="h-8 px-3 font-mono text-xs cursor-pointer border-slate-300 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-900"
-          >
-            <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-            <span>Reload</span>
-          </Button>
-
-          <Button
-            type="button"
-            onClick={handleSave}
-            className={`h-8 px-4 font-bold text-xs uppercase tracking-wider gap-2 shadow-xs cursor-pointer transition-all ${
-              isSaved
-                ? "bg-emerald-600 hover:bg-emerald-600 text-white"
-                : "bg-emerald-600 hover:bg-emerald-500 text-white"
-            }`}
-          >
-            {isSaved ? (
-              <>
-                <CheckCircle2 className="h-4 w-4" />
-                <span>CHANGES SAVED</span>
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4" />
-                <span>SAVE CONFIGURATION</span>
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
     </div>
   );
 }
