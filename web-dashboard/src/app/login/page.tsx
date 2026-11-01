@@ -185,13 +185,13 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Quick Demo Modes helper and teal fill trigger */}
+            {/* Quick Demo Modes helper and emerald fill trigger */}
             <div className="flex items-center justify-between text-[11px] pt-1">
               <span className="text-slate-400 dark:text-zinc-500">Quick Demo Modes:</span>
               <button
                 type="button"
                 onClick={fillDemoCredentials}
-                className="flex items-center gap-1 text-teal-600 dark:text-teal-400 hover:text-teal-500 font-bold transition-colors cursor-pointer"
+                className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-bold transition-colors cursor-pointer"
               >
                 <KeyRound className="h-3.5 w-3.5" />
                 <span>Fill operator credentials</span>
