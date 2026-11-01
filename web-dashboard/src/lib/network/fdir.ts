@@ -245,8 +245,9 @@ export function runFdir(params: {
     });
   }
 
-  // 4b. Branch Overcurrent (ANSI 51) — Per-node / per-phase thermal overload
+  // 4b. Branch Overcurrent (ANSI 51) — Live Hardware pole thermal overload
   for (const n of Object.values(nodes)) {
+    if (n.id === "DTR-01" || !n.isLive) continue;
     for (const phase of PHASES) {
       const r = n.phases[phase];
       if (!instrumented(r)) continue;
@@ -263,7 +264,7 @@ export function runFdir(params: {
           value: r.i,
           threshold: L.overcurrentA,
           unit: "A",
-          source: n.isLive ? "LIVE" : "SIM",
+          source: "LIVE",
         });
       }
     }
