@@ -4,7 +4,21 @@ import { telemetryStore } from "@/lib/telemetry-state";
 import { getDatabaseStats } from "@/lib/db";
 import { assertOperatorSession } from "@/lib/rbac";
 
-const ALLOWED_SERIAL_COMMANDS = new Set(["n", "r", "t", "ping", "reset", "d", "b", "o", "p", "status"]);
+const ALLOWED_SERIAL_COMMANDS = new Set([
+  "n",
+  "r",
+  "t",
+  "ping",
+  "reset",
+  "d",
+  "b",
+  "o",
+  "p",
+  "u",
+  "y",
+  "a",
+  "status",
+]);
 
 export async function GET() {
   const [ports, dbStats] = await Promise.all([
