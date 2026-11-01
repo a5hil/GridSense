@@ -61,7 +61,6 @@ export function HairlineTransmissionGrid() {
       targetY: -9999,
     };
 
-    // Periodic subtle fault anomaly timestamp
     let lastFaultTime = Date.now();
 
     // High-DPI canvas resize handling
@@ -113,123 +112,112 @@ export function HairlineTransmissionGrid() {
       };
     };
 
-    // Repositioned transmission assets across the outer horizon and flanks
-    // Leaves the center completely spacious and open with generous breathing room
+    // Carefully mapped positions ensuring all structures fit comfortably inside the viewport
+    // Completely unencumbered center with generous negative space framing the login card
     const towerNodes: TowerNode[] = [
-      // 1. Far West Utility Pole
+      // 1. West Terminal Utility Pole (mid-left flank)
       {
-        id: "P0",
+        id: "P1",
         type: "pole",
-        baseX: -760,
-        baseY: -160,
-        floatPhase: 0.8,
-        floatSpeed: 0.0009,
+        baseX: -260,
+        baseY: 380,
+        floatPhase: 1.4,
+        floatSpeed: 0.0011,
         floatAmp: 4.5,
         currentZOffset: 0,
         conductorAttachments: [],
       },
-      // 2. West Mid Distribution Pole
-      {
-        id: "P1",
-        type: "pole",
-        baseX: -660,
-        baseY: 200,
-        floatPhase: 1.6,
-        floatSpeed: 0.0011,
-        floatAmp: 5.0,
-        currentZOffset: 0,
-        conductorAttachments: [],
-      },
-      // 3. Northwest 400kV Lattice Transmission Tower (wide left wing)
+      // 2. Northwest 400kV Lattice Transmission Tower (upper-left quadrant)
       {
         id: "T1",
         type: "lattice",
-        baseX: -540,
-        baseY: -120,
+        baseX: -360,
+        baseY: 80,
         floatPhase: 0.2,
         floatSpeed: 0.00095,
-        floatAmp: 6.5,
+        floatAmp: 5.5,
         currentZOffset: 0,
         conductorAttachments: [],
       },
-      // 4. North Horizon Background 400kV Lattice Tower (high top-right skyline)
+      // 3. Lower-Left Feeder Pole (lower-left quadrant)
       {
-        id: "T3",
-        type: "lattice",
-        baseX: -60,
-        baseY: -560,
-        floatPhase: 2.1,
-        floatSpeed: 0.00085,
-        floatAmp: 6.0,
-        currentZOffset: 0,
-        conductorAttachments: [],
-      },
-      // 5. East 220kV Lattice Tower (wide right wing)
-      {
-        id: "T2",
-        type: "lattice",
-        baseX: 560,
-        baseY: -160,
-        floatPhase: 3.3,
-        floatSpeed: 0.001,
-        floatAmp: 7.0,
-        currentZOffset: 0,
-        conductorAttachments: [],
-      },
-      // 6. Southeast Substation Transformer Bank (lower-right opening)
-      {
-        id: "S1",
-        type: "substation",
-        baseX: 500,
-        baseY: 360,
-        floatPhase: 4.2,
-        floatSpeed: 0.00075,
+        id: "P2",
+        type: "pole",
+        baseX: 30,
+        baseY: 445,
+        floatPhase: 2.2,
+        floatSpeed: 0.0012,
         floatAmp: 4.0,
         currentZOffset: 0,
         conductorAttachments: [],
       },
-      // 7. Far Southeast Feeder Pole
+      // 4. Northeast 400kV Lattice Transmission Tower (upper-right quadrant)
       {
-        id: "P2",
-        type: "pole",
-        baseX: 740,
-        baseY: 140,
-        floatPhase: 5.1,
-        floatSpeed: 0.0012,
+        id: "T2",
+        type: "lattice",
+        baseX: 80,
+        baseY: -360,
+        floatPhase: 3.1,
+        floatSpeed: 0.0009,
         floatAmp: 5.5,
+        currentZOffset: 0,
+        conductorAttachments: [],
+      },
+      // 5. Southeast Substation Transformer Bank (lower-right yard)
+      {
+        id: "S1",
+        type: "substation",
+        baseX: 430,
+        baseY: 15,
+        floatPhase: 4.5,
+        floatSpeed: 0.0008,
+        floatAmp: 3.5,
+        currentZOffset: 0,
+        conductorAttachments: [],
+      },
+      // 6. Far East Feeder Pole (mid-right flank)
+      {
+        id: "P3",
+        type: "pole",
+        baseX: 360,
+        baseY: -280,
+        floatPhase: 5.0,
+        floatSpeed: 0.0013,
+        floatAmp: 4.5,
         currentZOffset: 0,
         conductorAttachments: [],
       },
     ];
 
-    // Catenary spans linking the network across outer corridors
+    // Catenary spans connecting the network
     const spans: CatenarySpan[] = [
       {
-        fromNodeId: "P0",
+        fromNodeId: "P1",
         fromAttachIdx: 0,
         toNodeId: "T1",
         toAttachIdx: 2,
-        sag: 16,
-        pulseProgress1: 0.1,
-        pulseProgress2: 0.6,
+        sag: 18,
+        pulseProgress1: 0.12,
+        pulseProgress2: 0.62,
         pulseSpeed: 0.0022,
       },
       {
         fromNodeId: "T1",
         fromAttachIdx: 1,
-        toNodeId: "P1",
+        toNodeId: "P2",
         toAttachIdx: 0,
         sag: 20,
         pulseProgress1: 0.35,
         pulseProgress2: 0.85,
-        pulseSpeed: 0.0025,
+        pulseSpeed: 0.0024,
       },
+      // High sweeping transmission corridor bridging across the upper sky
       {
         fromNodeId: "T1",
         fromAttachIdx: 0,
-        toNodeId: "T3",
+        toNodeId: "T2",
         toAttachIdx: 0,
-        sag: 24,
+        sag: 26,
         pulseProgress1: 0.2,
         pulseProgress2: 0.7,
         pulseSpeed: 0.002,
@@ -237,74 +225,64 @@ export function HairlineTransmissionGrid() {
       {
         fromNodeId: "T1",
         fromAttachIdx: 1,
-        toNodeId: "T3",
+        toNodeId: "T2",
         toAttachIdx: 1,
-        sag: 22,
+        sag: 24,
         pulseProgress1: 0.45,
         pulseProgress2: 0.95,
         pulseSpeed: 0.0021,
       },
-      {
-        fromNodeId: "T3",
-        fromAttachIdx: 0,
-        toNodeId: "T2",
-        toAttachIdx: 0,
-        sag: 28,
-        pulseProgress1: 0.15,
-        pulseProgress2: 0.65,
-        pulseSpeed: 0.0023,
-      },
-      {
-        fromNodeId: "T3",
-        fromAttachIdx: 1,
-        toNodeId: "T2",
-        toAttachIdx: 1,
-        sag: 25,
-        pulseProgress1: 0.4,
-        pulseProgress2: 0.9,
-        pulseSpeed: 0.0022,
-      },
+      // Substation interconnect
       {
         fromNodeId: "T2",
         fromAttachIdx: 1,
         toNodeId: "S1",
         toAttachIdx: 0,
-        sag: 22,
+        sag: 20,
         pulseProgress1: 0.25,
         pulseProgress2: 0.75,
-        pulseSpeed: 0.0024,
+        pulseSpeed: 0.0023,
       },
       {
         fromNodeId: "T2",
         fromAttachIdx: 2,
         toNodeId: "S1",
         toAttachIdx: 1,
-        sag: 20,
+        sag: 18,
         pulseProgress1: 0.5,
         pulseProgress2: 0.0,
+        pulseSpeed: 0.0024,
+      },
+      {
+        fromNodeId: "T2",
+        fromAttachIdx: 0,
+        toNodeId: "P3",
+        toAttachIdx: 0,
+        sag: 16,
+        pulseProgress1: 0.3,
+        pulseProgress2: 0.8,
         pulseSpeed: 0.0025,
       },
       {
         fromNodeId: "S1",
         fromAttachIdx: 1,
-        toNodeId: "P2",
-        toAttachIdx: 0,
-        sag: 16,
-        pulseProgress1: 0.3,
-        pulseProgress2: 0.8,
-        pulseSpeed: 0.0026,
+        toNodeId: "P3",
+        toAttachIdx: 1,
+        sag: 17,
+        pulseProgress1: 0.15,
+        pulseProgress2: 0.65,
+        pulseSpeed: 0.0023,
       },
     ];
 
-    // Trigger an ADMS fault ripple across a span (pure geometric color-shift)
     const triggerFault = (spanIdx: number) => {
       const span = spans[spanIdx];
       if (!span) return;
       span.pulseActive = true;
-      span.pulseColor = Math.random() > 0.4 ? "#f59e0b" : "#10b981"; // Amber or Emerald
+      span.pulseColor = Math.random() > 0.4 ? "#f59e0b" : "#10b981";
     };
 
-    // Primary animation render loop
+    // Primary render loop
     const render = (now: number) => {
       const isDark = theme === "dark" || document.documentElement.classList.contains("dark");
 
@@ -317,15 +295,20 @@ export function HairlineTransmissionGrid() {
         pointer.y = -9999;
       }
 
-      // Application Emerald Palette (strict adherence to GridSense design standards)
-      // Dark Mode Palette:
+      // Palettes:
+      // Dark Mode: Towers and poles in crisp architectural white and shades of grey.
+      // Accents (pulses, tethering, insulator beacons) glow in application emerald.
       const bg = isDark ? "#050608" : "#f8fafc";
-      const gridLine = isDark ? "rgba(16, 185, 129, 0.05)" : "rgba(226, 232, 240, 0.75)";
-      const axisGuide = isDark ? "rgba(16, 185, 129, 0.12)" : "rgba(5, 150, 105, 0.12)";
-      const lineStroke = isDark ? "rgba(148, 163, 184, 0.4)" : "rgba(71, 85, 105, 0.45)";
-      const latticeStroke = isDark ? "rgba(52, 211, 153, 0.65)" : "rgba(30, 41, 59, 0.75)";
+      const gridLine = isDark ? "rgba(148, 163, 184, 0.08)" : "rgba(226, 232, 240, 0.75)";
+      const axisGuide = isDark ? "rgba(226, 232, 240, 0.12)" : "rgba(71, 85, 105, 0.12)";
+      // Primary structural lines (Tower legs & pole uprights): Crisp white / slate-100 in dark mode
+      const latticeStroke = isDark ? "rgba(248, 250, 252, 0.82)" : "rgba(30, 41, 59, 0.75)";
+      // Cross-bracing, footings, and radiator fins: Sleek metallic grey
+      const lineStroke = isDark ? "rgba(148, 163, 184, 0.45)" : "rgba(71, 85, 105, 0.45)";
+      // Catenary transmission conductors: Titanium grey
+      const catenaryStroke = isDark ? "rgba(148, 163, 184, 0.55)" : "rgba(71, 85, 105, 0.65)";
+      // Application Emerald Accents:
       const highlightStroke = isDark ? "#10b981" : "#059669";
-      const catenaryStroke = isDark ? "rgba(148, 163, 184, 0.5)" : "rgba(71, 85, 105, 0.65)";
       const tetherStroke = isDark ? "rgba(16, 185, 129, 0.65)" : "rgba(5, 150, 105, 0.65)";
       const activePulseColor = isDark ? "#34d399" : "#059669";
 
@@ -337,15 +320,16 @@ export function HairlineTransmissionGrid() {
       ctx.fillRect(0, 0, width, height);
 
       const originX = width / 2;
-      const originY = height / 2 + 30;
-      const scale = Math.min(width, height) / 900;
+      const originY = height / 2;
+      // Proportional scale factor ensuring the composition never clips out of any viewport
+      const scale = Math.min(width / 1380, height / 820, 1.05) * 0.94;
 
       // 2. DELICATE SUBSTATION GROUND MATRIX & GRID GUIDES
       ctx.lineWidth = 0.5;
       ctx.strokeStyle = gridLine;
 
       const gridSize = 42;
-      const gridExtent = 840;
+      const gridExtent = 750;
 
       ctx.beginPath();
       for (let g = -gridExtent; g <= gridExtent; g += gridSize * 2) {
@@ -384,20 +368,20 @@ export function HairlineTransmissionGrid() {
         node.conductorAttachments = [];
       });
 
-      // 4. DRAW 3D TRANSMISSION STRUCTURES (Pure hairline geometry, zero text labels)
+      // 4. DRAW 3D TRANSMISSION STRUCTURES (Architectural white & grey lines, emerald beacons)
       const drawLatticeTower = (node: TowerNode) => {
         const bx = node.baseX;
         const by = node.baseY;
         const bz = node.currentZOffset;
 
-        const baseHalfWidth = 26;
-        const waistHalfWidth = 10;
-        const waistHeight = 90;
-        const crossarmHeight1 = 115;
-        const crossarmHeight2 = 145;
-        const peakHeight = 165;
-        const crossarmSpan1 = 44;
-        const crossarmSpan2 = 34;
+        const baseHalfWidth = 25;
+        const waistHalfWidth = 9.5;
+        const waistHeight = 88;
+        const crossarmHeight1 = 112;
+        const crossarmHeight2 = 142;
+        const peakHeight = 162;
+        const crossarmSpan1 = 42;
+        const crossarmSpan2 = 32;
 
         const footings: Point2D[] = [
           project(bx - baseHalfWidth, by - baseHalfWidth, bz, originX, originY, scale),
@@ -437,7 +421,7 @@ export function HairlineTransmissionGrid() {
 
         node.conductorAttachments = [insLeft1, insRight1, insLeft2];
 
-        // Footing outline
+        // Footing base
         ctx.strokeStyle = lineStroke;
         ctx.lineWidth = 0.55;
         ctx.beginPath();
@@ -448,9 +432,9 @@ export function HairlineTransmissionGrid() {
         ctx.closePath();
         ctx.stroke();
 
-        // Tower primary corner legs
+        // Tower primary corner legs (white in dark mode)
         ctx.strokeStyle = latticeStroke;
-        ctx.lineWidth = 0.75;
+        ctx.lineWidth = 0.8;
         ctx.beginPath();
         for (let i = 0; i < 4; i++) {
           ctx.moveTo(footings[i].x, footings[i].y);
@@ -459,7 +443,7 @@ export function HairlineTransmissionGrid() {
         }
         ctx.stroke();
 
-        // Diagonal lattice X-bracing
+        // Diagonal lattice bracing (shades of grey)
         ctx.strokeStyle = lineStroke;
         ctx.lineWidth = 0.5;
         ctx.beginPath();
@@ -496,7 +480,7 @@ export function HairlineTransmissionGrid() {
         ctx.lineTo(peak.x, peak.y);
         ctx.stroke();
 
-        // Insulator strings
+        // Insulator strings with emerald beacon dots
         ctx.strokeStyle = highlightStroke;
         ctx.lineWidth = 0.75;
         ctx.beginPath();
@@ -508,7 +492,7 @@ export function HairlineTransmissionGrid() {
         });
         ctx.stroke();
 
-        // Peak point light dot
+        // Peak point light dot (emerald)
         ctx.fillStyle = highlightStroke;
         ctx.beginPath();
         ctx.arc(peak.x, peak.y, 1.6 * scale, 0, Math.PI * 2);
@@ -519,8 +503,8 @@ export function HairlineTransmissionGrid() {
         const bx = node.baseX;
         const by = node.baseY;
         const bz = node.currentZOffset;
-        const poleHeight = 85;
-        const crossarmWidth = 22;
+        const poleHeight = 82;
+        const crossarmWidth = 20;
 
         const base = project(bx, by, bz, originX, originY, scale);
         const top = project(bx, by, bz + poleHeight, originX, originY, scale);
@@ -531,7 +515,7 @@ export function HairlineTransmissionGrid() {
         node.screenPos = top;
         node.conductorAttachments = [armLeft, armRight];
 
-        // Pole shaft
+        // Pole upright shaft (white in dark mode)
         ctx.strokeStyle = latticeStroke;
         ctx.lineWidth = 0.9;
         ctx.beginPath();
@@ -547,10 +531,10 @@ export function HairlineTransmissionGrid() {
         ctx.lineTo(armRight.x, armRight.y);
         ctx.stroke();
 
-        // Transformer can
+        // Pole transformer can (grey with fine contour)
         const transCanTop = project(bx + 6, by - 6, bz + poleHeight - 24, originX, originY, scale);
         const transCanBot = project(bx + 6, by - 6, bz + poleHeight - 40, originX, originY, scale);
-        ctx.strokeStyle = highlightStroke;
+        ctx.strokeStyle = lineStroke;
         ctx.lineWidth = 0.6;
         ctx.beginPath();
         ctx.moveTo(transCanTop.x - 3, transCanTop.y);
@@ -560,7 +544,7 @@ export function HairlineTransmissionGrid() {
         ctx.closePath();
         ctx.stroke();
 
-        // Insulator pins
+        // Insulator pins (emerald beacon)
         ctx.fillStyle = highlightStroke;
         ctx.beginPath();
         ctx.arc(armLeft.x, armLeft.y, 1.3 * scale, 0, Math.PI * 2);
@@ -573,9 +557,9 @@ export function HairlineTransmissionGrid() {
         const by = node.baseY;
         const bz = node.currentZOffset;
 
-        const hw = 32;
-        const hd = 24;
-        const th = 42;
+        const hw = 30;
+        const hd = 22;
+        const th = 40;
 
         const b00 = project(bx - hw, by - hd, bz, originX, originY, scale);
         const b10 = project(bx + hw, by - hd, bz, originX, originY, scale);
@@ -591,8 +575,8 @@ export function HairlineTransmissionGrid() {
         node.peakPos = deckCenter;
         node.screenPos = deckCenter;
 
-        const bushing1 = project(bx - 14, by, bz + th + 26, originX, originY, scale);
-        const bushing2 = project(bx + 14, by, bz + th + 26, originX, originY, scale);
+        const bushing1 = project(bx - 13, by, bz + th + 24, originX, originY, scale);
+        const bushing2 = project(bx + 13, by, bz + th + 24, originX, originY, scale);
         node.conductorAttachments = [bushing1, bushing2];
 
         // Base perimeter
@@ -606,7 +590,7 @@ export function HairlineTransmissionGrid() {
         ctx.closePath();
         ctx.stroke();
 
-        // Vertical edges
+        // Vertical enclosure edges (white in dark mode)
         ctx.strokeStyle = latticeStroke;
         ctx.lineWidth = 0.75;
         ctx.beginPath();
@@ -631,7 +615,7 @@ export function HairlineTransmissionGrid() {
         ctx.closePath();
         ctx.stroke();
 
-        // Radiator cooling ribs
+        // Radiator cooling ribs (grey lines)
         ctx.strokeStyle = lineStroke;
         ctx.lineWidth = 0.5;
         ctx.beginPath();
@@ -647,8 +631,8 @@ export function HairlineTransmissionGrid() {
         ctx.strokeStyle = highlightStroke;
         ctx.lineWidth = 0.8;
         ctx.beginPath();
-        const bBase1 = project(bx - 14, by, bz + th, originX, originY, scale);
-        const bBase2 = project(bx + 14, by, bz + th, originX, originY, scale);
+        const bBase1 = project(bx - 13, by, bz + th, originX, originY, scale);
+        const bBase2 = project(bx + 13, by, bz + th, originX, originY, scale);
         ctx.moveTo(bBase1.x, bBase1.y);
         ctx.lineTo(bushing1.x, bushing1.y);
         ctx.moveTo(bBase2.x, bBase2.y);
@@ -668,7 +652,7 @@ export function HairlineTransmissionGrid() {
         else if (node.type === "substation") drawSubstation(node);
       });
 
-      // 5. DRAW SUSPENDED CATENARY TRANSMISSION LINES & SMOOTH CONTINUOUS MICRO-PULSES
+      // 5. DRAW SUSPENDED CATENARY TRANSMISSION LINES & CONTINUOUS MICRO-PULSES
       spans.forEach((span, sIdx) => {
         const fromNode = towerNodes.find((n) => n.id === span.fromNodeId);
         const toNode = towerNodes.find((n) => n.id === span.toNodeId);
@@ -678,7 +662,6 @@ export function HairlineTransmissionGrid() {
         const pEnd = toNode.conductorAttachments[span.toAttachIdx] || toNode.peakPos;
         if (!pStart || !pEnd) return;
 
-        // Continuous mathematical catenary point evaluator
         const getCatenaryPoint = (t: number): Point2D => {
           const lx = pStart.x + (pEnd.x - pStart.x) * t;
           const ly = pStart.y + (pEnd.y - pStart.y) * t;
@@ -686,7 +669,6 @@ export function HairlineTransmissionGrid() {
           return { x: lx, y: ly + sagOffset };
         };
 
-        // Draw parabolic catenary curve line with 24 smooth sub-segments
         const segments = 24;
         ctx.strokeStyle = span.pulseActive ? (span.pulseColor || activePulseColor) : catenaryStroke;
         ctx.lineWidth = span.pulseActive ? 1.3 : 0.7;
@@ -699,18 +681,17 @@ export function HairlineTransmissionGrid() {
         }
         ctx.stroke();
 
-        // Smooth continuous 60fps micro-pulse motion (no index stepping / quantization)
+        // 60 FPS smooth continuous micro-pulse motion
         span.pulseProgress1 = (span.pulseProgress1 + span.pulseSpeed) % 1;
         span.pulseProgress2 = (span.pulseProgress2 + span.pulseSpeed) % 1;
 
         const pulseColor = span.pulseActive ? (span.pulseColor || activePulseColor) : activePulseColor;
 
-        // Draw continuous smooth pulses with comet tail
         [span.pulseProgress1, span.pulseProgress2].forEach((prog) => {
           const head = getCatenaryPoint(prog);
           const tail = getCatenaryPoint(Math.max(0, prog - 0.045));
 
-          // Fluid comet spark tail
+          // Comet spark tail
           ctx.strokeStyle = pulseColor;
           ctx.lineWidth = span.pulseActive ? 1.5 : 1.0;
           ctx.beginPath();
@@ -725,7 +706,7 @@ export function HairlineTransmissionGrid() {
           ctx.fill();
         });
 
-        // Hover proximity detection along catenary wire
+        // Hover proximity detection
         if (pointer.active) {
           const midPt = getCatenaryPoint(0.5);
           const dist = Math.hypot(pointer.x - midPt.x, pointer.y - midPt.y);
@@ -735,7 +716,7 @@ export function HairlineTransmissionGrid() {
         }
       });
 
-      // 6. CURSOR TETHERING (Razor-sharp dynamic links without text tags)
+      // 6. CURSOR TETHERING (Dynamic links without text)
       if (pointer.active) {
         const tetherTargets: { pos: Point2D; dist: number }[] = [];
 
@@ -764,7 +745,6 @@ export function HairlineTransmissionGrid() {
           ctx.lineTo(target.pos.x, target.pos.y);
           ctx.stroke();
 
-          // Node anchor highlight point
           ctx.setLineDash([]);
           ctx.fillStyle = highlightStroke;
           ctx.beginPath();
@@ -772,7 +752,6 @@ export function HairlineTransmissionGrid() {
           ctx.fill();
         });
 
-        // Pointer crosshair reticle
         ctx.strokeStyle = highlightStroke;
         ctx.lineWidth = 0.75;
         ctx.beginPath();
@@ -784,7 +763,7 @@ export function HairlineTransmissionGrid() {
         ctx.stroke();
       }
 
-      // 7. OCCASIONAL SUBTLE FAULT PULSE (pure visual wire excitation, no text alerts)
+      // 7. OCCASIONAL FAULT EXCITATION
       const timeSinceFault = Date.now() - lastFaultTime;
       if (timeSinceFault > 9000) {
         lastFaultTime = Date.now();
