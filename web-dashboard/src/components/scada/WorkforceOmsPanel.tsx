@@ -579,7 +579,7 @@ export function WorkforceOmsPanel({
               <thead>
                 <tr className="border-b border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-zinc-400 text-[10px] uppercase font-bold">
                   <th className="py-2 px-2.5">Ticket ID</th>
-                  <th className="py-2 px-2.5">Detected</th>
+                  <th className="py-2 px-2.5">Detected Time / Date</th>
                   <th className="py-2 px-2.5">Feeder / Target Pole</th>
                   <th className="py-2 px-2.5">GPS Waypoint</th>
                   <th className="py-2 px-2.5">Fault Code</th>
@@ -593,7 +593,9 @@ export function WorkforceOmsPanel({
                   const isRowSoak = t.status === "WATCHING";
                   const isRowEscalated = t.status === "ESCALATED";
                   const isRowDispatched = t.status === "DISPATCHED" || t.status === "CREW_ON_SITE" || t.status === "PTW_ISSUED";
-                  const timeStr = new Date(t.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+                  const createdDate = new Date(t.createdAt);
+                  const timeStr = createdDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+                  const dateStr = createdDate.toLocaleDateString([], { day: "2-digit", month: "short", year: "numeric" });
 
                   return (
                     <tr
@@ -618,9 +620,10 @@ export function WorkforceOmsPanel({
                         </div>
                       </td>
 
-                      {/* Detected Time */}
-                      <td className="py-2 px-2.5 text-slate-500 dark:text-zinc-400 whitespace-nowrap">
-                        {timeStr}
+                      {/* Detected Time / Date */}
+                      <td className="py-2 px-2.5 whitespace-nowrap">
+                        <span className="font-semibold text-slate-700 dark:text-zinc-300 text-[11px] block">{timeStr}</span>
+                        <span className="text-[10px] text-slate-400 dark:text-zinc-500 block">{dateStr}</span>
                       </td>
 
                       {/* Feeder / Pole */}
@@ -691,15 +694,28 @@ export function WorkforceOmsPanel({
                       <td className="py-2 px-2.5 text-right whitespace-nowrap">
                         <div className="flex items-center justify-end gap-1.5">
                           {isRowEscalated && (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => setIsDispatchModalOpen(true)}
-                              className="h-6 px-2.5 text-[10px] font-bold shadow-xs cursor-pointer flex items-center gap-1"
-                            >
-                              <Send className="h-3 w-3" />
-                              <span>Dispatch Lineman (Telegram) ➔</span>
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => setIsDispatchModalOpen(true)}
+                                className="h-6 px-2.5 text-[10px] font-bold shadow-xs cursor-pointer flex items-center gap-1"
+                              >
+                                <Send className="h-3 w-3" />
+                                <span>Dispatch Lineman (Telegram) ➔</span>
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleCloseTicket(t.ticketId)}
+                                disabled={isSubmitting}
+                                className="h-6 px-2 text-[10px] border-emerald-500 text-emerald-600 dark:text-emerald-400 font-bold hover:bg-emerald-50 dark:hover:bg-emerald-950/30 cursor-pointer"
+                                title="Close incident ticket if grid has normalized and no crew dispatch is needed"
+                              >
+                                <CheckCircle2 className="h-3 w-3 mr-1" />
+                                Clear PTW &amp; Close
+                              </Button>
+                            </>
                           )}
 
                           {isRowSoak && (
@@ -825,7 +841,7 @@ export function WorkforceOmsPanel({
             <thead className="sticky top-0 bg-white dark:bg-[#0c0d10] z-10">
               <tr className="border-b border-slate-200 dark:border-zinc-800 text-slate-500 dark:text-zinc-400 text-[10px] uppercase font-semibold">
                 <th className="py-2 px-2.5">Ticket ID</th>
-                <th className="py-2 px-2.5">Restored Time</th>
+                <th className="py-2 px-2.5">Restored Time / Date</th>
                 <th className="py-2 px-2.5">Feeder / Affected Span</th>
                 <th className="py-2 px-2.5">GPS Waypoint</th>
                 <th className="py-2 px-2.5">Fault Reason</th>
@@ -845,7 +861,9 @@ export function WorkforceOmsPanel({
                 filteredClosedTickets.map((t) => {
                   const hasCrew = Boolean(t.assignedCrew && !t.assignedCrew.toLowerCase().startsWith("unassigned"));
                   const isMaint = t.status === "MAINTENANCE_SUPPRESSED";
-                  const timeStr = new Date(t.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                  const createdDate = new Date(t.createdAt);
+                  const timeStr = createdDate.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+                  const dateStr = createdDate.toLocaleDateString([], { day: "2-digit", month: "short", year: "numeric" });
                   
                   // Approximate duration from worklog or soak
                   const durationStr = isMaint ? "Suppressed" : hasCrew ? "~12 mins" : "~1 min (Soak)";
@@ -857,9 +875,10 @@ export function WorkforceOmsPanel({
                         {t.ticketId}
                       </td>
 
-                      {/* Restored Time */}
-                      <td className="py-2 px-2.5 text-slate-500 dark:text-zinc-400 whitespace-nowrap">
-                        {timeStr}
+                      {/* Restored Time / Date */}
+                      <td className="py-2 px-2.5 whitespace-nowrap">
+                        <span className="font-semibold text-slate-700 dark:text-zinc-300 text-[11px] block">{timeStr}</span>
+                        <span className="text-[10px] text-slate-400 dark:text-zinc-500 block">{dateStr}</span>
                       </td>
 
                       {/* Feeder / Location */}
@@ -1140,7 +1159,16 @@ export function WorkforceOmsPanel({
             </div>
 
             {/* Ticket Metadata Bar */}
-            <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-50 dark:bg-zinc-950 p-2.5 rounded-xs border border-slate-200 dark:border-zinc-800">
+            <div className="grid grid-cols-3 gap-2 text-[11px] bg-slate-50 dark:bg-zinc-950 p-2.5 rounded-xs border border-slate-200 dark:border-zinc-800">
+              <div>
+                <span className="text-slate-500 block text-[10px]">RECORDED DATE &amp; TIME</span>
+                <span className="font-bold text-slate-800 dark:text-zinc-200 tabular-nums">
+                  {new Date(auditModalTicket.createdAt).toLocaleDateString([], { day: "2-digit", month: "short", year: "numeric" })}
+                  <span className="block text-[10px] text-slate-500 dark:text-zinc-400 font-normal">
+                    {new Date(auditModalTicket.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+                  </span>
+                </span>
+              </div>
               <div>
                 <span className="text-slate-500 block text-[10px]">FAULT CLASSIFICATION</span>
                 <span className="font-bold text-rose-600 dark:text-rose-400">{auditModalTicket.faultType}</span>

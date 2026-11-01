@@ -1404,23 +1404,39 @@ export default function SCADADashboard() {
 
                     {/* OMS & Workforce Status */}
                     {escalatedTicket ? (
-                      <div className="border border-rose-500/60 bg-rose-50/80 dark:bg-rose-950/40 p-2.5 rounded-sm flex items-center justify-between animate-pulse">
+                      <div className={`border p-2.5 rounded-sm flex items-center justify-between ${
+                        !isFault && !isBreakerTripped
+                          ? "border-amber-500/50 bg-amber-50/60 dark:bg-amber-950/30"
+                          : "border-rose-500/60 bg-rose-50/80 dark:bg-rose-950/40 animate-pulse"
+                      }`}>
                         <div>
-                          <div className="text-xs font-bold text-rose-600 dark:text-rose-400 flex items-center gap-1.5">
+                          <div className={`text-xs font-bold flex items-center gap-1.5 ${
+                            !isFault && !isBreakerTripped
+                              ? "text-amber-700 dark:text-amber-400"
+                              : "text-rose-600 dark:text-rose-400"
+                          }`}>
                             <AlertTriangle className="h-3.5 w-3.5" />
-                            <span>SUSTAINED OUTAGE — ACTION REQUIRED</span>
+                            <span>
+                              {!isFault && !isBreakerTripped
+                                ? "INCIDENT PENDING CLOSURE (GRID RESTORED)"
+                                : "SUSTAINED OUTAGE — ACTION REQUIRED"}
+                            </span>
                           </div>
                           <div className="text-[10px] text-slate-600 dark:text-zinc-300 mt-0.5">
-                            {escalatedTicket.safetyBypassTriggered ? "Safety Critical Override (Conductor Hazard)" : "Soak window elapsed. Operator dispatch required."}
+                            {!isFault && !isBreakerTripped
+                              ? "Grid normalized. Formal operator sign-off required in OMS."
+                              : escalatedTicket.safetyBypassTriggered
+                              ? "Safety Critical Override (Conductor Hazard)"
+                              : "Soak window elapsed. Operator dispatch required."}
                           </div>
                         </div>
                         <Button
                           size="sm"
-                          variant="destructive"
+                          variant={!isFault && !isBreakerTripped ? "outline" : "destructive"}
                           className="text-[11px] font-mono h-7 px-2 font-bold shadow-sm"
                           onClick={() => setActiveView("OMS")}
                         >
-                          Dispatch ➔
+                          {!isFault && !isBreakerTripped ? "Review OMS ➔" : "Dispatch ➔"}
                         </Button>
                       </div>
                     ) : watchingTicket ? (

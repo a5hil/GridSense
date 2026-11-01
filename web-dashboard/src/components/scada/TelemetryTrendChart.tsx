@@ -607,19 +607,23 @@ export const TelemetryTrendChart = React.memo(function TelemetryTrendChart({
       if (isNewPole || prev.length === 0) {
         const seeded: PolyphaseHistoricalPoint[] = [];
         for (let i = 20; i >= 1; i--) {
-          const jitter = Math.sin(i * 0.7) * 0.012;
+          // Realistic steady-state micro-jitter (±0.15V sensor noise) rather than artificial low-frequency sine waves
+          const vJitterR = Number(((Math.random() - 0.5) * 0.3).toFixed(1));
+          const vJitterY = Number(((Math.random() - 0.5) * 0.3).toFixed(1));
+          const vJitterB = Number(((Math.random() - 0.5) * 0.3).toFixed(1));
+          const iJitter = (Math.random() - 0.5) * 0.004;
           seeded.push({
             ...newPt,
-            vR: Number((newPt.vR * (1 + jitter)).toFixed(1)),
-            vY: Number((newPt.vY * (1 - jitter)).toFixed(1)),
-            vB: Number((newPt.vB * (1 + jitter * 0.5)).toFixed(1)),
-            iR: Number(Math.max(0, newPt.iR * (1 + jitter * 1.5)).toFixed(3)),
-            iY: Number(Math.max(0, newPt.iY * (1 - jitter * 1.5)).toFixed(3)),
-            iB: Number(Math.max(0, newPt.iB * (1 + jitter)).toFixed(3)),
-            pR: Math.max(0, Math.round(newPt.pR * (1 + jitter))),
-            pY: Math.max(0, Math.round(newPt.pY * (1 - jitter))),
-            pB: Math.max(0, Math.round(newPt.pB * (1 + jitter * 0.8))),
-            pTotal: Math.max(0, Math.round(newPt.pTotal * (1 + jitter * 0.6))),
+            vR: Number(Math.max(0, newPt.vR + vJitterR).toFixed(1)),
+            vY: Number(Math.max(0, newPt.vY + vJitterY).toFixed(1)),
+            vB: Number(Math.max(0, newPt.vB + vJitterB).toFixed(1)),
+            iR: Number(Math.max(0, newPt.iR + iJitter).toFixed(3)),
+            iY: Number(Math.max(0, newPt.iY + iJitter).toFixed(3)),
+            iB: Number(Math.max(0, newPt.iB + iJitter).toFixed(3)),
+            pR: Math.max(0, Math.round(newPt.pR * (1 + (Math.random() - 0.5) * 0.005))),
+            pY: Math.max(0, Math.round(newPt.pY * (1 + (Math.random() - 0.5) * 0.005))),
+            pB: Math.max(0, Math.round(newPt.pB * (1 + (Math.random() - 0.5) * 0.005))),
+            pTotal: Math.max(0, Math.round(newPt.pTotal * (1 + (Math.random() - 0.5) * 0.005))),
             timeLabel: `T-${(i * 0.5).toFixed(1)}s`,
           });
         }

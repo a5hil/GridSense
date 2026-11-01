@@ -29,7 +29,6 @@ export function AppLayoutShell({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-y-auto overflow-x-hidden p-2.5 sm:p-3 bg-slate-100 dark:bg-[#08090b] flex flex-col">
           {children}
         </main>
-
         {/* Persistent Bottom Status Bar */}
         <StatusBar />
       </div>
