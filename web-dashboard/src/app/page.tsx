@@ -658,11 +658,14 @@ export default function SCADADashboard() {
   );
 
   // Sync state to global DashboardContext
+  const activeFaultAnsi = activeFault?.ansiCode || null;
+  const activeFaultTitle = activeFault?.title || null;
+
   React.useEffect(() => {
     setGlobalIsFault(isFault);
-    setActiveFaultAnsi(activeFault?.ansiCode || null);
-    setActiveFaultTitle(activeFault?.title || null);
-  }, [isFault, activeFault, setGlobalIsFault, setActiveFaultAnsi, setActiveFaultTitle]);
+    setActiveFaultAnsi(activeFaultAnsi);
+    setActiveFaultTitle(activeFaultTitle);
+  }, [isFault, activeFaultAnsi, activeFaultTitle, setGlobalIsFault, setActiveFaultAnsi, setActiveFaultTitle]);
 
   React.useEffect(() => {
     setGlobalNetworkSnapshot(networkSnapshot);
@@ -783,7 +786,7 @@ export default function SCADADashboard() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeFault, activeView]);
+  }, [isFault, activeView]);
 
   const isDataReady = Boolean(networkSnapshot && (connectedSSE || telemetry));
 

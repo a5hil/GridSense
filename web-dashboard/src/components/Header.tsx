@@ -40,10 +40,12 @@ export function Header() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
-    setClockTime(new Date().toLocaleTimeString("en-GB", { hour12: false }));
-    const interval = setInterval(() => {
-      setClockTime(new Date().toLocaleTimeString("en-GB", { hour12: false }));
-    }, 1000);
+    const updateTime = () => {
+      const now = new Date().toLocaleTimeString("en-GB", { hour12: false });
+      setClockTime((prev) => (prev === now ? prev : now));
+    };
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
 
