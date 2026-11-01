@@ -3,8 +3,6 @@
 import React, { useEffect, useRef } from "react";
 import { useTheme } from "@/lib/theme-context";
 
-export type LayoutStyle = "corridor" | "lifecycle" | "flanked" | "switchyard";
-
 interface Point2D {
   x: number;
   y: number;
@@ -37,11 +35,7 @@ interface CatenarySpan {
   pulseSpeed: number;
 }
 
-interface HairlineTransmissionGridProps {
-  layoutStyle?: LayoutStyle;
-}
-
-export function HairlineTransmissionGrid({ layoutStyle = "corridor" }: HairlineTransmissionGridProps) {
+export function HairlineTransmissionGrid() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { theme } = useTheme();
@@ -100,7 +94,7 @@ export function HairlineTransmissionGrid({ layoutStyle = "corridor" }: HairlineT
     container.addEventListener("mousemove", onPointerMove as EventListener);
     container.addEventListener("mouseleave", onPointerLeave as EventListener);
 
-    // 30-degree isometric projection constants
+    // 30-degree isometric projection mapping
     const COS30 = 0.8660254;
     const SIN30 = 0.5;
 
@@ -119,491 +113,198 @@ export function HairlineTransmissionGrid({ layoutStyle = "corridor" }: HairlineT
     };
 
     // =========================================================================
-    // PHYSICAL POWER TRANSMISSION ARCHITECTURE DEFINITIONS
-    // Strict Electrical Engineering Rules:
-    // 1. High-Voltage (HV) lines only bridge Tower <-> Tower or Tower <-> Substation HV Gantry.
-    // 2. Medium-Voltage (MV) lines only bridge Substation LV Bay <-> Pole or Pole <-> Pole.
-    // 3. High-Voltage lattice towers NEVER connect directly to distribution poles.
+    // REFINED AUTHENTIC TRANSMISSION GRID ARCHITECTURE
+    // - Entire composition shifted rightward for optimal asymmetric balance
+    // - Scaled up slightly for prominent, crisp structural presence
+    // - Distribution poles relocated outward to eliminate clutter
+    // - 100% strict electrical engineering logic (Towers -> Substation -> Poles)
     // =========================================================================
 
-    let towerNodes: TowerNode[] = [];
-    let spans: CatenarySpan[] = [];
+    const towerNodes: TowerNode[] = [
+      // 1. Far-West High-Voltage Incomer Dead-End Tower
+      {
+        id: "T0",
+        type: "lattice",
+        baseX: -480,
+        baseY: 100,
+        floatPhase: 0.8,
+        floatSpeed: 0.001,
+        floatAmp: 4.8,
+        currentZOffset: 0,
+        conductorAttachments: [],
+      },
+      // 2. West Primary 400kV Lattice Transmission Tower
+      {
+        id: "T1",
+        type: "lattice",
+        baseX: -340,
+        baseY: -60,
+        floatPhase: 0.2,
+        floatSpeed: 0.00095,
+        floatAmp: 5.5,
+        currentZOffset: 0,
+        conductorAttachments: [],
+      },
+      // 3. North Background 400kV Skyline Tower
+      {
+        id: "T3",
+        type: "lattice",
+        baseX: -50,
+        baseY: -300,
+        floatPhase: 2.1,
+        floatSpeed: 0.00085,
+        floatAmp: 5.0,
+        currentZOffset: 0,
+        conductorAttachments: [],
+      },
+      // 4. East 220kV Intermediate Lattice Tower
+      {
+        id: "T2",
+        type: "lattice",
+        baseX: 380,
+        baseY: -70,
+        floatPhase: 3.2,
+        floatSpeed: 0.001,
+        floatAmp: 5.5,
+        currentZOffset: 0,
+        conductorAttachments: [],
+      },
+      // 5. Lower-Right Substation Step-Down Transformer Bank
+      {
+        id: "S1",
+        type: "substation",
+        baseX: 340,
+        baseY: 220,
+        floatPhase: 4.3,
+        floatSpeed: 0.0008,
+        floatAmp: 3.5,
+        currentZOffset: 0,
+        conductorAttachments: [],
+      },
+      // 6. Outgoing Distribution Feeder Pole 1 (Pushed outward to avoid clutter)
+      {
+        id: "P1",
+        type: "pole",
+        baseX: 560,
+        baseY: 120,
+        floatPhase: 5.1,
+        floatSpeed: 0.0012,
+        floatAmp: 4.2,
+        currentZOffset: 0,
+        conductorAttachments: [],
+      },
+      // 7. Terminal Distribution Feeder Pole 2 (Spaced gracefully along perimeter)
+      {
+        id: "P2",
+        type: "pole",
+        baseX: 680,
+        baseY: 280,
+        floatPhase: 1.2,
+        floatSpeed: 0.0013,
+        floatAmp: 4.0,
+        currentZOffset: 0,
+        conductorAttachments: [],
+      },
+    ];
 
-    if (layoutStyle === "corridor") {
-      // -----------------------------------------------------------------------
-      // STYLE 1: HIGH-VOLTAGE TRANSMISSION CORRIDOR (Pure High-Voltage Grid)
-      // Sweeps majestically across the distant skyline and outer flanks.
-      // Maximum central negative space; zero proximity to the login card.
-      // -----------------------------------------------------------------------
-      towerNodes = [
-        {
-          id: "T1",
-          type: "lattice",
-          baseX: -460,
-          baseY: -40,
-          floatPhase: 0.2,
-          floatSpeed: 0.00095,
-          floatAmp: 5.0,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-        {
-          id: "T2",
-          type: "lattice",
-          baseX: -200,
-          baseY: -320,
-          floatPhase: 1.4,
-          floatSpeed: 0.00085,
-          floatAmp: 4.5,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-        {
-          id: "T3",
-          type: "lattice",
-          baseX: 200,
-          baseY: -320,
-          floatPhase: 2.8,
-          floatSpeed: 0.0009,
-          floatAmp: 4.5,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-        {
-          id: "T4",
-          type: "lattice",
-          baseX: 460,
-          baseY: -40,
-          floatPhase: 4.0,
-          floatSpeed: 0.001,
-          floatAmp: 5.0,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-      ];
-
-      spans = [
-        // Circuit A (Upper Catenary Span)
-        {
-          fromNodeId: "T1",
-          fromAttachIdx: 0,
-          toNodeId: "T2",
-          toAttachIdx: 0,
-          sag: 20,
-          pulseProgress1: 0.1,
-          pulseProgress2: 0.6,
-          pulseSpeed: 0.002,
-        },
-        {
-          fromNodeId: "T2",
-          fromAttachIdx: 0,
-          toNodeId: "T3",
-          toAttachIdx: 0,
-          sag: 22,
-          pulseProgress1: 0.25,
-          pulseProgress2: 0.75,
-          pulseSpeed: 0.0018,
-        },
-        {
-          fromNodeId: "T3",
-          fromAttachIdx: 0,
-          toNodeId: "T4",
-          toAttachIdx: 0,
-          sag: 20,
-          pulseProgress1: 0.4,
-          pulseProgress2: 0.9,
-          pulseSpeed: 0.002,
-        },
-        // Circuit B (Lower Parallel Catenary Span)
-        {
-          fromNodeId: "T1",
-          fromAttachIdx: 1,
-          toNodeId: "T2",
-          toAttachIdx: 1,
-          sag: 18,
-          pulseProgress1: 0.35,
-          pulseProgress2: 0.85,
-          pulseSpeed: 0.0021,
-        },
-        {
-          fromNodeId: "T2",
-          fromAttachIdx: 1,
-          toNodeId: "T3",
-          toAttachIdx: 1,
-          sag: 20,
-          pulseProgress1: 0.5,
-          pulseProgress2: 0.0,
-          pulseSpeed: 0.0019,
-        },
-        {
-          fromNodeId: "T3",
-          fromAttachIdx: 1,
-          toNodeId: "T4",
-          toAttachIdx: 1,
-          sag: 18,
-          pulseProgress1: 0.65,
-          pulseProgress2: 0.15,
-          pulseSpeed: 0.0021,
-        },
-      ];
-    } else if (layoutStyle === "lifecycle") {
-      // -----------------------------------------------------------------------
-      // STYLE 2: STEP-DOWN SUBSTATION & FEEDER (Full Lifecycle Flow)
-      // Left Flank: HV Transmission Towers -> Lower-Left Substation Transformer
-      // Right Flank: Substation Low-Voltage Bay -> Outgoing Distribution Poles
-      // -----------------------------------------------------------------------
-      towerNodes = [
-        // Left Flank: 400kV / 220kV Transmission Corridor
-        {
-          id: "T1",
-          type: "lattice",
-          baseX: -460,
-          baseY: -160,
-          floatPhase: 0.4,
-          floatSpeed: 0.0009,
-          floatAmp: 5.0,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-        {
-          id: "T2",
-          type: "lattice",
-          baseX: -340,
-          baseY: 40,
-          floatPhase: 1.8,
-          floatSpeed: 0.001,
-          floatAmp: 4.8,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-        // Lower Center-Left: Primary Step-Down Substation Transformer Bank
-        {
-          id: "S1",
-          type: "substation",
-          baseX: -140,
-          baseY: 340,
-          floatPhase: 3.0,
-          floatSpeed: 0.0008,
-          floatAmp: 3.5,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-        // Right Flank: 11kV Distribution Feeder Network
-        {
-          id: "P1",
-          type: "pole",
-          baseX: 240,
-          baseY: 340,
-          floatPhase: 4.2,
-          floatSpeed: 0.0012,
-          floatAmp: 4.2,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-        {
-          id: "P2",
-          type: "pole",
-          baseX: 420,
-          baseY: 160,
-          floatPhase: 5.0,
-          floatSpeed: 0.0011,
-          floatAmp: 4.5,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-        {
-          id: "P3",
-          type: "pole",
-          baseX: 540,
-          baseY: -60,
-          floatPhase: 0.9,
-          floatSpeed: 0.0013,
-          floatAmp: 4.0,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-      ];
-
-      spans = [
-        // 1. High-Voltage Transmission between Towers
-        {
-          fromNodeId: "T1",
-          fromAttachIdx: 0,
-          toNodeId: "T2",
-          toAttachIdx: 0,
-          sag: 20,
-          pulseProgress1: 0.15,
-          pulseProgress2: 0.65,
-          pulseSpeed: 0.0022,
-        },
-        {
-          fromNodeId: "T1",
-          fromAttachIdx: 1,
-          toNodeId: "T2",
-          toAttachIdx: 1,
-          sag: 18,
-          pulseProgress1: 0.4,
-          pulseProgress2: 0.9,
-          pulseSpeed: 0.0024,
-        },
-        // 2. HV Tower feeds directly into Substation Primary HV Bushings
-        {
-          fromNodeId: "T2",
-          fromAttachIdx: 1,
-          toNodeId: "S1",
-          toAttachIdx: 0,
-          sag: 19,
-          pulseProgress1: 0.25,
-          pulseProgress2: 0.75,
-          pulseSpeed: 0.0023,
-        },
-        // 3. Substation Secondary MV Bushing steps down and feeds Distribution Feeder
-        {
-          fromNodeId: "S1",
-          fromAttachIdx: 1,
-          toNodeId: "P1",
-          toAttachIdx: 0,
-          sag: 18,
-          pulseProgress1: 0.3,
-          pulseProgress2: 0.8,
-          pulseSpeed: 0.0025,
-        },
-        // 4. Distribution Poles along residential feeder path
-        {
-          fromNodeId: "P1",
-          fromAttachIdx: 1,
-          toNodeId: "P2",
-          toAttachIdx: 0,
-          sag: 16,
-          pulseProgress1: 0.5,
-          pulseProgress2: 0.0,
-          pulseSpeed: 0.0026,
-        },
-        {
-          fromNodeId: "P2",
-          fromAttachIdx: 1,
-          toNodeId: "P3",
-          toAttachIdx: 0,
-          sag: 15,
-          pulseProgress1: 0.2,
-          pulseProgress2: 0.7,
-          pulseSpeed: 0.0027,
-        },
-      ];
-    } else if (layoutStyle === "flanked") {
-      // -----------------------------------------------------------------------
-      // STYLE 3: FLANKED ARCHITECTURAL WINGS (Zero Center Lines)
-      // Left Wing: Self-contained HV Switching Facility.
-      // Right Wing: Self-contained Substation & Feeder Outgoer.
-      // Absolutely no wires pass behind the central card.
-      // -----------------------------------------------------------------------
-      towerNodes = [
-        // West Wing (HV Switching Station)
-        {
-          id: "T1",
-          type: "lattice",
-          baseX: -460,
-          baseY: 100,
-          floatPhase: 0.5,
-          floatSpeed: 0.001,
-          floatAmp: 4.8,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-        {
-          id: "T2",
-          type: "lattice",
-          baseX: -360,
-          baseY: -180,
-          floatPhase: 1.9,
-          floatSpeed: 0.0009,
-          floatAmp: 4.5,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-        // East Wing (Substation & Distribution Hub)
-        {
-          id: "S1",
-          type: "substation",
-          baseX: 380,
-          baseY: 160,
-          floatPhase: 3.2,
-          floatSpeed: 0.0008,
-          floatAmp: 3.5,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-        {
-          id: "P1",
-          type: "pole",
-          baseX: 460,
-          baseY: -80,
-          floatPhase: 4.3,
-          floatSpeed: 0.0012,
-          floatAmp: 4.0,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-        {
-          id: "P2",
-          type: "pole",
-          baseX: 580,
-          baseY: 60,
-          floatPhase: 5.2,
-          floatSpeed: 0.0011,
-          floatAmp: 4.2,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-      ];
-
-      spans = [
-        // West Wing Inter-tie (High-Voltage only)
-        {
-          fromNodeId: "T1",
-          fromAttachIdx: 0,
-          toNodeId: "T2",
-          toAttachIdx: 0,
-          sag: 19,
-          pulseProgress1: 0.2,
-          pulseProgress2: 0.7,
-          pulseSpeed: 0.0022,
-        },
-        {
-          fromNodeId: "T1",
-          fromAttachIdx: 1,
-          toNodeId: "T2",
-          toAttachIdx: 1,
-          sag: 17,
-          pulseProgress1: 0.45,
-          pulseProgress2: 0.95,
-          pulseSpeed: 0.0023,
-        },
-        // East Wing Distribution (Substation to Poles only)
-        {
-          fromNodeId: "S1",
-          fromAttachIdx: 0,
-          toNodeId: "P1",
-          toAttachIdx: 0,
-          sag: 16,
-          pulseProgress1: 0.15,
-          pulseProgress2: 0.65,
-          pulseSpeed: 0.0025,
-        },
-        {
-          fromNodeId: "S1",
-          fromAttachIdx: 1,
-          toNodeId: "P2",
-          toAttachIdx: 0,
-          sag: 18,
-          pulseProgress1: 0.35,
-          pulseProgress2: 0.85,
-          pulseSpeed: 0.0024,
-        },
-        {
-          fromNodeId: "P1",
-          fromAttachIdx: 1,
-          toNodeId: "P2",
-          toAttachIdx: 1,
-          sag: 15,
-          pulseProgress1: 0.5,
-          pulseProgress2: 0.0,
-          pulseSpeed: 0.0026,
-        },
-      ];
-    } else if (layoutStyle === "switchyard") {
-      // -----------------------------------------------------------------------
-      // STYLE 4: LOWER-THIRD SUBSTATION SWITCHYARD (Industrial SCADA Plant)
-      // Anchored strictly along the bottom third of the screen.
-      // Leaves the entire upper and mid viewport wide open.
-      // -----------------------------------------------------------------------
-      towerNodes = [
-        // Left HV Incomer Dead-End Tower
-        {
-          id: "T1",
-          type: "lattice",
-          baseX: -400,
-          baseY: 260,
-          floatPhase: 0.6,
-          floatSpeed: 0.0009,
-          floatAmp: 4.0,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-        // Substation Transformer Bank 1
-        {
-          id: "S1",
-          type: "substation",
-          baseX: -150,
-          baseY: 350,
-          floatPhase: 1.8,
-          floatSpeed: 0.00075,
-          floatAmp: 3.2,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-        // Substation Transformer Bank 2 (Parallel Redundancy)
-        {
-          id: "S2",
-          type: "substation",
-          baseX: 150,
-          baseY: 350,
-          floatPhase: 3.1,
-          floatSpeed: 0.0008,
-          floatAmp: 3.2,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-        // Outgoing Feeder Bay Pole
-        {
-          id: "P1",
-          type: "pole",
-          baseX: 400,
-          baseY: 260,
-          floatPhase: 4.4,
-          floatSpeed: 0.0011,
-          floatAmp: 3.8,
-          currentZOffset: 0,
-          conductorAttachments: [],
-        },
-      ];
-
-      spans = [
-        // HV Line from Incomer Tower into Transformer 1 HV Bushing
-        {
-          fromNodeId: "T1",
-          fromAttachIdx: 1,
-          toNodeId: "S1",
-          toAttachIdx: 0,
-          sag: 17,
-          pulseProgress1: 0.2,
-          pulseProgress2: 0.7,
-          pulseSpeed: 0.0022,
-        },
-        // Busbar Inter-tie between Transformers
-        {
-          fromNodeId: "S1",
-          fromAttachIdx: 1,
-          toNodeId: "S2",
-          toAttachIdx: 0,
-          sag: 14,
-          pulseProgress1: 0.4,
-          pulseProgress2: 0.9,
-          pulseSpeed: 0.0024,
-        },
-        // Transformer 2 LV Bushing into Outgoing Feeder Pole
-        {
-          fromNodeId: "S2",
-          fromAttachIdx: 1,
-          toNodeId: "P1",
-          toAttachIdx: 0,
-          sag: 17,
-          pulseProgress1: 0.15,
-          pulseProgress2: 0.65,
-          pulseSpeed: 0.0023,
-        },
-      ];
-    }
+    // Catenary transmission spans with strict electrical logic
+    const spans: CatenarySpan[] = [
+      // 1. High-Voltage Transmission Corridor (West Incomer -> Tower 1)
+      {
+        fromNodeId: "T0",
+        fromAttachIdx: 0,
+        toNodeId: "T1",
+        toAttachIdx: 2,
+        sag: 20,
+        pulseProgress1: 0.12,
+        pulseProgress2: 0.62,
+        pulseSpeed: 0.0022,
+      },
+      // 2. High-Voltage Transmission Bundle (Tower 1 -> Tower 3 across skyline)
+      {
+        fromNodeId: "T1",
+        fromAttachIdx: 0,
+        toNodeId: "T3",
+        toAttachIdx: 0,
+        sag: 22,
+        pulseProgress1: 0.2,
+        pulseProgress2: 0.7,
+        pulseSpeed: 0.002,
+      },
+      {
+        fromNodeId: "T1",
+        fromAttachIdx: 1,
+        toNodeId: "T3",
+        toAttachIdx: 1,
+        sag: 20,
+        pulseProgress1: 0.45,
+        pulseProgress2: 0.95,
+        pulseSpeed: 0.0021,
+      },
+      // 3. High-Voltage Transmission Bundle (Tower 3 -> Tower 2)
+      {
+        fromNodeId: "T3",
+        fromAttachIdx: 0,
+        toNodeId: "T2",
+        toAttachIdx: 0,
+        sag: 26,
+        pulseProgress1: 0.15,
+        pulseProgress2: 0.65,
+        pulseSpeed: 0.0022,
+      },
+      {
+        fromNodeId: "T3",
+        fromAttachIdx: 1,
+        toNodeId: "T2",
+        toAttachIdx: 1,
+        sag: 24,
+        pulseProgress1: 0.35,
+        pulseProgress2: 0.85,
+        pulseSpeed: 0.0023,
+      },
+      // 4. HV Line drops from Tower 2 into Substation Primary HV Bushings
+      {
+        fromNodeId: "T2",
+        fromAttachIdx: 1,
+        toNodeId: "S1",
+        toAttachIdx: 0,
+        sag: 19,
+        pulseProgress1: 0.25,
+        pulseProgress2: 0.75,
+        pulseSpeed: 0.0024,
+      },
+      {
+        fromNodeId: "T2",
+        fromAttachIdx: 2,
+        toNodeId: "S1",
+        toAttachIdx: 1,
+        sag: 18,
+        pulseProgress1: 0.5,
+        pulseProgress2: 0.0,
+        pulseSpeed: 0.0025,
+      },
+      // 5. Substation Secondary LV Bushing feeds outgoing Distribution Poles (11kV)
+      {
+        fromNodeId: "S1",
+        fromAttachIdx: 1,
+        toNodeId: "P1",
+        toAttachIdx: 0,
+        sag: 18,
+        pulseProgress1: 0.3,
+        pulseProgress2: 0.8,
+        pulseSpeed: 0.0026,
+      },
+      {
+        fromNodeId: "P1",
+        fromAttachIdx: 1,
+        toNodeId: "P2",
+        toAttachIdx: 0,
+        sag: 16,
+        pulseProgress1: 0.15,
+        pulseProgress2: 0.65,
+        pulseSpeed: 0.0027,
+      },
+    ];
 
     const triggerFault = (spanIdx: number) => {
       const span = spans[spanIdx];
@@ -626,8 +327,8 @@ export function HairlineTransmissionGrid({ layoutStyle = "corridor" }: HairlineT
       }
 
       // Palettes:
-      // Dark Mode: Towers and poles in crisp architectural white and shades of grey.
-      // Accents (pulses, tethering, insulator beacons) glow in application emerald.
+      // Dark Mode: Crisp white structural lines, titanium grey braces, emerald electrical beacons.
+      // Light Mode: Clean slate lines with emerald accents.
       const bg = isDark ? "#050608" : "#f8fafc";
       const gridLine = isDark ? "rgba(148, 163, 184, 0.08)" : "rgba(226, 232, 240, 0.75)";
       const axisGuide = isDark ? "rgba(226, 232, 240, 0.12)" : "rgba(71, 85, 105, 0.12)";
@@ -645,17 +346,18 @@ export function HairlineTransmissionGrid({ layoutStyle = "corridor" }: HairlineT
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, width, height);
 
-      const originX = width / 2;
-      const originY = height / 2;
-      // Proportional scale factor ensuring the composition never clips out of any viewport
-      const scale = Math.min(width / 1380, height / 820, 1.05) * 0.94;
+      // Moved illustration slightly more to the right (+65px)
+      const originX = width / 2 + 65;
+      const originY = height / 2 + 10;
+      // Slightly enlarged scale factor (+8%) for crisp prominence without clipping
+      const scale = Math.min(width / 1380, height / 840, 1.1) * 1.02;
 
       // 2. DELICATE SUBSTATION GROUND MATRIX & GRID GUIDES
       ctx.lineWidth = 0.5;
       ctx.strokeStyle = gridLine;
 
       const gridSize = 42;
-      const gridExtent = 750;
+      const gridExtent = 840;
 
       ctx.beginPath();
       for (let g = -gridExtent; g <= gridExtent; g += gridSize * 2) {
@@ -694,20 +396,20 @@ export function HairlineTransmissionGrid({ layoutStyle = "corridor" }: HairlineT
         node.conductorAttachments = [];
       });
 
-      // 4. DRAW 3D TRANSMISSION STRUCTURES (Architectural white & grey lines, emerald beacons)
+      // 4. DRAW 3D TRANSMISSION STRUCTURES
       const drawLatticeTower = (node: TowerNode) => {
         const bx = node.baseX;
         const by = node.baseY;
         const bz = node.currentZOffset;
 
-        const baseHalfWidth = 25;
-        const waistHalfWidth = 9.5;
-        const waistHeight = 88;
-        const crossarmHeight1 = 112;
-        const crossarmHeight2 = 142;
-        const peakHeight = 162;
-        const crossarmSpan1 = 42;
-        const crossarmSpan2 = 32;
+        const baseHalfWidth = 26;
+        const waistHalfWidth = 10;
+        const waistHeight = 90;
+        const crossarmHeight1 = 115;
+        const crossarmHeight2 = 145;
+        const peakHeight = 165;
+        const crossarmSpan1 = 44;
+        const crossarmSpan2 = 34;
 
         const footings: Point2D[] = [
           project(bx - baseHalfWidth, by - baseHalfWidth, bz, originX, originY, scale),
@@ -758,7 +460,7 @@ export function HairlineTransmissionGrid({ layoutStyle = "corridor" }: HairlineT
         ctx.closePath();
         ctx.stroke();
 
-        // Tower primary corner legs (white in dark mode)
+        // Tower corner legs (white in dark mode)
         ctx.strokeStyle = latticeStroke;
         ctx.lineWidth = 0.8;
         ctx.beginPath();
@@ -769,7 +471,7 @@ export function HairlineTransmissionGrid({ layoutStyle = "corridor" }: HairlineT
         }
         ctx.stroke();
 
-        // Diagonal lattice bracing (shades of grey)
+        // Diagonal lattice bracing (grey)
         ctx.strokeStyle = lineStroke;
         ctx.lineWidth = 0.5;
         ctx.beginPath();
@@ -829,8 +531,8 @@ export function HairlineTransmissionGrid({ layoutStyle = "corridor" }: HairlineT
         const bx = node.baseX;
         const by = node.baseY;
         const bz = node.currentZOffset;
-        const poleHeight = 82;
-        const crossarmWidth = 20;
+        const poleHeight = 85;
+        const crossarmWidth = 22;
 
         const base = project(bx, by, bz, originX, originY, scale);
         const top = project(bx, by, bz + poleHeight, originX, originY, scale);
@@ -857,7 +559,7 @@ export function HairlineTransmissionGrid({ layoutStyle = "corridor" }: HairlineT
         ctx.lineTo(armRight.x, armRight.y);
         ctx.stroke();
 
-        // Pole transformer can (grey with fine contour)
+        // Pole transformer can (grey)
         const transCanTop = project(bx + 6, by - 6, bz + poleHeight - 24, originX, originY, scale);
         const transCanBot = project(bx + 6, by - 6, bz + poleHeight - 40, originX, originY, scale);
         ctx.strokeStyle = lineStroke;
@@ -901,8 +603,8 @@ export function HairlineTransmissionGrid({ layoutStyle = "corridor" }: HairlineT
         node.peakPos = deckCenter;
         node.screenPos = deckCenter;
 
-        const bushing1 = project(bx - 13, by, bz + th + 24, originX, originY, scale);
-        const bushing2 = project(bx + 13, by, bz + th + 24, originX, originY, scale);
+        const bushing1 = project(bx - 12, by, bz + th + 26, originX, originY, scale);
+        const bushing2 = project(bx + 12, by, bz + th + 26, originX, originY, scale);
         node.conductorAttachments = [bushing1, bushing2];
 
         // Base perimeter
@@ -941,7 +643,7 @@ export function HairlineTransmissionGrid({ layoutStyle = "corridor" }: HairlineT
         ctx.closePath();
         ctx.stroke();
 
-        // Radiator cooling ribs (grey lines)
+        // Radiator cooling ribs
         ctx.strokeStyle = lineStroke;
         ctx.lineWidth = 0.5;
         ctx.beginPath();
@@ -957,8 +659,8 @@ export function HairlineTransmissionGrid({ layoutStyle = "corridor" }: HairlineT
         ctx.strokeStyle = highlightStroke;
         ctx.lineWidth = 0.8;
         ctx.beginPath();
-        const bBase1 = project(bx - 13, by, bz + th, originX, originY, scale);
-        const bBase2 = project(bx + 13, by, bz + th, originX, originY, scale);
+        const bBase1 = project(bx - 12, by, bz + th, originX, originY, scale);
+        const bBase2 = project(bx + 12, by, bz + th, originX, originY, scale);
         ctx.moveTo(bBase1.x, bBase1.y);
         ctx.lineTo(bushing1.x, bushing1.y);
         ctx.moveTo(bBase2.x, bBase2.y);
@@ -1084,7 +786,7 @@ export function HairlineTransmissionGrid({ layoutStyle = "corridor" }: HairlineT
         ctx.moveTo(pointer.x - 7, pointer.y);
         ctx.lineTo(pointer.x + 7, pointer.y);
         ctx.moveTo(pointer.x, pointer.y - 7);
-        ctx.lineTo(pointer.x, pointer.y + 7);
+        ctx.lineTo(pointer.x + 7, pointer.y);
         ctx.arc(pointer.x, pointer.y, 3.5, 0, Math.PI * 2);
         ctx.stroke();
       }
@@ -1116,7 +818,7 @@ export function HairlineTransmissionGrid({ layoutStyle = "corridor" }: HairlineT
       container.removeEventListener("mousemove", onPointerMove as EventListener);
       container.removeEventListener("mouseleave", onPointerLeave as EventListener);
     };
-  }, [theme, layoutStyle]);
+  }, [theme]);
 
   return (
     <div

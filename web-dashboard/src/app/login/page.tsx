@@ -5,10 +5,7 @@ import { useRouter } from "next/navigation";
 import { Lock, User, Zap, AlertTriangle, Eye, EyeOff, KeyRound, Clock } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useDashboard } from "@/context/DashboardContext";
-import {
-  HairlineTransmissionGrid,
-  LayoutStyle,
-} from "@/components/scada/HairlineTransmissionGrid";
+import { HairlineTransmissionGrid } from "@/components/scada/HairlineTransmissionGrid";
 
 // ZULU / GMT 24-hour timestamp formatter for SCADA operator logging
 const ZULU_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
@@ -18,29 +15,6 @@ const ZULU_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   second: "2-digit",
   hourCycle: "h23",
 });
-
-const LAYOUT_PRESETS: { id: LayoutStyle; label: string; desc: string }[] = [
-  {
-    id: "corridor",
-    label: "01 // HV CORRIDOR",
-    desc: "Pure high-voltage transmission right-of-way framing the upper skyline (Towers only connect to towers)",
-  },
-  {
-    id: "lifecycle",
-    label: "02 // STEP-DOWN LIFECYCLE",
-    desc: "End-to-end electrical path: HV Towers -> Substation Step-Down Transformer -> MV Feeder Poles",
-  },
-  {
-    id: "flanked",
-    label: "03 // FLANKED WINGS",
-    desc: "Left HV Switching & Right Substation Hub; zero lines crossing behind central login card",
-  },
-  {
-    id: "switchyard",
-    label: "04 // SUBSTATION YARD",
-    desc: "Panoramic lower-third substation switchyard with dual parallel transformers & gantry incomer",
-  },
-];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -52,7 +26,6 @@ export default function LoginPage() {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [zuluTime, setZuluTime] = useState<string>("");
-  const [layoutStyle, setLayoutStyle] = useState<LayoutStyle>("corridor");
 
   useEffect(() => {
     const updateTime = () => setZuluTime(ZULU_TIME_FORMATTER.format(new Date()));
@@ -60,23 +33,6 @@ export default function LoginPage() {
     const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
-
-  // Restore preferred transmission layout preset from storage
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem("gridsense-login-layout") as LayoutStyle | null;
-      if (stored && ["corridor", "lifecycle", "flanked", "switchyard"].includes(stored)) {
-        setLayoutStyle(stored);
-      }
-    } catch {}
-  }, []);
-
-  const handleSelectLayout = (style: LayoutStyle) => {
-    setLayoutStyle(style);
-    try {
-      localStorage.setItem("gridsense-login-layout", style);
-    } catch {}
-  };
 
   const handleLogin = async (u = username, p = password) => {
     setIsLoading(true);
@@ -127,7 +83,7 @@ export default function LoginPage() {
   return (
     <div className="relative min-h-screen bg-slate-50 dark:bg-[#050608] text-slate-900 dark:text-[#fafafa] flex flex-col justify-between p-3 md:p-4 font-mono select-none transition-colors overflow-hidden">
       {/* 0. ISOMETRIC HAIRLINE TRANSMISSION GRID BACKGROUND (z-index: 0) */}
-      <HairlineTransmissionGrid layoutStyle={layoutStyle} />
+      <HairlineTransmissionGrid />
 
       {/* 1. TOP SCADA HEADER BAR (z-index: 10) */}
       <header className="relative z-10 border border-slate-200/90 dark:border-zinc-800/90 bg-white/95 dark:bg-[#0c0d10]/95 backdrop-blur-md p-3.5 rounded-sm flex items-center justify-between shadow-xs dark:shadow-none transition-colors">
@@ -261,37 +217,8 @@ export default function LoginPage() {
         </div>
       </main>
 
-      {/* 2.5. SCADA TRANSMISSION LAYOUT PRESET SELECTOR (Interactive Live Switcher) */}
-      <div className="relative z-10 flex flex-wrap items-center justify-center gap-1.5 px-4 pb-2">
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-sm border border-slate-200/90 dark:border-zinc-800/90 bg-white/90 dark:bg-[#0c0d10]/90 backdrop-blur-md shadow-xs">
-          <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 tracking-wider">
-            GRID STYLE:
-          </span>
-          <div className="flex items-center gap-1">
-            {LAYOUT_PRESETS.map((p) => {
-              const isSelected = layoutStyle === p.id;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() => handleSelectLayout(p.id)}
-                  title={p.desc}
-                  className={`px-2 py-0.5 text-[10px] font-bold tracking-wider rounded-xs transition-all cursor-pointer ${
-                    isSelected
-                      ? "bg-emerald-600 text-white shadow-2xs"
-                      : "text-slate-600 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-zinc-100 hover:bg-slate-100 dark:hover:bg-zinc-900"
-                  }`}
-                >
-                  {p.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
       {/* 3. FOOTER LEDGER NOTICE */}
-      <footer className="relative z-10 text-center py-1 text-[10px] text-slate-400 dark:text-zinc-600 font-mono tracking-wider">
+      <footer className="relative z-10 text-center py-2 text-[10px] text-slate-400 dark:text-zinc-600 font-mono tracking-wider">
         GRIDSENSE ADMS v2.0 • SUBSTATION DISPATCH GATEWAY • PROTOCOL IEEE C37.118 / IEC 61850
       </footer>
     </div>
