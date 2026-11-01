@@ -245,6 +245,30 @@ export function runFdir(params: {
     });
   }
 
+  // 4b. Branch Overcurrent (ANSI 51) — Per-node / per-phase thermal overload
+  for (const n of Object.values(nodes)) {
+    for (const phase of PHASES) {
+      const r = n.phases[phase];
+      if (!instrumented(r)) continue;
+      if (r.i >= L.overcurrentA) {
+        det.push({
+          key: `OC:${n.id}:${phase}`,
+          type: "OVERCURRENT",
+          ansi: "ANSI 51",
+          severity: r.i >= L.overcurrentA * 1.5 ? "CRITICAL" : "HIGH",
+          phase,
+          nodeId: n.id,
+          feederId: n.feederId ?? undefined,
+          message: `Thermal Overcurrent on ${n.id} phase ${phase}: ${r.i.toFixed(1)} A exceeds ${L.overcurrentA} A threshold (${r.p.toFixed(0)} W)`,
+          value: r.i,
+          threshold: L.overcurrentA,
+          unit: "A",
+          source: n.isLive ? "LIVE" : "SIM",
+        });
+      }
+    }
+  }
+
   // 5. Feeder overload + phase unbalance (at feeder head)
   for (const f of feeders) {
     const maxI = Math.max(...PHASES.map((p) => f.headCurrent[p]));
