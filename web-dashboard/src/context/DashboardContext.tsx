@@ -122,6 +122,30 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const toggleSidebar = React.useCallback(() => setIsSidebarCollapsed((prev) => !prev), []);
   const toggleAudioMuted = React.useCallback(() => setIsAudioMuted((prev) => !prev), []);
 
+  const setNetworkSnapshotStable = React.useCallback((snap: NetworkSnapshot | null) => {
+    setNetworkSnapshot((prev) => (prev === snap ? prev : snap));
+  }, []);
+
+  const setOpenTicketsCountStable = React.useCallback((count: number) => {
+    setOpenTicketsCount((prev) => (prev === count ? prev : count));
+  }, []);
+
+  const setSystemStatusStable = React.useCallback((status: SystemStatus | null) => {
+    setSystemStatus((prev) => (prev === status ? prev : status));
+  }, []);
+
+  const setIsFaultStable = React.useCallback((fault: boolean) => {
+    setIsFault((prev) => (prev === fault ? prev : fault));
+  }, []);
+
+  const setActiveFaultAnsiStable = React.useCallback((ansi: string | null) => {
+    setActiveFaultAnsi((prev) => (prev === ansi ? prev : ansi));
+  }, []);
+
+  const setActiveFaultTitleStable = React.useCallback((title: string | null) => {
+    setActiveFaultTitle((prev) => (prev === title ? prev : title));
+  }, []);
+
   const handleLogout = React.useCallback(async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
@@ -138,11 +162,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       activeView,
       setActiveView,
       isFault,
-      setIsFault,
+      setIsFault: setIsFaultStable,
       activeFaultAnsi,
-      setActiveFaultAnsi,
+      setActiveFaultAnsi: setActiveFaultAnsiStable,
       activeFaultTitle,
-      setActiveFaultTitle,
+      setActiveFaultTitle: setActiveFaultTitleStable,
       connectedSSE,
       setConnectedSSE,
       isAudioMuted,
@@ -154,11 +178,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       setCurrentUser,
       handleLogout,
       networkSnapshot,
-      setNetworkSnapshot,
+      setNetworkSnapshot: setNetworkSnapshotStable,
       openTicketsCount,
-      setOpenTicketsCount,
+      setOpenTicketsCount: setOpenTicketsCountStable,
       systemStatus,
-      setSystemStatus,
+      setSystemStatus: setSystemStatusStable,
       scadaSettings,
       setScadaSettings,
     }),
@@ -167,8 +191,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       toggleSidebar,
       activeView,
       isFault,
+      setIsFaultStable,
       activeFaultAnsi,
+      setActiveFaultAnsiStable,
       activeFaultTitle,
+      setActiveFaultTitleStable,
       connectedSSE,
       isAudioMuted,
       toggleAudioMuted,
@@ -176,8 +203,11 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       currentUser,
       handleLogout,
       networkSnapshot,
+      setNetworkSnapshotStable,
       openTicketsCount,
+      setOpenTicketsCountStable,
       systemStatus,
+      setSystemStatusStable,
       scadaSettings,
     ]
   );

@@ -36,13 +36,14 @@ export function Header() {
     scadaSettings,
   } = useDashboard();
 
-  const [clockTime, setClockTime] = useState<string>("");
+  const clockRef = React.useRef<HTMLSpanElement>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
     const updateTime = () => {
-      const now = new Date().toLocaleTimeString("en-GB", { hour12: false });
-      setClockTime((prev) => (prev === now ? prev : now));
+      if (clockRef.current) {
+        clockRef.current.textContent = new Date().toLocaleTimeString("en-GB", { hour12: false });
+      }
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
@@ -142,8 +143,8 @@ export function Header() {
           className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-2.5 py-1 rounded-sm text-[11px] text-slate-600 dark:text-zinc-400 tabular-nums hidden md:block"
         >
           CLOCK (IST):{" "}
-          <span className="text-slate-900 dark:text-zinc-200 font-bold">
-            {clockTime || lastHeartbeat || "--:--:--"}
+          <span ref={clockRef} className="text-slate-900 dark:text-zinc-200 font-bold">
+            {lastHeartbeat || "--:--:--"}
           </span>
         </div>
 
