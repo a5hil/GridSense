@@ -32,18 +32,26 @@ const IST_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
 });
 
 const LiveIstClock = React.memo(function LiveIstClock() {
-  const [time, setTime] = useState<string>("--:--:--");
+  const spanRef = React.useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    const tick = () => setTime(IST_TIME_FORMATTER.format(new Date()));
+    const tick = () => {
+      if (spanRef.current) {
+        spanRef.current.textContent = IST_TIME_FORMATTER.format(new Date());
+      }
+    };
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, []);
 
   return (
-    <span suppressHydrationWarning className="text-slate-900 dark:text-zinc-200 font-bold">
-      {time}
+    <span
+      ref={spanRef}
+      suppressHydrationWarning
+      className="text-slate-900 dark:text-zinc-200 font-bold"
+    >
+      --:--:--
     </span>
   );
 });
