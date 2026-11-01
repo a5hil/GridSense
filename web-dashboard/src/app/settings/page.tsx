@@ -316,12 +316,12 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Card 1B: Annunciator Horn */}
+        {/* Card 1B: Audible Alarm Notifications */}
         <Card className="border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] shadow-xs rounded-sm">
           <CardHeader className="py-2.5 px-3 border-b border-slate-200 dark:border-zinc-800/80">
             <CardTitle className="text-[11px] font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
               <Volume2 className="h-3.5 w-3.5 text-emerald-500" />
-              <span>Alarm Horn (Audio)</span>
+              <span>Audible Alarm Alerts</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-3 space-y-2">
@@ -333,11 +333,11 @@ export default function SettingsPage() {
                   <Volume2 className="h-4 w-4 text-emerald-500" />
                 )}
                 <div>
-                  <div className="font-bold text-xs text-slate-800 dark:text-zinc-200">
-                    {isAudioMuted ? "MUTED" : "ARMED"}
+                  <div className={`font-bold text-xs ${isAudioMuted ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                    {isAudioMuted ? "MUTED" : "ACTIVE"}
                   </div>
                   <div className="text-[9px] text-slate-500 dark:text-zinc-500">
-                    {isAudioMuted ? "Audio disabled" : "Audible on fault trip"}
+                    {isAudioMuted ? "Sound suppressed" : "Alert tone on fault trip"}
                   </div>
                 </div>
               </div>
@@ -349,15 +349,15 @@ export default function SettingsPage() {
                 onClick={toggleAudioMuted}
                 className={`h-6 px-2 text-[10px] font-bold uppercase cursor-pointer ${
                   isAudioMuted
-                    ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50"
-                    : "border-amber-500 text-amber-600 dark:text-amber-400 hover:bg-amber-50"
+                    ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                    : "border-amber-500 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40"
                 }`}
               >
-                {isAudioMuted ? "Enable" : "Silence"}
+                {isAudioMuted ? "Unmute" : "Mute"}
               </Button>
             </div>
             <div className="text-[10px] text-slate-500 dark:text-zinc-500 text-center">
-              Alerts on ANSI 87L differential breaker trip
+              Alerts on breaker trip &amp; protection events (ANSI 87L, 50/51)
             </div>
           </CardContent>
         </Card>
