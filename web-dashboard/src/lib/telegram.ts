@@ -6,6 +6,25 @@ export interface TelegramDispatchResult {
   error?: string;
 }
 
+const TELEGRAM_BOT_TOKEN_REGEX = /^[0-9]{8,11}:[a-zA-Z0-9_-]{35}$/;
+const TELEGRAM_CHAT_ID_REGEX = /^-?[0-9]{5,16}$|^@[a-zA-Z0-9_]{5,32}$/;
+
+function validateTelegramParams(token: string, chatId: string): { valid: boolean; error?: string } {
+  if (!TELEGRAM_BOT_TOKEN_REGEX.test(token)) {
+    return {
+      valid: false,
+      error: "Invalid Telegram Bot Token format. Expected standard Telegram API format: <bot_id>:<token_hash>",
+    };
+  }
+  if (!TELEGRAM_CHAT_ID_REGEX.test(chatId)) {
+    return {
+      valid: false,
+      error: "Invalid Telegram Chat ID format. Must be a valid numeric chat/group ID or public @channel_name",
+    };
+  }
+  return { valid: true };
+}
+
 /**
  * Sends an emergency lineman dispatch order directly to a Telegram User or Group.
  * Zero external browser tabs or operator logins required.
@@ -28,6 +47,11 @@ export async function sendTelegramDispatchAlert(params: {
     };
   }
 
+  const validation = validateTelegramParams(token, chatId);
+  if (!validation.valid) {
+    return { success: false, error: validation.error };
+  }
+
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${params.ticket.gps.lat.toFixed(6)},${params.ticket.gps.lng.toFixed(6)}`;
   const now = new Date().toLocaleTimeString();
 
@@ -47,7 +71,7 @@ ${params.operatorNotes ? `📝 *Operator Instructions:* _"${params.operatorNotes
 2. Confirm digital PTW lockout status with SCADA Control Center.`;
 
   try {
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const res = await fetch(`https://api.telegram.org/bot${encodeURIComponent(token)}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -92,6 +116,11 @@ export async function sendTelegramTestPing(params: {
     };
   }
 
+  const validation = validateTelegramParams(token, chatId);
+  if (!validation.valid) {
+    return { success: false, error: validation.error };
+  }
+
   const timeStr = new Date().toLocaleTimeString();
   const text = `⚡ *GridSense ADMS 2.0 — Telegram Bot Verified* ⚡
 ━━━━━━━━━━━━━━━━━━━━━━
@@ -103,7 +132,7 @@ export async function sendTelegramTestPing(params: {
 Field crews in this chat will now automatically receive high-priority outage dispatch alerts with GPS navigation coordinates.`;
 
   try {
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    const res = await fetch(`https://api.telegram.org/bot${encodeURIComponent(token)}/sendMessage`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

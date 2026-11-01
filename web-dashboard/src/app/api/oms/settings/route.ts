@@ -4,6 +4,7 @@ import { sendTelegramTestPing } from "@/lib/telegram";
 import { telemetryStore } from "@/lib/telemetry-state";
 import { updateFdirLimits } from "@/lib/network/fdir";
 import { networkTwin } from "@/lib/network/twin";
+import { assertOperatorSession } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,12 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    // Operator RBAC Authorization
+    const auth = await assertOperatorSession();
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.statusCode || 401 });
+    }
+
     const body = await req.json();
 
     if (body.action === "test_telegram") {

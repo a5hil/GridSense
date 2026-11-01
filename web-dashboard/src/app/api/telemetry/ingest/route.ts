@@ -1,26 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
 import { telemetryStore } from "@/lib/telemetry-state";
+import { safeCompare } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
+const EXPECTED_BRIDGE_SECRET =
+  process.env.BRIDGE_SECRET || "gridsense-telemetry-bridge-viva-2026";
+
+function isValidNumber(val: unknown, min: number, max: number): boolean {
+  if (val === undefined || val === null) return true;
+  if (typeof val !== "number") return false;
+  if (isNaN(val) || !isFinite(val)) return false;
+  return val >= min && val <= max;
+}
+
+function validateTelemetryPayload(payload: any): { valid: boolean; error?: string } {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return { valid: false, error: "Payload must be a valid JSON object" };
+  }
+
+  // Validate voltage readings (0V to 350V)
+  const voltages = [payload.v_r, payload.v_y, payload.v_b, payload.v, payload.v1, payload.v2];
+  for (const v of voltages) {
+    if (!isValidNumber(v, 0, 350)) {
+      return { valid: false, error: `Invalid voltage reading: ${v}. Must be finite number between 0 and 350V.` };
+    }
+  }
+
+  // Validate current readings (0A to 120A)
+  const currents = [payload.i_r, payload.i_y, payload.i_b, payload.i, payload.i1, payload.i2, payload.diff_current];
+  for (const i of currents) {
+    if (!isValidNumber(i, 0, 120)) {
+      return { valid: false, error: `Invalid current reading: ${i}. Must be finite number between 0 and 120A.` };
+    }
+  }
+
+  // Validate power readings (0W to 100kW)
+  const powers = [payload.p_r, payload.p_y, payload.p_b, payload.p, payload.p1, payload.p2];
+  for (const p of powers) {
+    if (!isValidNumber(p, 0, 100000)) {
+      return { valid: false, error: `Invalid power reading: ${p}. Must be finite number between 0 and 100kW.` };
+    }
+  }
+
+  return { valid: true };
+}
+
 export async function POST(req: NextRequest) {
   try {
-    // Optional bridge secret verification if configured in cloud environment
-    const bridgeSecret = process.env.BRIDGE_SECRET;
-    if (bridgeSecret) {
-      const token = req.headers.get("x-bridge-token");
-      if (token !== bridgeSecret) {
-        return NextResponse.json(
-          { error: "Unauthorized: Invalid x-bridge-token" },
-          { status: 401 }
-        );
-      }
+    // 1. Mutual Ingestion Authentication
+    const token = req.headers.get("x-bridge-token") || "";
+    if (!safeCompare(token, EXPECTED_BRIDGE_SECRET)) {
+      return NextResponse.json(
+        { error: "Unauthorized: Invalid or missing x-bridge-token" },
+        { status: 401 }
+      );
     }
 
     const payload = await req.json();
-    if (!payload || typeof payload !== "object") {
+
+    // 2. Schema & Physical Range Bounds Validation
+    const validation = validateTelemetryPayload(payload);
+    if (!validation.valid) {
       return NextResponse.json(
-        { error: "Invalid JSON telemetry payload" },
+        { error: `Telemetry validation error: ${validation.error}` },
         { status: 400 }
       );
     }

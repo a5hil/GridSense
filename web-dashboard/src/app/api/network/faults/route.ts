@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { networkTwin } from "@/lib/network/twin";
+import { assertOperatorSession } from "@/lib/rbac";
 
 export async function POST(req: NextRequest) {
   try {
+    // Operator RBAC Authorization
+    const auth = await assertOperatorSession();
+    if (!auth.authorized) {
+      return NextResponse.json({ success: false, error: auth.error }, { status: auth.statusCode || 401 });
+    }
+
     const body = await req.json();
     const { action } = body;
 

@@ -28,7 +28,7 @@ const configuredPort =
   process.argv[3] || process.env.SERIAL_PORT || "COM8";
 
 const bridgeSecret =
-  process.argv[4] || process.env.BRIDGE_SECRET || "";
+  process.argv[4] || process.env.BRIDGE_SECRET || "gridsense-telemetry-bridge-viva-2026";
 
 const BAUD_RATE = 115200;
 const INGEST_PATH = "/api/telemetry/ingest";
