@@ -346,11 +346,11 @@ export function HairlineTransmissionGrid() {
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, width, height);
 
-      // Moved illustration slightly more to the right (+65px)
-      const originX = width / 2 + 65;
-      const originY = height / 2 + 10;
-      // Slightly enlarged scale factor (+8%) for crisp prominence without clipping
-      const scale = Math.min(width / 1380, height / 840, 1.1) * 1.02;
+      // Shifted illustration further right (+140px) and slightly upward (-35px) for optimal asymmetric balance
+      const originX = width / 2 + 140;
+      const originY = height / 2 - 35;
+      // Finely calibrated scale factor for crisp prominence without clipping
+      const scale = Math.min(width / 1380, height / 840, 1.1) * 1.04;
 
       // 2. DELICATE SUBSTATION GROUND MATRIX & GRID GUIDES
       ctx.lineWidth = 0.5;
