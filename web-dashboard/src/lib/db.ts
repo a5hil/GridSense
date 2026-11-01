@@ -1,5 +1,5 @@
 import { MongoClient, Db } from "mongodb";
-import { GridTelemetry, SCADAEventLog, TroubleTicket } from "./types";
+import { GridTelemetry, SCADAEventLog, TroubleTicket, OmsSettings } from "./types";
 
 const MONGODB_URI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017";
 const DB_NAME = process.env.MONGODB_DB || "gridsense";
@@ -17,6 +17,7 @@ const RETRY_COOLDOWN_MS = 15000;
 const inMemoryTelemetry: GridTelemetry[] = [];
 const inMemoryLogs: SCADAEventLog[] = [];
 const inMemoryTickets: TroubleTicket[] = [];
+let inMemorySettings: Partial<OmsSettings> | null = null;
 const MAX_BUFFER = 200;
 
 export async function getDb(): Promise<Db | null> {
@@ -239,4 +240,42 @@ export async function getDatabaseStats(): Promise<{
     dbName: DB_NAME,
     counts,
   };
+}
+
+export async function saveSettingsRecord(settings: OmsSettings): Promise<void> {
+  inMemorySettings = { ...settings };
+  try {
+    const database = await getDb();
+    if (database) {
+      await database.collection("scada_settings").updateOne(
+        { id: "global_scada_settings" },
+        {
+          $set: {
+            ...settings,
+            updatedAt: new Date(),
+          },
+        },
+        { upsert: true }
+      );
+    }
+  } catch (err: any) {
+    // Keep in memory
+  }
+}
+
+export async function getStoredSettings(): Promise<Partial<OmsSettings> | null> {
+  try {
+    const database = await getDb();
+    if (database) {
+      const doc = await database.collection("scada_settings").findOne({ id: "global_scada_settings" });
+      if (doc) {
+        const { _id, id, updatedAt, ...settings } = doc as any;
+        inMemorySettings = settings as Partial<OmsSettings>;
+        return settings as Partial<OmsSettings>;
+      }
+    }
+  } catch (err: any) {
+    // Fallback
+  }
+  return inMemorySettings;
 }

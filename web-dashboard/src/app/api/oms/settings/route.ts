@@ -10,7 +10,8 @@ export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    const settings = omsManager.getSettings();
+    await omsManager.initFromDb();
+    const settings = await omsManager.loadSettingsFromDb();
     return NextResponse.json({ success: true, settings });
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err?.message }, { status: 500 });

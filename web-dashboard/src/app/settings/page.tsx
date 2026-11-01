@@ -20,6 +20,7 @@ import {
   Zap,
   Activity,
   Sliders,
+  AlertTriangle,
 } from "lucide-react";
 import { useTheme } from "@/lib/theme-context";
 import { useDashboard } from "@/context/DashboardContext";
@@ -43,6 +44,7 @@ export default function SettingsPage() {
   const [feederId, setFeederId] = useState<string>("FEEDER-04");
   const [gatewayIp, setGatewayIp] = useState<string>("192.168.1.100");
   const [isSaved, setIsSaved] = useState<boolean>(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // OMS Escalation Policy States
   const [soakDurationMinutes, setSoakDurationMinutes] = useState<number>(15);
@@ -65,8 +67,22 @@ export default function SettingsPage() {
           if (typeof s.safetyOverrideEnabled === "boolean") setSafetyOverrideEnabled(s.safetyOverrideEnabled);
           if (typeof s.linemanPhone === "string") setLinemanPhone(s.linemanPhone);
           if (typeof s.notifyOnEscalation === "boolean") setNotifyOnEscalation(s.notifyOnEscalation);
-          if (typeof s.telegramBotToken === "string") setTelegramBotToken(s.telegramBotToken);
-          if (typeof s.telegramChatId === "string") setTelegramChatId(s.telegramChatId);
+          if (typeof s.telegramBotToken === "string" && s.telegramBotToken) {
+            setTelegramBotToken(s.telegramBotToken);
+          } else {
+            try {
+              const cached = localStorage.getItem("gridsense_telegram_token");
+              if (cached) setTelegramBotToken(cached);
+            } catch {}
+          }
+          if (typeof s.telegramChatId === "string" && s.telegramChatId) {
+            setTelegramChatId(s.telegramChatId);
+          } else {
+            try {
+              const cachedId = localStorage.getItem("gridsense_telegram_chat_id");
+              if (cachedId) setTelegramChatId(cachedId);
+            } catch {}
+          }
           if (typeof s.telegramEnabled === "boolean") setTelegramEnabled(s.telegramEnabled);
           if (typeof s.refreshRateMs === "number") setRefreshRateMs(s.refreshRateMs);
           if (typeof s.differentialPickupA === "number") setDifferentialPickupA(s.differentialPickupA);
@@ -126,6 +142,7 @@ export default function SettingsPage() {
   };
 
   const handleSave = async () => {
+    setSaveError(null);
     try {
       const payload = {
         soakDurationMinutes,
@@ -153,6 +170,13 @@ export default function SettingsPage() {
         body: JSON.stringify(payload),
       });
       const data = await res.json();
+
+      if (!res.ok || !data?.success) {
+        setSaveError(data?.error || "Failed to save configuration. Please ensure you are logged in as an operator.");
+        setIsSaved(false);
+        return;
+      }
+
       if (data?.settings) {
         setScadaSettings(data.settings);
       }
@@ -160,6 +184,13 @@ export default function SettingsPage() {
       try {
         localStorage.setItem("gridsense_refresh_rate", String(refreshRateMs));
         localStorage.setItem("gridsense_diff_pickup", String(differentialPickupA));
+        localStorage.setItem("gridsense_telegram_token", telegramBotToken);
+        localStorage.setItem("gridsense_telegram_chat_id", telegramChatId);
+        localStorage.setItem("gridsense_telegram_enabled", String(telegramEnabled));
+        localStorage.setItem("gridsense_soak_duration", String(soakDurationMinutes));
+        localStorage.setItem("gridsense_safety_override", String(safetyOverrideEnabled));
+        localStorage.setItem("gridsense_lineman_phone", linemanPhone);
+        localStorage.setItem("gridsense_notify_escalation", String(notifyOnEscalation));
         localStorage.setItem(
           "gridsense_scada_params",
           JSON.stringify({
@@ -175,10 +206,12 @@ export default function SettingsPage() {
         );
       } catch {}
 
+      setSaveError(null);
       setIsSaved(true);
-      setTimeout(() => setIsSaved(false), 2500);
-    } catch (err) {
+      setTimeout(() => setIsSaved(false), 3000);
+    } catch (err: any) {
       console.error("Save error:", err);
+      setSaveError(err?.message || "Failed to communicate with SCADA server.");
     }
   };
 
@@ -220,6 +253,20 @@ export default function SettingsPage() {
           )}
         </Button>
       </div>
+
+      {/* Save Status / Error Banners */}
+      {saveError && (
+        <div className="flex items-center gap-2 p-2.5 rounded-sm border border-red-500/50 bg-red-500/10 text-red-600 dark:text-red-400 text-xs">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>{saveError}</span>
+        </div>
+      )}
+      {isSaved && (
+        <div className="flex items-center gap-2 p-2.5 rounded-sm border border-emerald-500/50 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <span>Configuration saved successfully to GridSense database &amp; active SCADA controller.</span>
+        </div>
+      )}
 
       {/* SECTION 1: DISPLAY & ENVIRONMENT */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">

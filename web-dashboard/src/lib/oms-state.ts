@@ -1,5 +1,5 @@
 import { PermitToWork, TroubleTicket, OmsSettings } from "./types";
-import { getStoredTickets, saveTicketRecord } from "./db";
+import { getStoredTickets, saveTicketRecord, getStoredSettings, saveSettingsRecord } from "./db";
 import { sendTelegramDispatchAlert } from "./telegram";
 
 class OmsManager {
@@ -36,7 +36,15 @@ class OmsManager {
   public async initFromDb(): Promise<void> {
     if (this.initialized) return;
     try {
-      const stored = await getStoredTickets();
+      const [stored, storedSettings] = await Promise.all([
+        getStoredTickets(),
+        getStoredSettings(),
+      ]);
+
+      if (storedSettings) {
+        this.settings = { ...this.settings, ...storedSettings };
+      }
+
       if (stored && stored.length > 0) {
         this.tickets = stored;
         stored.forEach((t) => {
@@ -52,12 +60,25 @@ class OmsManager {
     }
   }
 
+  public async loadSettingsFromDb(): Promise<OmsSettings> {
+    try {
+      const storedSettings = await getStoredSettings();
+      if (storedSettings) {
+        this.settings = { ...this.settings, ...storedSettings };
+      }
+    } catch {
+      // Keep in-memory settings
+    }
+    return { ...this.settings };
+  }
+
   public getSettings(): OmsSettings {
     return { ...this.settings };
   }
 
   public updateSettings(updates: Partial<OmsSettings>): OmsSettings {
     this.settings = { ...this.settings, ...updates };
+    saveSettingsRecord(this.settings).catch(() => {});
     return { ...this.settings };
   }
 
