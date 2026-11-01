@@ -2,9 +2,17 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, User, Zap, AlertTriangle, Eye, EyeOff, KeyRound } from "lucide-react";
+import { Lock, User, Zap, AlertTriangle, Eye, EyeOff, KeyRound, Clock } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useDashboard } from "@/context/DashboardContext";
+
+const IST_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Kolkata",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,10 +26,9 @@ export default function LoginPage() {
   const [clockTime, setClockTime] = useState<string>("");
 
   useEffect(() => {
-    setClockTime(new Date().toLocaleTimeString("en-GB", { hour12: false }));
-    const interval = setInterval(() => {
-      setClockTime(new Date().toLocaleTimeString("en-GB", { hour12: false }));
-    }, 1000);
+    const updateTime = () => setClockTime(IST_TIME_FORMATTER.format(new Date()));
+    updateTime();
+    const interval = setInterval(updateTime, 1000);
     return () => clearInterval(interval);
   }, []);
 
@@ -89,13 +96,17 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <ThemeToggle />
           <div
             suppressHydrationWarning
-            className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-2.5 py-1 rounded-sm text-[11px] text-slate-600 dark:text-zinc-400 tabular-nums hidden sm:block"
+            className="h-8 flex items-center gap-1.5 px-2.5 rounded-sm border border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-950/80 text-[11px] text-slate-500 dark:text-zinc-400 tabular-nums hidden sm:flex font-mono shadow-2xs"
           >
-            CLOCK (IST): <span className="text-slate-900 dark:text-zinc-200 font-bold">{clockTime || "--:--:--"}</span>
+            <Clock className="h-3 w-3 text-slate-400 dark:text-zinc-500 shrink-0" />
+            <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 tracking-wider">
+              IST:
+            </span>
+            <span className="text-slate-900 dark:text-zinc-200 font-bold">{clockTime || "--:--:--"}</span>
           </div>
         </div>
       </header>

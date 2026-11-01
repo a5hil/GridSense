@@ -41,6 +41,7 @@ import { Button } from "@/components/ui/button";
 import { TroubleTicket } from "@/lib/types";
 import { NetworkSnapshot, Detection } from "@/lib/network/types";
 import { NODE_BY_ID } from "@/lib/network/topology";
+import { useDashboard } from "@/context/DashboardContext";
 
 interface WorkforceOmsPanelProps {
   tickets: TroubleTicket[];
@@ -138,6 +139,7 @@ export function WorkforceOmsPanel({
   onSelectPole,
   linemanPhone,
 }: WorkforceOmsPanelProps) {
+  const { scadaSettings } = useDashboard();
   const [activeLinemanPhone, setActiveLinemanPhone] = React.useState<string>(linemanPhone || "+919037129026");
   const [isDispatchModalOpen, setIsDispatchModalOpen] = React.useState(false);
   const [selectedLinemanId, setSelectedLinemanId] = React.useState<string>("LM-RAJESH");
@@ -568,7 +570,7 @@ export function WorkforceOmsPanel({
                 ANSI 46BC: SUPERVISED
               </span>
               <span className="px-2 py-0.5 rounded-xs border border-slate-300 dark:border-zinc-700 bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 font-semibold">
-                SOAK POLICY: 15m ESCALATION
+                SOAK POLICY: {scadaSettings?.soakDurationMinutes || 15}m ESCALATION
               </span>
             </div>
           </div>

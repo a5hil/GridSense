@@ -911,7 +911,7 @@ export default function SCADADashboard() {
       )}
 
       {/* 3. MAIN CONTENT AREA */}
-      <main className="flex-1 flex flex-col gap-2.5 min-h-0">
+      <div className="flex-1 flex flex-col gap-2.5 min-h-0">
         {/* ============================================================== */}
         {/* VIEW A: OPERATOR DESK (CLEAN, INTUITIVE, HUMAN-FIRST) */}
         {/* ============================================================== */}
@@ -1713,7 +1713,7 @@ export default function SCADADashboard() {
                 </div>
               </Card>
             )}
-          </main>
+          </div>
     </div>
   );
 }
