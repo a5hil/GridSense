@@ -954,63 +954,113 @@ export const GisFeederMap = React.memo(function GisFeederMap({
 
         {/* Selected Asset Telemetry HUD Popover */}
         {selectedAsset && (
-          <div className="absolute bottom-3 left-3 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-zinc-950/95 p-3 rounded-sm shadow-2xl max-w-xs font-mono text-xs z-10">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-1 mb-2">
-              <span className="font-bold text-slate-900 dark:text-zinc-100 uppercase">
+          <div className="absolute bottom-3 left-3 border border-slate-300 dark:border-zinc-700 bg-white/95 dark:bg-[#0c0d10]/95 backdrop-blur-md p-3.5 rounded-sm shadow-2xl w-[280px] font-mono text-xs z-10">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-zinc-800 pb-2 mb-2.5">
+              <span className="font-bold text-slate-900 dark:text-zinc-100 text-sm tracking-wide uppercase">
                 {selectedAsset.name || selectedAsset.label}
               </span>
               <button
                 onClick={() => setSelectedAsset(null)}
-                className="text-slate-400 hover:text-slate-800 dark:text-zinc-500 dark:hover:text-zinc-300 text-xs"
+                className="h-5 w-5 rounded-xs flex items-center justify-center text-slate-400 hover:text-slate-800 dark:text-zinc-500 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors text-xs cursor-pointer"
+                title="Close Inspector"
               >
                 ✕
               </button>
             </div>
 
             {selectedAsset.phases ? (
-              <div className="space-y-1.5 text-[11px] text-slate-700 dark:text-zinc-300">
-                <div className="flex items-center justify-between pb-1 border-b border-slate-200 dark:border-zinc-800 text-[10px]">
-                  <span className="text-slate-500 dark:text-zinc-400">FEEDER: {selectedAsset.feederId}</span>
-                  <Badge variant={selectedAsset.isLive ? "healthy" : "outline"} className="text-[9px] py-0">
+              <div className="space-y-2 text-[11px] text-slate-700 dark:text-zinc-300">
+                <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-200 dark:border-zinc-800 text-[10px]">
+                  <span className="text-slate-500 dark:text-zinc-400 font-semibold tracking-wider">
+                    FEEDER: <span className="text-slate-800 dark:text-zinc-200">{selectedAsset.feederId}</span>
+                  </span>
+                  <Badge
+                    variant={selectedAsset.isLive ? "healthy" : "outline"}
+                    className="text-[9px] py-0 px-1.5 font-bold shrink-0 tracking-wider whitespace-nowrap"
+                  >
                     {selectedAsset.isLive ? "CLASS 0.5S RTU" : "WLS ESTIMATED NODE"}
                   </Badge>
                 </div>
-                {/* Phase R */}
-                <div className="flex items-center justify-between font-mono">
-                  <span className="text-rose-600 dark:text-rose-400 font-bold">[R]</span>
-                  <span>{selectedAsset.phases.R.v.toFixed(1)}V</span>
-                  <span>{selectedAsset.phases.R.i.toFixed(3)}A</span>
-                  <span>{selectedAsset.phases.R.p.toFixed(0)}W</span>
+
+                {/* 4-Column Grid with explicit headers & aligned decimals */}
+                <div className="space-y-1.5">
+                  <div className="grid grid-cols-[24px_1fr_1fr_1fr] items-center text-[9px] font-semibold text-slate-400 dark:text-zinc-500 tracking-wider uppercase text-right">
+                    <span className="text-left">PH</span>
+                    <span>VOLT</span>
+                    <span>CURR</span>
+                    <span>LOAD</span>
+                  </div>
+
+                  {/* Phase R */}
+                  <div className="grid grid-cols-[24px_1fr_1fr_1fr] items-center font-mono text-[11px] text-right">
+                    <span className="text-rose-600 dark:text-rose-400 font-bold text-left">[R]</span>
+                    <span className="tabular-nums font-semibold text-slate-800 dark:text-zinc-200">
+                      {selectedAsset.phases.R.v.toFixed(1)}V
+                    </span>
+                    <span className="tabular-nums text-slate-700 dark:text-zinc-300">
+                      {selectedAsset.phases.R.i.toFixed(3)}A
+                    </span>
+                    <span className="tabular-nums text-slate-600 dark:text-zinc-400">
+                      {selectedAsset.phases.R.p.toFixed(0)}W
+                    </span>
+                  </div>
+
+                  {/* Phase Y */}
+                  <div className="grid grid-cols-[24px_1fr_1fr_1fr] items-center font-mono text-[11px] text-right">
+                    <span className="text-amber-600 dark:text-amber-400 font-bold text-left">[Y]</span>
+                    {selectedAsset.phases.Y.source === "NOT_INSTRUMENTED" ? (
+                      <span className="col-span-3 text-[10px] text-amber-600 dark:text-amber-500 italic text-right">
+                        UNINSTRUMENTED
+                      </span>
+                    ) : (
+                      <>
+                        <span className="tabular-nums font-semibold text-slate-800 dark:text-zinc-200">
+                          {selectedAsset.phases.Y.v.toFixed(1)}V
+                        </span>
+                        <span className="tabular-nums text-slate-700 dark:text-zinc-300">
+                          {selectedAsset.phases.Y.i.toFixed(3)}A
+                        </span>
+                        <span className="tabular-nums text-slate-600 dark:text-zinc-400">
+                          {selectedAsset.phases.Y.p.toFixed(0)}W
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Phase B */}
+                  <div className="grid grid-cols-[24px_1fr_1fr_1fr] items-center font-mono text-[11px] text-right">
+                    <span className="text-blue-600 dark:text-cyan-400 font-bold text-left">[B]</span>
+                    {selectedAsset.phases.B.source === "NOT_INSTRUMENTED" ? (
+                      <span className="col-span-3 text-[10px] text-blue-600 dark:text-cyan-500 italic text-right">
+                        UNINSTRUMENTED
+                      </span>
+                    ) : (
+                      <>
+                        <span className="tabular-nums font-semibold text-slate-800 dark:text-zinc-200">
+                          {selectedAsset.phases.B.v.toFixed(1)}V
+                        </span>
+                        <span className="tabular-nums text-slate-700 dark:text-zinc-300">
+                          {selectedAsset.phases.B.i.toFixed(3)}A
+                        </span>
+                        <span className="tabular-nums text-slate-600 dark:text-zinc-400">
+                          {selectedAsset.phases.B.p.toFixed(0)}W
+                        </span>
+                      </>
+                    )}
+                  </div>
                 </div>
-                {/* Phase Y */}
-                <div className="flex items-center justify-between font-mono">
-                  <span className="text-amber-700 dark:text-amber-400 font-bold">[Y]</span>
-                  {selectedAsset.phases.Y.source === "NOT_INSTRUMENTED" ? (
-                    <span className="text-[9px] text-amber-600 dark:text-amber-500 italic">UNINSTRUMENTED</span>
-                  ) : (
-                    <>
-                      <span>{selectedAsset.phases.Y.v.toFixed(1)}V</span>
-                      <span>{selectedAsset.phases.Y.i.toFixed(3)}A</span>
-                      <span>{selectedAsset.phases.Y.p.toFixed(0)}W</span>
-                    </>
-                  )}
-                </div>
-                {/* Phase B */}
-                <div className="flex items-center justify-between font-mono">
-                  <span className="text-blue-700 dark:text-cyan-400 font-bold">[B]</span>
-                  {selectedAsset.phases.B.source === "NOT_INSTRUMENTED" ? (
-                    <span className="text-[9px] text-blue-600 dark:text-cyan-500 italic">UNINSTRUMENTED</span>
-                  ) : (
-                    <>
-                      <span>{selectedAsset.phases.B.v.toFixed(1)}V</span>
-                      <span>{selectedAsset.phases.B.i.toFixed(3)}A</span>
-                      <span>{selectedAsset.phases.B.p.toFixed(0)}W</span>
-                    </>
-                  )}
-                </div>
-                <div className="text-[10px] text-slate-500 dark:text-zinc-400 pt-1 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between">
-                  <span>PARENT: {selectedAsset.parentId || "ROOT"}</span>
-                  <span className={selectedAsset.status === "ALARM" ? "text-rose-600 dark:text-rose-400 font-bold" : "text-emerald-600 dark:text-emerald-400 font-semibold"}>
+
+                <div className="text-[10px] text-slate-500 dark:text-zinc-400 pt-2 border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between">
+                  <span>
+                    PARENT: <span className="font-semibold text-slate-700 dark:text-zinc-300">{selectedAsset.parentId || "ROOT"}</span>
+                  </span>
+                  <span
+                    className={
+                      selectedAsset.status === "ALARM"
+                        ? "text-rose-600 dark:text-rose-400 font-bold tracking-wider"
+                        : "text-emerald-600 dark:text-emerald-400 font-semibold tracking-wider"
+                    }
+                  >
                     {selectedAsset.status}
                   </span>
                 </div>
