@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, LogOut, ShieldCheck, User, Volume2, VolumeX } from "lucide-react";
+import { ChevronRight, Clock, LogOut, ShieldCheck, User } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useDashboard, ActiveView } from "@/context/DashboardContext";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -55,9 +55,6 @@ export function Header() {
     setActiveView,
     isFault,
     activeFaultAnsi,
-    isAudioMuted,
-    toggleAudioMuted,
-    lastHeartbeat,
     currentUser,
     handleLogout,
     systemStatus,
@@ -75,35 +72,37 @@ export function Header() {
   const feederLabel = scadaSettings?.feederId || "Feeder 04";
 
   return (
-    <header className="h-14 border-b border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] px-4 flex items-center justify-between font-mono select-none shrink-0 z-30 transition-colors">
-      {/* 1. LEFT: CLEAN BREADCRUMB NAVIGATION & DYNAMIC HEALTH PILL */}
-      <div className="flex items-center gap-2.5 overflow-hidden">
-        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs">
+    <header className="h-14 border-b border-slate-200 dark:border-zinc-800 bg-white/95 dark:bg-[#0c0d10]/95 backdrop-blur-xs px-4 lg:px-5 flex items-center justify-between font-mono select-none shrink-0 z-30 transition-colors">
+      {/* 1. LEFT: STREAMLINED BREADCRUMB NAVIGATION & SCADA HEALTH PILL */}
+      <div className="flex items-center gap-2.5 overflow-hidden min-w-0">
+        <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs min-w-0">
           <Link
             href="/"
             onClick={() => setActiveView("OPERATOR")}
-            className="text-slate-500 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors font-bold"
+            className="text-slate-500 dark:text-zinc-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors font-bold shrink-0"
           >
             GridSense ADMS
           </Link>
-          <ChevronRight className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-600 shrink-0" />
-          <span className="text-slate-600 dark:text-zinc-300 font-semibold truncate hidden md:inline">
+          <ChevronRight className="h-3.5 w-3.5 text-slate-300 dark:text-zinc-700 shrink-0" />
+          <span className="text-slate-600 dark:text-zinc-300 font-medium truncate hidden md:inline">
             {shortSubstation}
           </span>
-          <ChevronRight className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-600 shrink-0 hidden md:inline" />
-          <span className="text-slate-600 dark:text-zinc-300 font-semibold truncate hidden sm:inline">
+          <ChevronRight className="h-3.5 w-3.5 text-slate-300 dark:text-zinc-700 shrink-0 hidden md:inline" />
+          <span className="text-slate-600 dark:text-zinc-300 font-medium truncate hidden sm:inline">
             {feederLabel}
           </span>
-          <ChevronRight className="h-3.5 w-3.5 text-slate-400 dark:text-zinc-600 shrink-0 hidden sm:inline" />
-          <span className="text-emerald-700 dark:text-emerald-400 font-bold truncate font-sans">
+          <ChevronRight className="h-3.5 w-3.5 text-slate-300 dark:text-zinc-700 shrink-0 hidden sm:inline" />
+          <span className="text-emerald-600 dark:text-emerald-400 font-bold truncate">
             {activeSectionLabel}
           </span>
         </nav>
 
+        <div className="h-3.5 w-[1px] bg-slate-200 dark:bg-zinc-800 mx-0.5 hidden sm:block shrink-0" />
+
         {/* Dynamic System Health Status Pill */}
         <Badge
           variant={isFault ? "destructive" : "healthy"}
-          className={`ml-1.5 text-[10px] py-0.5 px-2 flex items-center gap-1.5 font-bold uppercase shrink-0 ${
+          className={`h-6 text-[9.5px] px-2 flex items-center gap-1.5 font-bold uppercase tracking-wider shrink-0 transition-all ${
             isAlarmUnacked ? "animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.45)]" : ""
           }`}
         >
@@ -126,39 +125,20 @@ export function Header() {
         </Badge>
       </div>
 
-      {/* 2. RIGHT ACTIONS: AUDIO ALARM MUTE, THEME TOGGLE, DIGITAL CLOCK (IST) & OPERATOR PROFILE */}
+      {/* 2. RIGHT ACTIONS: THEME TOGGLE, DIGITAL CLOCK (IST) & OPERATOR PROFILE */}
       <div className="flex items-center gap-2 shrink-0">
-        {/* Quick 1-Click SCADA Buzzer Mute / Unmute */}
-        <button
-          onClick={toggleAudioMuted}
-          title={isAudioMuted ? "Unmute SCADA Alarm Buzzer" : "Mute SCADA Alarm Buzzer"}
-          className={`h-8 px-2 rounded-sm border text-[10px] font-mono font-bold flex items-center gap-1.5 transition-colors cursor-pointer ${
-            isAudioMuted
-              ? "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-400"
-              : "border-slate-200 bg-slate-50 text-slate-600 hover:text-slate-900 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400 dark:hover:text-zinc-200"
-          }`}
-        >
-          {isAudioMuted ? (
-            <>
-              <VolumeX className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400" />
-              <span className="hidden lg:inline">MUTED</span>
-            </>
-          ) : (
-            <>
-              <Volume2 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span className="hidden lg:inline">AUDIO ON</span>
-            </>
-          )}
-        </button>
-
+        {/* Day / SCADA Dark Theme Toggle */}
         <ThemeToggle />
 
-        {/* Live IST Digital Clock */}
+        {/* Live IST Telemetry Clock */}
         <div
           suppressHydrationWarning
-          className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-2.5 py-1 rounded-sm text-[11px] text-slate-600 dark:text-zinc-400 tabular-nums hidden md:block"
+          className="h-8 flex items-center gap-1.5 px-2.5 rounded-sm border border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-950/80 text-[11px] text-slate-500 dark:text-zinc-400 tabular-nums hidden md:flex font-mono shadow-2xs"
         >
-          CLOCK (IST):{" "}
+          <Clock className="h-3 w-3 text-slate-400 dark:text-zinc-500 shrink-0" />
+          <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 tracking-wider">
+            IST:
+          </span>
           <LiveIstClock />
         </div>
 
@@ -167,16 +147,16 @@ export function Header() {
           <div className="relative">
             <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
-              className="flex items-center gap-2 border border-slate-300 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-2.5 py-1 rounded-sm text-[11px] hover:border-emerald-500/50 transition-colors cursor-pointer"
+              className="h-8 flex items-center gap-2 border border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-950/80 px-2 rounded-sm text-[11px] hover:border-emerald-500/50 hover:bg-slate-100 dark:hover:bg-zinc-900 transition-colors cursor-pointer shadow-2xs"
             >
-              <div className="h-6 w-6 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-700/60 flex items-center justify-center text-[10px] font-bold">
+              <div className="h-5 w-5 rounded-full bg-emerald-100 text-emerald-700 border border-emerald-300/80 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-700/60 flex items-center justify-center text-[9px] font-bold shrink-0">
                 {(currentUser.name || currentUser.username || "O").charAt(0).toUpperCase()}
               </div>
-              <div className="flex flex-col text-left leading-tight hidden sm:flex">
-                <span className="font-bold text-slate-800 dark:text-zinc-200 truncate max-w-[120px]">
+              <div className="flex flex-col text-left leading-none hidden sm:flex justify-center gap-0.5">
+                <span className="font-bold text-[11px] text-slate-800 dark:text-zinc-200 truncate max-w-[120px]">
                   {currentUser.name}
                 </span>
-                <span className="text-[9px] text-emerald-600 dark:text-emerald-400 font-bold font-mono">
+                <span className="text-[8.5px] text-emerald-600 dark:text-emerald-400 font-bold tracking-wider uppercase font-mono">
                   {currentUser.role}
                 </span>
               </div>
@@ -216,7 +196,7 @@ export function Header() {
         ) : (
           <Link
             href="/login"
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-sm text-xs font-bold uppercase transition-colors"
+            className="h-8 flex items-center gap-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-sm text-xs font-bold uppercase transition-colors shadow-2xs"
           >
             <User className="h-3.5 w-3.5" />
             <span>Login</span>
