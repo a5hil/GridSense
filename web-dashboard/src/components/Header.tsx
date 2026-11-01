@@ -20,6 +20,34 @@ const VIEW_LABELS: Record<ActiveView, string> = {
   LOGS: "Sequence of Events (SOE)",
 };
 
+// Single source of truth for the header clock: always 24h, always IST,
+// regardless of browser locale. Isolated component so its 1s tick
+// never re-renders the Header or any context consumers.
+const IST_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  timeZone: "Asia/Kolkata",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+const LiveIstClock = React.memo(function LiveIstClock() {
+  const [time, setTime] = useState<string>("--:--:--");
+
+  useEffect(() => {
+    const tick = () => setTime(IST_TIME_FORMATTER.format(new Date()));
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <span suppressHydrationWarning className="text-slate-900 dark:text-zinc-200 font-bold">
+      {time}
+    </span>
+  );
+});
+
 export function Header() {
   const pathname = usePathname();
   const {
@@ -36,19 +64,7 @@ export function Header() {
     scadaSettings,
   } = useDashboard();
 
-  const clockRef = React.useRef<HTMLSpanElement>(null);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-
-  useEffect(() => {
-    const updateTime = () => {
-      if (clockRef.current) {
-        clockRef.current.textContent = new Date().toLocaleTimeString("en-GB", { hour12: false });
-      }
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
-  }, []);
 
   const isAlarmUnacked = isFault && systemStatus?.operatorAck === false;
   const activeSectionLabel =
@@ -143,9 +159,7 @@ export function Header() {
           className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 px-2.5 py-1 rounded-sm text-[11px] text-slate-600 dark:text-zinc-400 tabular-nums hidden md:block"
         >
           CLOCK (IST):{" "}
-          <span ref={clockRef} className="text-slate-900 dark:text-zinc-200 font-bold">
-            {lastHeartbeat || "--:--:--"}
-          </span>
+          <LiveIstClock />
         </div>
 
         {/* Operator Profile Dropdown / Pill */}
