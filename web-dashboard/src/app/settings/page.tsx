@@ -225,10 +225,10 @@ export default function SettingsPage() {
             <span>SYSTEM CONFIGURATION</span>
           </div>
           <h1 className="text-lg font-black tracking-tight text-slate-900 dark:text-zinc-100 mt-0.5">
-            SCADA Parameters &amp; Thresholds
+            SCADA Parameters &amp; Protection Thresholds
           </h1>
           <p className="text-[11px] text-slate-500 dark:text-zinc-400">
-            Configure sampling rates, protection thresholds, and automated field dispatch.
+            Configure telemetry sampling rates, ANSI protection thresholds, and automated field dispatch.
           </p>
         </div>
 
@@ -373,9 +373,9 @@ export default function SettingsPage() {
           <CardContent className="p-3 space-y-2">
             <div className="grid grid-cols-3 gap-1.5">
               {[
-                { val: 250, label: "250ms (4Hz)" },
-                { val: 500, label: "500ms (2Hz)" },
-                { val: 1000, label: "1s (Std)" },
+                { val: 250, label: "250 ms (4 Hz)" },
+                { val: 500, label: "500 ms (2 Hz)" },
+                { val: 1000, label: "1000 ms (1 Hz)" },
               ].map((rate) => (
                 <button
                   key={rate.val}
@@ -392,7 +392,7 @@ export default function SettingsPage() {
               ))}
             </div>
             <div className="text-[10px] text-slate-500 dark:text-zinc-500 text-center">
-              Current interval: <strong className="text-cyan-600 dark:text-cyan-400">{refreshRateMs} ms</strong>
+              Sampling interval: <strong className="text-cyan-600 dark:text-cyan-400">{refreshRateMs} ms</strong>
             </div>
           </CardContent>
         </Card>
@@ -403,7 +403,7 @@ export default function SettingsPage() {
         <CardHeader className="py-2.5 px-3 border-b border-slate-200 dark:border-zinc-800/80 flex flex-row items-center justify-between">
           <CardTitle className="text-[11px] font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
             <Send className="h-3.5 w-3.5 text-cyan-500" />
-            <span>Telegram Bot Automated Field Alerting</span>
+            <span>Telegram Automated Field Dispatch Alerts</span>
           </CardTitle>
           <div className="flex items-center gap-2">
             <button
@@ -449,7 +449,7 @@ export default function SettingsPage() {
             <div className="space-y-1">
               <div className="flex items-center justify-between">
                 <label className="text-[10px] font-semibold text-slate-600 dark:text-zinc-400 uppercase tracking-wider">
-                  Lineman Chat ID or Group ID
+                  Lineman / Channel Chat ID
                 </label>
                 <a
                   href="https://t.me/userinfobot"
@@ -476,7 +476,7 @@ export default function SettingsPage() {
                   disabled={testStatus?.loading || !telegramBotToken || !telegramChatId}
                   className="h-7 text-[10px] font-bold shrink-0 border-cyan-500/50 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-50 dark:hover:bg-cyan-950/40 cursor-pointer"
                 >
-                  {testStatus?.loading ? "Pinging..." : "Test Bot ➔"}
+                  {testStatus?.loading ? "Pinging..." : "Test Alert ➔"}
                 </Button>
               </div>
             </div>
@@ -520,7 +520,7 @@ export default function SettingsPage() {
                 Observation Window (Soak Duration)
               </label>
               <span className="text-amber-600 dark:text-amber-400 font-bold text-xs">
-                {soakDurationMinutes} Minutes
+                {soakDurationMinutes} {soakDurationMinutes === 1 ? "Minute" : "Minutes"}
               </span>
             </div>
             <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
@@ -528,7 +528,7 @@ export default function SettingsPage() {
                 { label: "1 min", val: 1 },
                 { label: "2 min", val: 2 },
                 { label: "5 min", val: 5 },
-                { label: "15 min (Std)", val: 15 },
+                { label: "15 min (Default)", val: 15 },
                 { label: "30 min", val: 30 },
                 { label: "60 min", val: 60 },
               ].map((item) => (
@@ -554,7 +554,7 @@ export default function SettingsPage() {
           {/* Safety Critical Override */}
           <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 p-2.5 rounded-xs flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
-              <Shield className={`h-4 w-4 shrink-0 ${safetyOverrideEnabled ? "text-rose-500" : "text-slate-400"}`} />
+              <Shield className={`h-4 w-4 shrink-0 ${safetyOverrideEnabled ? "text-emerald-500" : "text-slate-400"}`} />
               <div>
                 <div className="font-bold text-xs text-slate-800 dark:text-zinc-200">
                   Public Safety Override (ANSI 46BC)
@@ -570,11 +570,11 @@ export default function SettingsPage() {
               onClick={() => setSafetyOverrideEnabled(!safetyOverrideEnabled)}
               className={`px-2.5 py-1 text-[10px] font-bold rounded-xs border transition-all shrink-0 cursor-pointer ${
                 safetyOverrideEnabled
-                  ? "bg-rose-600 text-white border-rose-700 shadow-xs"
+                  ? "bg-emerald-600 text-white border-emerald-700 shadow-xs"
                   : "bg-slate-200 dark:bg-zinc-800 text-slate-500 border-slate-300 dark:border-zinc-700"
               }`}
             >
-              {safetyOverrideEnabled ? "OVERRIDE ENABLED" : "DISABLED"}
+              {safetyOverrideEnabled ? "● ACTIVE" : "○ DISABLED"}
             </button>
           </div>
         </CardContent>
@@ -602,9 +602,9 @@ export default function SettingsPage() {
                 onChange={(e) => setDifferentialPickupA(Number(e.target.value))}
                 className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xs text-xs font-mono text-slate-900 dark:text-zinc-100 outline-none focus:border-rose-500"
               />
-              <span className="absolute right-2.5 top-1.5 text-[10px] text-slate-400">Amperes</span>
+              <span className="absolute right-2.5 top-1.5 text-[10px] font-bold text-slate-400">A</span>
             </div>
-            <span className="text-[9px] text-slate-400">Default: 0.35 A</span>
+            <span className="text-[9px] text-slate-400">Trip pickup (Default: 0.35 A)</span>
           </div>
 
           {/* ANSI 87L Delay */}
@@ -620,9 +620,9 @@ export default function SettingsPage() {
                 onChange={(e) => setTripDelayMs(Number(e.target.value))}
                 className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xs text-xs font-mono text-slate-900 dark:text-zinc-100 outline-none focus:border-rose-500"
               />
-              <span className="absolute right-2.5 top-1.5 text-[10px] text-slate-400">ms</span>
+              <span className="absolute right-2.5 top-1.5 text-[10px] font-bold text-slate-400">ms</span>
             </div>
-            <span className="text-[9px] text-slate-400">Inrush filter (Default: 150 ms)</span>
+            <span className="text-[9px] text-slate-400">Inrush debounce (Default: 150 ms)</span>
           </div>
 
           {/* Overcurrent 50/51 */}
@@ -638,7 +638,7 @@ export default function SettingsPage() {
                 onChange={(e) => setOvercurrentA(Number(e.target.value))}
                 className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xs text-xs font-mono text-slate-900 dark:text-zinc-100 outline-none focus:border-rose-500"
               />
-              <span className="absolute right-2.5 top-1.5 text-[10px] text-slate-400">Amperes</span>
+              <span className="absolute right-2.5 top-1.5 text-[10px] font-bold text-slate-400">A</span>
             </div>
             <span className="text-[9px] text-slate-400">Thermal trip limit (Default: 18.0 A)</span>
           </div>
@@ -656,7 +656,7 @@ export default function SettingsPage() {
                 onChange={(e) => setUndervoltageV(Number(e.target.value))}
                 className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xs text-xs font-mono text-slate-900 dark:text-zinc-100 outline-none focus:border-amber-500"
               />
-              <span className="absolute right-2.5 top-1.5 text-[10px] text-slate-400">Volts</span>
+              <span className="absolute right-2.5 top-1.5 text-[10px] font-bold text-slate-400">V</span>
             </div>
             <span className="text-[9px] text-slate-400">CEA −15% limit (Default: 195.5 V)</span>
           </div>
@@ -674,15 +674,15 @@ export default function SettingsPage() {
                 onChange={(e) => setOvervoltageV(Number(e.target.value))}
                 className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xs text-xs font-mono text-slate-900 dark:text-zinc-100 outline-none focus:border-amber-500"
               />
-              <span className="absolute right-2.5 top-1.5 text-[10px] text-slate-400">Volts</span>
+              <span className="absolute right-2.5 top-1.5 text-[10px] font-bold text-slate-400">V</span>
             </div>
             <span className="text-[9px] text-slate-400">CEA +10% limit (Default: 253.0 V)</span>
           </div>
 
-          {/* Neutral Voltage Spread */}
+          {/* Neutral Voltage Unbalance */}
           <div className="space-y-1">
             <label className="text-[10px] font-semibold text-slate-600 dark:text-zinc-400 uppercase tracking-wider">
-              ANSI 59N Broken Neutral Spread
+              ANSI 59N Neutral Voltage Unbalance
             </label>
             <div className="relative">
               <input
@@ -692,19 +692,19 @@ export default function SettingsPage() {
                 onChange={(e) => setBrokenNeutralSpreadV(Number(e.target.value))}
                 className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 rounded-xs text-xs font-mono text-slate-900 dark:text-zinc-100 outline-none focus:border-rose-500"
               />
-              <span className="absolute right-2.5 top-1.5 text-[10px] text-slate-400">Volts</span>
+              <span className="absolute right-2.5 top-1.5 text-[10px] font-bold text-slate-400">V</span>
             </div>
-            <span className="text-[9px] text-slate-400">Floating neutral trip boundary (Default: 30.0 V)</span>
+            <span className="text-[9px] text-slate-400">Broken neutral limit (Default: 30.0 V)</span>
           </div>
         </CardContent>
       </Card>
 
-      {/* SECTION 5: STATION & RTU IDENTITY */}
+      {/* SECTION 5: SUBSTATION & GATEWAY CONFIGURATION */}
       <Card className="border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] shadow-xs rounded-sm">
         <CardHeader className="py-2.5 px-3 border-b border-slate-200 dark:border-zinc-800/80">
           <CardTitle className="text-[11px] font-bold uppercase tracking-wider text-slate-800 dark:text-zinc-200 flex items-center gap-1.5">
             <Server className="h-3.5 w-3.5 text-emerald-500" />
-            <span>Station &amp; Gateway Parameters</span>
+            <span>Substation &amp; Gateway Configuration</span>
           </CardTitle>
         </CardHeader>
         <CardContent className="p-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -734,7 +734,7 @@ export default function SettingsPage() {
 
           <div>
             <label className="block text-[10px] font-semibold text-slate-600 dark:text-zinc-400 uppercase tracking-wider mb-1">
-              Gateway IP / Host
+              Gateway IP Address / Host
             </label>
             <input
               type="text"
