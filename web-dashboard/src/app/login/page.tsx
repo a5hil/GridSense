@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, User, Zap, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { Lock, User, Zap, AlertTriangle, Eye, EyeOff, KeyRound } from "lucide-react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { useDashboard } from "@/context/DashboardContext";
 
 export default function LoginPage() {
   const router = useRouter();
   const { setCurrentUser } = useDashboard();
-  const [username, setUsername] = useState("operator");
-  const [password, setPassword] = useState("gridsense123");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthorized, setIsAuthorized] = useState(false);
@@ -47,7 +47,17 @@ export default function LoginPage() {
         setCurrentUser(data.user);
       }
       setIsAuthorized(true);
-      router.push("/");
+
+      // Check for redirect return url
+      let targetPath = "/";
+      if (typeof window !== "undefined") {
+        const fromParam = new URLSearchParams(window.location.search).get("from");
+        if (fromParam && fromParam.startsWith("/")) {
+          targetPath = fromParam;
+        }
+      }
+
+      router.push(targetPath);
       router.refresh();
     } catch {
       setErrorMsg("Network error communicating with authentication service");
@@ -55,12 +65,18 @@ export default function LoginPage() {
     }
   };
 
+  const fillDemoCredentials = () => {
+    setUsername("operator");
+    setPassword("gridsense123");
+    setErrorMsg(null);
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-[#08090b] text-slate-900 dark:text-[#fafafa] flex flex-col justify-between p-3 md:p-4 font-mono select-none transition-colors">
       {/* Background Subtle Substation Grid Aesthetics */}
       <div className="absolute inset-0 bg-[radial-gradient(#94a3b8_1px,transparent_1px)] dark:bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:24px_24px] opacity-25 pointer-events-none" />
 
-      {/* 1. TOP SCADA HEADER BAR - COHERENT WITH MAIN UI */}
+      {/* 1. TOP SCADA HEADER BAR */}
       <header className="relative z-10 border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm flex items-center justify-between shadow-xs dark:shadow-none transition-colors">
         <div className="flex items-center gap-3">
           <div className="p-2 border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-900 rounded-sm">
@@ -92,7 +108,7 @@ export default function LoginPage() {
               OPERATOR AUTHENTICATION
             </h2>
             <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-              Enter your credentials to access the SCADA dispatch console.
+              Authorized substation personnel only. All access is logged to the Sequence of Events (SOE) ledger.
             </p>
           </div>
 
@@ -120,7 +136,7 @@ export default function LoginPage() {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="operator"
+                  placeholder="Enter operator username"
                   autoComplete="username"
                   required
                   className="w-full pl-10 pr-3 py-2.5 bg-slate-50 dark:bg-zinc-950 border border-slate-300 dark:border-zinc-800 focus:border-emerald-500 dark:focus:border-emerald-500 text-sm text-slate-900 dark:text-zinc-100 placeholder:text-slate-400 dark:placeholder:text-zinc-600 rounded-sm font-mono outline-none transition-colors"
@@ -153,6 +169,19 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* Quick Demo Fill Pill (convenient for lab bench evaluations) */}
+            <div className="flex items-center justify-between text-[11px] pt-1">
+              <span className="text-slate-400 dark:text-zinc-500">Bench Demo Mode:</span>
+              <button
+                type="button"
+                onClick={fillDemoCredentials}
+                className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 hover:text-emerald-500 font-bold transition-colors cursor-pointer"
+              >
+                <KeyRound className="h-3 w-3" />
+                <span>Fill Operator Credentials</span>
+              </button>
+            </div>
+
             <button
               type="submit"
               disabled={isLoading || isAuthorized}
@@ -161,10 +190,10 @@ export default function LoginPage() {
               {isLoading || isAuthorized ? (
                 <>
                   <div className="h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Logging in...</span>
+                  <span>Authorizing Session...</span>
                 </>
               ) : (
-                <span>Login to GridSense</span>
+                <span>Authorize Dispatch Access</span>
               )}
             </button>
           </form>
