@@ -97,6 +97,7 @@ export type DetectionType =
   | "PHASE_UNBALANCE"
   | "FEEDER_OVERLOAD"
   | "DTR_OVERLOAD"
+  | "OVERCURRENT"
   | "UNDERVOLTAGE"
   | "OVERVOLTAGE"
   | "NODE_OFFLINE";
