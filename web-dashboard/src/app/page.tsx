@@ -325,7 +325,7 @@ export default function SCADADashboard() {
           setSelectedPort(preferred);
         }
       })
-      .catch(() => {});
+      .catch(() => { });
 
     return () => {
       if (eventSource) eventSource.close();
@@ -525,8 +525,8 @@ export default function SCADADashboard() {
   const faultCode = isGatewayOffline ? "GATEWAY_DISCONNECTED" : telemetry?.fault_code;
   const isBreakerTripped = Boolean(
     !isGatewayOffline &&
-      faultCode !== "POWERCUT" &&
-      (telemetry?.status === "TRIP" || telemetry?.fault)
+    faultCode !== "POWERCUT" &&
+    (telemetry?.status === "TRIP" || telemetry?.fault)
   );
   let isPowerCut =
     !isGatewayOffline &&
@@ -630,8 +630,8 @@ export default function SCADADashboard() {
       const readingBadge = topDet.type === "NODE_OFFLINE"
         ? "LINK DOWN // NO TELEMETRY"
         : typeof topDet.value === "number" && topDet.unit
-        ? `${topDet.value.toFixed(2)} ${topDet.unit}${topDet.threshold ? ` (LIMIT: ${topDet.threshold} ${topDet.unit})` : ""}`
-        : "ANOMALY DETECTED";
+          ? `${topDet.value.toFixed(2)} ${topDet.unit}${topDet.threshold ? ` (LIMIT: ${topDet.threshold} ${topDet.unit})` : ""}`
+          : "ANOMALY DETECTED";
 
       activeFault = {
         ansiCode: topDet.ansi,
@@ -686,7 +686,7 @@ export default function SCADADashboard() {
   // Ensure line loss is physically positive along series radial line
   const lineLossW = Math.max(0, p1PowerW - p2PowerW);
   const lineLossPct = p1PowerW > 0 ? ((lineLossW / p1PowerW) * 100).toFixed(2) : "0.00";
-  
+
   // Digital Twin Grid macro metrics across 28 poles and 3 feeders
   const gridMetrics = React.useMemo(() => {
     if (!networkSnapshot) return null;
@@ -881,13 +881,12 @@ export default function SCADADashboard() {
             <Button
               variant={isPtwLocked ? "outline" : isPowerCut || isCommsOnlyAlarm ? "secondary" : "destructive"}
               size="sm"
-              className={`font-mono font-bold text-xs ${
-                isPtwLocked
-                  ? "border-amber-500 text-amber-900 bg-amber-100 dark:border-amber-600 dark:text-amber-300 dark:bg-amber-950/50 cursor-not-allowed"
-                  : isPowerCut || isCommsOnlyAlarm
+              className={`font-mono font-bold text-xs ${isPtwLocked
+                ? "border-amber-500 text-amber-900 bg-amber-100 dark:border-amber-600 dark:text-amber-300 dark:bg-amber-950/50 cursor-not-allowed"
+                : isPowerCut || isCommsOnlyAlarm
                   ? "bg-slate-200 hover:bg-slate-300 text-slate-900 border border-slate-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-200 dark:border-zinc-700"
                   : "bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
-              }`}
+                }`}
               onClick={handleAcknowledgeAlarm}
               disabled={isAcking}
               title={
@@ -900,12 +899,12 @@ export default function SCADADashboard() {
               {isAcking
                 ? "ACKNOWLEDGING..."
                 : isCommsOnlyAlarm
-                ? "ACKNOWLEDGE"
-                : isPowerCut
-                ? "ACKNOWLEDGE OUTAGE"
-                : isAlarmUnacked
-                ? "ACKNOWLEDGE & RESET ALARM"
-                : "RESET ALARM"}
+                  ? "ACKNOWLEDGE"
+                  : isPowerCut
+                    ? "ACKNOWLEDGE OUTAGE"
+                    : isAlarmUnacked
+                      ? "ACKNOWLEDGE & RESET ALARM"
+                      : "RESET ALARM"}
             </Button>
           </div>
         </div>
@@ -965,36 +964,35 @@ export default function SCADADashboard() {
                     )}
                     <div className="min-w-0">
                       <div
-                        className={`text-lg font-bold font-mono tracking-tight truncate ${
-                          isGatewayOffline
-                            ? "text-amber-600 dark:text-amber-500"
-                            : isPowerCut
+                        className={`text-lg font-bold font-mono tracking-tight truncate ${isGatewayOffline
+                          ? "text-amber-600 dark:text-amber-500"
+                          : isPowerCut
                             ? "text-amber-600 dark:text-amber-400"
                             : isFault || (gridMetrics?.criticalDetections ?? 0) > 0
-                            ? "text-rose-600 dark:text-rose-400"
-                            : (gridMetrics?.totalDetections ?? 0) > 0
-                            ? "text-amber-600 dark:text-amber-400"
-                            : "text-emerald-600 dark:text-emerald-400"
-                        }`}
+                              ? "text-rose-600 dark:text-rose-400"
+                              : (gridMetrics?.totalDetections ?? 0) > 0
+                                ? "text-amber-600 dark:text-amber-400"
+                                : "text-emerald-600 dark:text-emerald-400"
+                          }`}
                       >
                         {isGatewayOffline
                           ? "TELEMETRY OFFLINE"
                           : isPowerCut
-                          ? "POWERCUT (0V SUPPLY)"
-                          : isFault
-                          ? telemetry?.fault_code || "ANOMALY / TRIP"
-                          : (gridMetrics?.totalDetections ?? 0) > 0
-                          ? `${gridMetrics?.totalDetections} ACTIVE ALERTS`
-                          : "BALANCED & NORMAL"}
+                            ? "POWERCUT (0V SUPPLY)"
+                            : isFault
+                              ? telemetry?.fault_code || "ANOMALY / TRIP"
+                              : (gridMetrics?.totalDetections ?? 0) > 0
+                                ? `${gridMetrics?.totalDetections} ACTIVE ALERTS`
+                                : "BALANCED & NORMAL"}
                       </div>
                       <div className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono truncate">
                         {isPowerCut
                           ? "Feeder unpowered • Upstream supply 0.0V"
                           : isFault
-                          ? `ΔI = ${idiff.toFixed(3)}A • Span F1-P01 ↔ F1-P02`
-                          : (gridMetrics?.totalDetections ?? 0) > 0
-                          ? `${gridMetrics?.criticalDetections} Critical • ${gridMetrics?.trippedSections} Spans Tripped`
-                          : `Line Differential ΔI = ${idiff.toFixed(3)}A • Normal`}
+                            ? `ΔI = ${idiff.toFixed(3)}A • Span F1-P01 ↔ F1-P02`
+                            : (gridMetrics?.totalDetections ?? 0) > 0
+                              ? `${gridMetrics?.criticalDetections} Critical • ${gridMetrics?.trippedSections} Spans Tripped`
+                              : `Line Differential ΔI = ${idiff.toFixed(3)}A • Normal`}
                       </div>
                     </div>
                   </div>
@@ -1006,9 +1004,8 @@ export default function SCADADashboard() {
               </Card>
 
               {/* CARD 2: DTR-01 Total Demand & Feeder Power Flow */}
-              <Card className={`col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between transition-opacity ${
-                isP1Stale ? "opacity-75 border-amber-500/50" : ""
-              }`}>
+              <Card className={`col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between transition-opacity ${isP1Stale ? "opacity-75 border-amber-500/50" : ""
+                }`}>
                 <CardHeader className="pb-1.5">
                   <div className="flex items-center justify-between gap-1.5">
                     <span className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono uppercase tracking-wider font-semibold truncate">
@@ -1019,10 +1016,10 @@ export default function SCADADashboard() {
                         isGatewayOffline
                           ? "outline"
                           : (networkSnapshot?.dtr.loadingPct ?? 0) > 85
-                          ? "destructive"
-                          : (networkSnapshot?.dtr.loadingPct ?? 0) > 65
-                          ? "warning"
-                          : "healthy"
+                            ? "destructive"
+                            : (networkSnapshot?.dtr.loadingPct ?? 0) > 65
+                              ? "warning"
+                              : "healthy"
                       }
                       className="text-[10px] shrink-0"
                     >
@@ -1048,15 +1045,14 @@ export default function SCADADashboard() {
                       {/* Visual Capacity Utilization Bar */}
                       <div className="mt-1.5 h-1 w-full bg-slate-200 dark:bg-zinc-800 rounded-full overflow-hidden">
                         <div
-                          className={`h-full transition-all duration-300 ${
-                            isGatewayOffline
-                              ? "bg-slate-300 dark:bg-zinc-700"
-                              : (networkSnapshot?.dtr.loadingPct ?? 0) > 85
+                          className={`h-full transition-all duration-300 ${isGatewayOffline
+                            ? "bg-slate-300 dark:bg-zinc-700"
+                            : (networkSnapshot?.dtr.loadingPct ?? 0) > 85
                               ? "bg-rose-500"
                               : (networkSnapshot?.dtr.loadingPct ?? 0) > 65
-                              ? "bg-amber-500"
-                              : "bg-emerald-500"
-                          }`}
+                                ? "bg-amber-500"
+                                : "bg-emerald-500"
+                            }`}
                           style={{ width: `${isGatewayOffline ? 0 : Math.min(100, Math.max(0, networkSnapshot?.dtr.loadingPct ?? 26))}%` }}
                         />
                       </div>
@@ -1070,9 +1066,8 @@ export default function SCADADashboard() {
               </Card>
 
               {/* CARD 3: 3-Phase Bus Voltage Level & Balance (IEEE 1159) */}
-              <Card className={`col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between transition-opacity ${
-                isP1Stale ? "opacity-75 border-amber-500/50" : ""
-              }`}>
+              <Card className={`col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between transition-opacity ${isP1Stale ? "opacity-75 border-amber-500/50" : ""
+                }`}>
                 {(() => {
                   const dtrVr = isGatewayOffline ? 0 : (v1 > 0 ? v1 : networkSnapshot ? networkSnapshot.dtr.voltage.R : 230);
                   const dtrVy = isGatewayOffline ? 0 : (networkSnapshot ? networkSnapshot.dtr.voltage.Y : 230);
@@ -1096,20 +1091,20 @@ export default function SCADADashboard() {
                               isGatewayOffline
                                 ? "outline"
                                 : isUnderVoltage || isOverVoltage || isUnbalanced
-                                ? "destructive"
-                                : "healthy"
+                                  ? "destructive"
+                                  : "healthy"
                             }
                             className="text-[10px] shrink-0"
                           >
                             {isGatewayOffline
                               ? "OFFLINE"
                               : isUnderVoltage
-                              ? `UNDERVOLTAGE (${minV.toFixed(0)}V)`
-                              : isOverVoltage
-                              ? `OVERVOLTAGE (${maxV.toFixed(0)}V)`
-                              : isUnbalanced
-                              ? "UNBALANCED"
-                              : "BALANCE: NORMAL"}
+                                ? `UNDERVOLTAGE (${minV.toFixed(0)}V)`
+                                : isOverVoltage
+                                  ? `OVERVOLTAGE (${maxV.toFixed(0)}V)`
+                                  : isUnbalanced
+                                    ? "UNBALANCED"
+                                    : "BALANCE: NORMAL"}
                           </Badge>
                         </div>
                       </CardHeader>
@@ -1179,12 +1174,12 @@ export default function SCADADashboard() {
                       {isGatewayOffline
                         ? "OFFLINE"
                         : isPowerCut
-                        ? "DE-ENERGIZED (0V)"
-                        : isFault
-                        ? "DIFFERENTIAL ALARM"
-                        : (gridMetrics?.trippedSections ?? 0) > 0
-                        ? "SPAN TRIP"
-                        : "CONDUCTORS INTACT"}
+                          ? "DE-ENERGIZED (0V)"
+                          : isFault
+                            ? "DIFFERENTIAL ALARM"
+                            : (gridMetrics?.trippedSections ?? 0) > 0
+                              ? "SPAN TRIP"
+                              : "CONDUCTORS INTACT"}
                     </Badge>
                   </div>
                 </CardHeader>
@@ -1196,12 +1191,12 @@ export default function SCADADashboard() {
                         {isGatewayOffline
                           ? "--- "
                           : networkSnapshot
-                          ? (
+                            ? (
                               networkSnapshot.dtr.current.R +
                               networkSnapshot.dtr.current.Y +
                               networkSnapshot.dtr.current.B
                             ).toFixed(1)
-                          : (i1 + i2).toFixed(1)}{" "}
+                            : (i1 + i2).toFixed(1)}{" "}
                         <span className="text-sm text-slate-600 dark:text-zinc-500 font-normal">A (3Φ SUM)</span>
                       </div>
                       <div className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono mt-0.5 space-x-1 tabular-nums truncate">
@@ -1239,490 +1234,486 @@ export default function SCADADashboard() {
             <div className="grid grid-cols-12 gap-2.5 flex-1 min-h-[460px]">
               {/* Left (8 cols): Mapbox Vector GIS Map */}
               <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-[460px]">
-                <GisFeederMap
-                  telemetry={telemetry}
+                  <GisFeederMap
+                    telemetry={telemetry}
+                    networkSnapshot={networkSnapshot}
+                    selectedPoleId={selectedPoleId}
+                    onSelectPole={handlePoleSelect}
+                  />
+                </div>
+
+                {/* Right (4 cols): Operations & Incident Dispatch Hub */}
+                <div className="col-span-12 lg:col-span-4 flex flex-col gap-2.5 font-mono h-full">
+                  {/* Dynamic Asset & Feeder Telemetry Inspector (Option B) */}
+                  {(() => {
+                    const targetPoleId = selectedPoleId || "F1-P01";
+                    const selectedNode = networkSnapshot?.nodes.find((n) => n.id.toLowerCase() === targetPoleId.toLowerCase());
+                    const topoNode = NODE_BY_ID[targetPoleId] || (targetPoleId === "Pole-A" ? NODE_BY_ID["F1-P01"] : targetPoleId === "Pole-B" ? NODE_BY_ID["F1-P02"] : undefined);
+                    const isLivePole = Boolean(selectedNode?.isLive || topoNode?.liveBinding);
+                    const isP1 = targetPoleId === "F1-P01" || targetPoleId === "Pole-A";
+                    const isP2 = targetPoleId === "F1-P02" || targetPoleId === "Pole-B";
+                    const liveData = isP1 ? telemetry?.p1 : isP2 ? telemetry?.p2 : null;
+                    const isNodeDeenergized = isGatewayOffline || isPowerCut || selectedNode?.status === "DEENERGIZED";
+
+                    return (
+                      <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm space-y-2.5 shadow-xs dark:shadow-none transition-colors">
+                        <div className="flex items-center justify-between text-xs text-slate-800 dark:text-zinc-300 font-bold border-b border-slate-200 dark:border-zinc-800/80 pb-2">
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                            <span>ASSET INSPECTOR // {targetPoleId}</span>
+                          </div>
+                          <Badge
+                            variant={
+                              isGatewayOffline
+                                ? "outline"
+                                : selectedNode?.status === "ALARM"
+                                  ? "destructive"
+                                  : selectedNode?.status === "WARN"
+                                    ? "warning"
+                                    : isLivePole
+                                      ? "healthy"
+                                      : "outline"
+                            }
+                            className="text-[10px]"
+                          >
+                            {isGatewayOffline
+                              ? "OFFLINE"
+                              : selectedNode?.status === "ALARM"
+                                ? "ALARM / TRIP"
+                                : isLivePole
+                                  ? "PHYSICAL RTU"
+                                  : "SIMULATED POLE"}
+                          </Badge>
+                        </div>
+
+                        {/* Pole Details & 3-Phase Metrics */}
+                        <div className="space-y-1.5 text-xs font-mono">
+                          <div className="flex items-center justify-between p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm">
+                            <div>
+                              <div className="text-[10px] text-slate-500 dark:text-zinc-400">FEEDER &amp; SPAN</div>
+                              <div className="font-bold text-slate-800 dark:text-zinc-200">
+                                {topoNode?.feederId || selectedNode?.feederId || "LT-1"} • Span {topoNode?.spanM ?? 40}m
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-[10px] text-slate-500 dark:text-zinc-400">CONSUMERS</div>
+                              <div className="font-bold text-slate-800 dark:text-zinc-200">
+                                {topoNode?.customers ?? 4} Service Drops
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Telemetry Measurements */}
+                          <div className="grid grid-cols-3 gap-1.5 p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm tabular-nums">
+                            <div className="p-1 rounded-xs bg-rose-500/10 border border-rose-500/20">
+                              <div className="text-[10px] font-bold text-rose-600 dark:text-rose-400">PHASE R</div>
+                              <div className="font-bold text-slate-900 dark:text-zinc-100">
+                                {isNodeDeenergized
+                                  ? "0.0V"
+                                  : isLivePole && liveData
+                                    ? `${liveData.v.toFixed(1)}V`
+                                    : `${(selectedNode?.phases.R.v ?? 0).toFixed(1)}V`}
+                              </div>
+                              <div className="text-[10px] text-slate-600 dark:text-zinc-400">
+                                {isNodeDeenergized
+                                  ? "0.00A"
+                                  : isLivePole && liveData
+                                    ? `${liveData.i.toFixed(2)}A`
+                                    : `${(selectedNode?.phases.R.i ?? 0).toFixed(2)}A`}
+                              </div>
+                            </div>
+
+                            <div className="p-1 rounded-xs bg-amber-500/10 border border-amber-500/20">
+                              <div className="text-[10px] font-bold text-amber-700 dark:text-amber-400">PHASE Y</div>
+                              <div className="font-bold text-slate-900 dark:text-zinc-100">
+                                {isNodeDeenergized ? "0.0V" : `${(selectedNode?.phases.Y.v ?? 0).toFixed(1)}V`}
+                              </div>
+                              <div className="text-[10px] text-slate-600 dark:text-zinc-400">
+                                {isNodeDeenergized ? "0.00A" : `${(selectedNode?.phases.Y.i ?? 0).toFixed(2)}A`}
+                              </div>
+                            </div>
+
+                            <div className="p-1 rounded-xs bg-blue-500/10 border border-blue-500/20">
+                              <div className="text-[10px] font-bold text-blue-700 dark:text-cyan-400">PHASE B</div>
+                              <div className="font-bold text-slate-900 dark:text-zinc-100">
+                                {isNodeDeenergized ? "0.0V" : `${(selectedNode?.phases.B.v ?? 0).toFixed(1)}V`}
+                              </div>
+                              <div className="text-[10px] text-slate-600 dark:text-zinc-400">
+                                {isNodeDeenergized ? "0.00A" : `${(selectedNode?.phases.B.i ?? 0).toFixed(2)}A`}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* GPS Coordinates & Field Comms */}
+                          <div className="p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm text-[11px] space-y-1">
+                            <div className="flex items-center justify-between text-slate-600 dark:text-zinc-400">
+                              <span>GPS Coordinates:</span>
+                              <span className="font-bold text-slate-800 dark:text-zinc-200 tabular-nums">
+                                {topoNode?.lat?.toFixed(5) ?? "10.23180"}°N, {topoNode?.lng?.toFixed(5) ?? "76.40850"}°E
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-slate-600 dark:text-zinc-400">
+                              <span>Conductor Span:</span>
+                              <span className="font-bold text-slate-800 dark:text-zinc-200">
+                                {topoNode?.parentId ? `From ${topoNode.parentId}` : "Substation Incomer"}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-slate-600 dark:text-zinc-400">
+                              <span>Field Bus Link:</span>
+                              <span className={`font-bold ${isGatewayOffline ? "text-amber-500" : "text-emerald-600 dark:text-emerald-400"}`}>
+                                {isGatewayOffline ? "GATEWAY OFFLINE" : isLivePole ? "SUB-GHz LoRa (ACTIVE)" : "TOPOLOGY TWIN"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Section 1 Protection & Operational Incident Station */}
+                  <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm space-y-2.5 flex-1 flex flex-col justify-between shadow-xs dark:shadow-none transition-colors">
+                    <div className="space-y-2.5">
+                      <div className="flex items-center justify-between text-xs text-slate-800 dark:text-zinc-300 font-bold border-b border-slate-200 dark:border-zinc-800/80 pb-2">
+                        <div className="flex items-center gap-2">
+                          <ShieldCheck className={`h-4 w-4 ${isPowerCut ? "text-slate-500 dark:text-zinc-500" : "text-emerald-600 dark:text-emerald-500"}`} />
+                          <span>SECTION 1 SUPERVISORY CONTROL (FDIR)</span>
+                        </div>
+                        <Badge
+                          variant={isPowerCut ? "outline" : isElectricalFault ? "destructive" : isGatewayOffline ? "outline" : "healthy"}
+                          className={`text-[10px] ${isPowerCut || isGatewayOffline ? "border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-400" : ""}`}
+                        >
+                          {isPowerCut ? "DE-ENERGIZED (0V)" : isElectricalFault ? "TRIPPED & ISOLATED (OPEN)" : isGatewayOffline ? "OFFLINE // UNKNOWN" : "ENERGIZED (CLOSED)"}
+                        </Badge>
+                      </div>
+
+                      {/* Differential ANSI 87L Status Bar */}
+                      <div className="p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm text-xs space-y-1">
+                        <div className="flex items-center justify-between font-semibold">
+                          <span className="text-slate-600 dark:text-zinc-400">Protection Zone:</span>
+                          <span className="text-slate-900 dark:text-zinc-200">ANSI 87L Unit Differential</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] tabular-nums">
+                          <span className="text-slate-600 dark:text-zinc-400">Differential Current (I_diff):</span>
+                          <span className={`font-bold ${isGatewayOffline || isPowerCut ? "text-slate-600 dark:text-zinc-400" : isElectricalFault ? "text-rose-600 dark:text-rose-500" : "text-emerald-600 dark:text-emerald-500"}`}>
+                            {isGatewayOffline ? "--- A" : `${(telemetry?.idiff ?? 0).toFixed(3)} A`} / {tripLimit.toFixed(3)} A
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* OMS & Workforce Status */}
+                      {escalatedTicket ? (
+                        <div className={`border p-2.5 rounded-sm flex items-center justify-between ${!isFault && !isBreakerTripped
+                          ? "border-amber-500/50 bg-amber-50/60 dark:bg-amber-950/30"
+                          : "border-rose-500/60 bg-rose-50/80 dark:bg-rose-950/40 animate-pulse"
+                          }`}>
+                          <div>
+                            <div className={`text-xs font-bold flex items-center gap-1.5 ${!isFault && !isBreakerTripped
+                              ? "text-amber-700 dark:text-amber-400"
+                              : "text-rose-600 dark:text-rose-400"
+                              }`}>
+                              <AlertTriangle className="h-3.5 w-3.5" />
+                              <span>
+                                {!isFault && !isBreakerTripped
+                                  ? "INCIDENT PENDING CLOSURE (GRID RESTORED)"
+                                  : "SUSTAINED OUTAGE — ACTION REQUIRED"}
+                              </span>
+                            </div>
+                            <div className="text-[10px] text-slate-600 dark:text-zinc-300 mt-0.5">
+                              {!isFault && !isBreakerTripped
+                                ? "Grid normalized. Formal operator sign-off required in OMS."
+                                : escalatedTicket.safetyBypassTriggered
+                                  ? "Safety Critical Override (Conductor Hazard)"
+                                  : "Soak window elapsed. Operator dispatch required."}
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant={!isFault && !isBreakerTripped ? "outline" : "destructive"}
+                            className="text-[11px] font-mono h-7 px-2 font-bold shadow-sm"
+                            onClick={() => setActiveView("OMS")}
+                          >
+                            {!isFault && !isBreakerTripped ? "Review OMS ➔" : "Dispatch ➔"}
+                          </Button>
+                        </div>
+                      ) : watchingTicket ? (
+                        <div className="border border-amber-500/40 bg-amber-50/60 dark:bg-amber-950/30 p-2.5 rounded-sm flex items-center justify-between">
+                          <div>
+                            <div className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                              <Clock className="h-3.5 w-3.5 animate-spin" style={{ animationDuration: "8s" }} />
+                              <span>SOAK OBSERVATION ACTIVE</span>
+                            </div>
+                            <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                              Watching event #{watchingTicket.ticketId} • Suppressing nuisance dispatch
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-[11px] font-mono h-7 px-2 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40"
+                            onClick={() => setActiveView("OMS")}
+                          >
+                            View Soak ➔
+                          </Button>
+                        </div>
+                      ) : dispatchedTicket ? (
+                        <div className="border border-cyan-500/40 bg-cyan-50/60 dark:bg-cyan-950/30 p-2.5 rounded-sm flex items-center justify-between">
+                          <div>
+                            <div className="text-xs font-bold text-cyan-600 dark:text-cyan-400 flex items-center gap-1.5">
+                              <Wrench className="h-3.5 w-3.5" />
+                              <span>CREW DISPATCHED • {dispatchedTicket.assignedCrew || "Line Crew"}</span>
+                            </div>
+                            <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
+                              Status: {dispatchedTicket.status.replace(/_/g, " ")} • Ticket #{dispatchedTicket.ticketId}
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-[11px] font-mono h-7 px-2 border-cyan-500/40 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/40"
+                            onClick={() => setActiveView("OMS")}
+                          >
+                            Track Crew ➔
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 p-2.5 rounded-sm flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                            <div>
+                              <span className="font-bold text-emerald-700 dark:text-emerald-400">ALL SECTIONS NORMAL</span>
+                              <div className="text-[10px] text-slate-500 dark:text-zinc-400">0 Active Outages • Field Crew On Standby</div>
+                            </div>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-[10px] font-mono h-6 px-2"
+                            onClick={() => setActiveView("OMS")}
+                          >
+                            OMS Hub
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Alarm Silencing / Reset Action */}
+                    {isFault ? (
+                      <Button
+                        variant={isPtwLocked ? "outline" : isPowerCut ? "secondary" : "destructive"}
+                        size="sm"
+                        className={`w-full font-mono font-bold text-xs shadow-sm ${isPowerCut ? "bg-slate-200 hover:bg-slate-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-zinc-200 border border-slate-300 dark:border-zinc-700" : ""
+                          }`}
+                        onClick={handleAcknowledgeAlarm}
+                        disabled={isAcking}
+                      >
+                        <Check className="h-3.5 w-3.5 mr-1" />
+                        {isAcking
+                          ? "CLEARING..."
+                          : isPowerCut
+                            ? "ACKNOWLEDGE OUTAGE (ESC)"
+                            : isAlarmUnacked
+                              ? "ACKNOWLEDGE TRIP ALARM (ESC)"
+                              : "RESET TRIP LATCH // RECLOSE SECTIONALIZER"}
+                      </Button>
+                    ) : (
+                      <div className="border border-slate-200 dark:border-zinc-800/60 bg-slate-50 dark:bg-zinc-950/40 p-2 rounded-sm text-[10px] text-slate-600 dark:text-zinc-400 flex items-center justify-between font-mono">
+                        <span className="text-slate-700 dark:text-zinc-300">SCADA Field Bus Telemetry</span>
+                        <span className="text-emerald-600 dark:text-emerald-400 font-bold">ONLINE (POLL 250ms)</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+            {/* ============================================================== */}
+            {/* VIEW B: GIS FULL VIEW WITH ASSET TREE */}
+            {/* ============================================================== */}
+            {activeView === "GIS" && (
+              <div className="grid grid-cols-12 gap-2.5 flex-1 h-full min-h-[550px]">
+                <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-[550px]">
+                  <GisFeederMap
+                    telemetry={telemetry}
+                    networkSnapshot={networkSnapshot}
+                    selectedPoleId={selectedPoleId}
+                    onSelectPole={handlePoleSelect}
+                  />
+                </div>
+                <div className="col-span-12 lg:col-span-4 flex flex-col h-full min-h-[550px]">
+                  <FeederAssetTree
+                    telemetry={telemetry}
+                    networkSnapshot={networkSnapshot}
+                    selectedPoleId={selectedPoleId}
+                    onSelectPole={handlePoleSelect}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* ============================================================== */}
+            {/* VIEW B2: 3-PHASE NETWORK DIGITAL TWIN & SIMULATOR */}
+            {/* ============================================================== */}
+            {activeView === "NETWORK" && (
+              <div className="flex-1 flex flex-col min-h-0">
+                <NetworkTwinView
+                  snapshot={networkSnapshot}
+                  onRefresh={fetchNetworkSnapshot}
+                  selectedPoleId={selectedPoleId}
+                  onSelectPole={handlePoleSelect}
+                />
+              </div>
+            )}
+
+            {/* ============================================================== */}
+            {/* VIEW C: WAVEFORM MONITOR */}
+            {/* ============================================================== */}
+            {activeView === "WAVEFORMS" && (
+              <div className="flex-1 flex flex-col min-h-0">
+                <TelemetryTrendChart
+                  history={history}
+                  tripLimit={tripLimit}
+                  isFrozen={isWaveformFrozen}
+                  onToggleFreeze={() => setIsWaveformFrozen(!isWaveformFrozen)}
                   networkSnapshot={networkSnapshot}
                   selectedPoleId={selectedPoleId}
                   onSelectPole={handlePoleSelect}
                 />
               </div>
+            )}
 
-              {/* Right (4 cols): Operations & Incident Dispatch Hub */}
-              <div className="col-span-12 lg:col-span-4 flex flex-col gap-2.5 font-mono h-full">
-                {/* Dynamic Asset & Feeder Telemetry Inspector (Option B) */}
-                {(() => {
-                  const targetPoleId = selectedPoleId || "F1-P01";
-                  const selectedNode = networkSnapshot?.nodes.find((n) => n.id.toLowerCase() === targetPoleId.toLowerCase());
-                  const topoNode = NODE_BY_ID[targetPoleId] || (targetPoleId === "Pole-A" ? NODE_BY_ID["F1-P01"] : targetPoleId === "Pole-B" ? NODE_BY_ID["F1-P02"] : undefined);
-                  const isLivePole = Boolean(selectedNode?.isLive || topoNode?.liveBinding);
-                  const isP1 = targetPoleId === "F1-P01" || targetPoleId === "Pole-A";
-                  const isP2 = targetPoleId === "F1-P02" || targetPoleId === "Pole-B";
-                  const liveData = isP1 ? telemetry?.p1 : isP2 ? telemetry?.p2 : null;
-                  const isNodeDeenergized = isGatewayOffline || isPowerCut || selectedNode?.status === "DEENERGIZED";
+            {/* ============================================================== */}
+            {/* VIEW D: WORKFORCE & OUTAGE MANAGEMENT (OMS) */}
+            {/* ============================================================== */}
+            {activeView === "OMS" && (
+              <div className="flex-1 flex flex-col min-h-0">
+                <WorkforceOmsPanel
+                  tickets={tickets}
+                  onRefresh={fetchTickets}
+                  isBreakerTripped={isBreakerTripped}
+                  isFault={isFault}
+                  networkSnapshot={networkSnapshot}
+                  selectedPoleId={selectedPoleId}
+                  onSelectPole={handlePoleSelect}
+                  linemanPhone={linemanPhone}
+                />
+              </div>
+            )}
 
-                  return (
-                    <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm space-y-2.5 shadow-xs dark:shadow-none transition-colors">
-                      <div className="flex items-center justify-between text-xs text-slate-800 dark:text-zinc-300 font-bold border-b border-slate-200 dark:border-zinc-800/80 pb-2">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                          <span>ASSET INSPECTOR // {targetPoleId}</span>
-                        </div>
-                        <Badge
-                          variant={
-                            isGatewayOffline
-                              ? "outline"
-                              : selectedNode?.status === "ALARM"
-                              ? "destructive"
-                              : selectedNode?.status === "WARN"
-                              ? "warning"
-                              : isLivePole
-                              ? "healthy"
-                              : "outline"
-                          }
-                          className="text-[10px]"
-                        >
-                          {isGatewayOffline
-                            ? "OFFLINE"
-                            : selectedNode?.status === "ALARM"
-                            ? "ALARM / TRIP"
-                            : isLivePole
-                            ? "PHYSICAL RTU"
-                            : "SIMULATED POLE"}
-                        </Badge>
-                      </div>
+            {/* ============================================================== */}
+            {/* VIEW E: ENGINEERING & FIRMWARE DIAGNOSTICS */}
+            {/* ============================================================== */}
+            {(activeView === "DIAGNOSTICS" || activeView === "COMMS") && (
+              <div className="flex-1 flex flex-col min-h-0">
+                <EngineeringDiagnostics
+                  telemetry={telemetry}
+                  networkSnapshot={networkSnapshot}
+                  systemStatus={systemStatus}
+                  availablePorts={availablePorts}
+                  selectedPort={selectedPort}
+                  onSelectPort={setSelectedPort}
+                  onConnectPort={handlePortConnect}
+                  onRefreshPorts={handleRefreshPorts}
+                />
+              </div>
+            )}
 
-                      {/* Pole Details & 3-Phase Metrics */}
-                      <div className="space-y-1.5 text-xs font-mono">
-                        <div className="flex items-center justify-between p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm">
-                          <div>
-                            <div className="text-[10px] text-slate-500 dark:text-zinc-400">FEEDER &amp; SPAN</div>
-                            <div className="font-bold text-slate-800 dark:text-zinc-200">
-                              {topoNode?.feederId || selectedNode?.feederId || "LT-1"} • Span {topoNode?.spanM ?? 40}m
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-[10px] text-slate-500 dark:text-zinc-400">CONSUMERS</div>
-                            <div className="font-bold text-slate-800 dark:text-zinc-200">
-                              {topoNode?.customers ?? 4} Service Drops
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Telemetry Measurements */}
-                        <div className="grid grid-cols-3 gap-1.5 p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm tabular-nums">
-                          <div className="p-1 rounded-xs bg-rose-500/10 border border-rose-500/20">
-                            <div className="text-[10px] font-bold text-rose-600 dark:text-rose-400">PHASE R</div>
-                            <div className="font-bold text-slate-900 dark:text-zinc-100">
-                              {isNodeDeenergized
-                                ? "0.0V"
-                                : isLivePole && liveData
-                                ? `${liveData.v.toFixed(1)}V`
-                                : `${(selectedNode?.phases.R.v ?? 0).toFixed(1)}V`}
-                            </div>
-                            <div className="text-[10px] text-slate-600 dark:text-zinc-400">
-                              {isNodeDeenergized
-                                ? "0.00A"
-                                : isLivePole && liveData
-                                ? `${liveData.i.toFixed(2)}A`
-                                : `${(selectedNode?.phases.R.i ?? 0).toFixed(2)}A`}
-                            </div>
-                          </div>
-
-                          <div className="p-1 rounded-xs bg-amber-500/10 border border-amber-500/20">
-                            <div className="text-[10px] font-bold text-amber-700 dark:text-amber-400">PHASE Y</div>
-                            <div className="font-bold text-slate-900 dark:text-zinc-100">
-                              {isNodeDeenergized ? "0.0V" : `${(selectedNode?.phases.Y.v ?? 0).toFixed(1)}V`}
-                            </div>
-                            <div className="text-[10px] text-slate-600 dark:text-zinc-400">
-                              {isNodeDeenergized ? "0.00A" : `${(selectedNode?.phases.Y.i ?? 0).toFixed(2)}A`}
-                            </div>
-                          </div>
-
-                          <div className="p-1 rounded-xs bg-blue-500/10 border border-blue-500/20">
-                            <div className="text-[10px] font-bold text-blue-700 dark:text-cyan-400">PHASE B</div>
-                            <div className="font-bold text-slate-900 dark:text-zinc-100">
-                              {isNodeDeenergized ? "0.0V" : `${(selectedNode?.phases.B.v ?? 0).toFixed(1)}V`}
-                            </div>
-                            <div className="text-[10px] text-slate-600 dark:text-zinc-400">
-                              {isNodeDeenergized ? "0.00A" : `${(selectedNode?.phases.B.i ?? 0).toFixed(2)}A`}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* GPS Coordinates & Field Comms */}
-                        <div className="p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm text-[11px] space-y-1">
-                          <div className="flex items-center justify-between text-slate-600 dark:text-zinc-400">
-                            <span>GPS Coordinates:</span>
-                            <span className="font-bold text-slate-800 dark:text-zinc-200 tabular-nums">
-                              {topoNode?.lat?.toFixed(5) ?? "10.23180"}°N, {topoNode?.lng?.toFixed(5) ?? "76.40850"}°E
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between text-slate-600 dark:text-zinc-400">
-                            <span>Conductor Span:</span>
-                            <span className="font-bold text-slate-800 dark:text-zinc-200">
-                              {topoNode?.parentId ? `From ${topoNode.parentId}` : "Substation Incomer"}
-                            </span>
-                          </div>
-                          <div className="flex items-center justify-between text-slate-600 dark:text-zinc-400">
-                            <span>Field Bus Link:</span>
-                            <span className={`font-bold ${isGatewayOffline ? "text-amber-500" : "text-emerald-600 dark:text-emerald-400"}`}>
-                              {isGatewayOffline ? "GATEWAY OFFLINE" : isLivePole ? "SUB-GHz LoRa (ACTIVE)" : "TOPOLOGY TWIN"}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* Section 1 Protection & Operational Incident Station */}
-                <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] p-3.5 rounded-sm space-y-2.5 flex-1 flex flex-col justify-between shadow-xs dark:shadow-none transition-colors">
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between text-xs text-slate-800 dark:text-zinc-300 font-bold border-b border-slate-200 dark:border-zinc-800/80 pb-2">
-                      <div className="flex items-center gap-2">
-                        <ShieldCheck className={`h-4 w-4 ${isPowerCut ? "text-slate-500 dark:text-zinc-500" : "text-emerald-600 dark:text-emerald-500"}`} />
-                        <span>SECTION 1 SUPERVISORY CONTROL (FDIR)</span>
-                      </div>
-                      <Badge
-                        variant={isPowerCut ? "outline" : isElectricalFault ? "destructive" : isGatewayOffline ? "outline" : "healthy"}
-                        className={`text-[10px] ${isPowerCut || isGatewayOffline ? "border-slate-300 dark:border-zinc-700 text-slate-700 dark:text-zinc-400" : ""}`}
-                      >
-                        {isPowerCut ? "DE-ENERGIZED (0V)" : isElectricalFault ? "TRIPPED & ISOLATED (OPEN)" : isGatewayOffline ? "OFFLINE // UNKNOWN" : "ENERGIZED (CLOSED)"}
-                      </Badge>
-                    </div>
-
-                    {/* Differential ANSI 87L Status Bar */}
-                    <div className="p-2 border border-slate-200 dark:border-zinc-800/80 bg-slate-50 dark:bg-zinc-950/60 rounded-sm text-xs space-y-1">
-                      <div className="flex items-center justify-between font-semibold">
-                        <span className="text-slate-600 dark:text-zinc-400">Protection Zone:</span>
-                        <span className="text-slate-900 dark:text-zinc-200">ANSI 87L Unit Differential</span>
-                      </div>
-                      <div className="flex items-center justify-between text-[11px] tabular-nums">
-                        <span className="text-slate-600 dark:text-zinc-400">Differential Current (I_diff):</span>
-                        <span className={`font-bold ${isGatewayOffline || isPowerCut ? "text-slate-600 dark:text-zinc-400" : isElectricalFault ? "text-rose-600 dark:text-rose-500" : "text-emerald-600 dark:text-emerald-500"}`}>
-                          {isGatewayOffline ? "--- A" : `${(telemetry?.idiff ?? 0).toFixed(3)} A`} / {tripLimit.toFixed(3)} A
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* OMS & Workforce Status */}
-                    {escalatedTicket ? (
-                      <div className={`border p-2.5 rounded-sm flex items-center justify-between ${
-                        !isFault && !isBreakerTripped
-                          ? "border-amber-500/50 bg-amber-50/60 dark:bg-amber-950/30"
-                          : "border-rose-500/60 bg-rose-50/80 dark:bg-rose-950/40 animate-pulse"
-                      }`}>
-                        <div>
-                          <div className={`text-xs font-bold flex items-center gap-1.5 ${
-                            !isFault && !isBreakerTripped
-                              ? "text-amber-700 dark:text-amber-400"
-                              : "text-rose-600 dark:text-rose-400"
-                          }`}>
-                            <AlertTriangle className="h-3.5 w-3.5" />
-                            <span>
-                              {!isFault && !isBreakerTripped
-                                ? "INCIDENT PENDING CLOSURE (GRID RESTORED)"
-                                : "SUSTAINED OUTAGE — ACTION REQUIRED"}
-                            </span>
-                          </div>
-                          <div className="text-[10px] text-slate-600 dark:text-zinc-300 mt-0.5">
-                            {!isFault && !isBreakerTripped
-                              ? "Grid normalized. Formal operator sign-off required in OMS."
-                              : escalatedTicket.safetyBypassTriggered
-                              ? "Safety Critical Override (Conductor Hazard)"
-                              : "Soak window elapsed. Operator dispatch required."}
-                          </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant={!isFault && !isBreakerTripped ? "outline" : "destructive"}
-                          className="text-[11px] font-mono h-7 px-2 font-bold shadow-sm"
-                          onClick={() => setActiveView("OMS")}
-                        >
-                          {!isFault && !isBreakerTripped ? "Review OMS ➔" : "Dispatch ➔"}
-                        </Button>
-                      </div>
-                    ) : watchingTicket ? (
-                      <div className="border border-amber-500/40 bg-amber-50/60 dark:bg-amber-950/30 p-2.5 rounded-sm flex items-center justify-between">
-                        <div>
-                          <div className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
-                            <Clock className="h-3.5 w-3.5 animate-spin" style={{ animationDuration: "8s" }} />
-                            <span>SOAK OBSERVATION ACTIVE</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
-                            Watching event #{watchingTicket.ticketId} • Suppressing nuisance dispatch
-                          </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-[11px] font-mono h-7 px-2 border-amber-500/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/40"
-                          onClick={() => setActiveView("OMS")}
-                        >
-                          View Soak ➔
-                        </Button>
-                      </div>
-                    ) : dispatchedTicket ? (
-                      <div className="border border-cyan-500/40 bg-cyan-50/60 dark:bg-cyan-950/30 p-2.5 rounded-sm flex items-center justify-between">
-                        <div>
-                          <div className="text-xs font-bold text-cyan-600 dark:text-cyan-400 flex items-center gap-1.5">
-                            <Wrench className="h-3.5 w-3.5" />
-                            <span>CREW DISPATCHED • {dispatchedTicket.assignedCrew || "Line Crew"}</span>
-                          </div>
-                          <div className="text-[10px] text-slate-500 dark:text-zinc-400 mt-0.5">
-                            Status: {dispatchedTicket.status.replace(/_/g, " ")} • Ticket #{dispatchedTicket.ticketId}
-                          </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-[11px] font-mono h-7 px-2 border-cyan-500/40 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-100 dark:hover:bg-cyan-900/40"
-                          onClick={() => setActiveView("OMS")}
-                        >
-                          Track Crew ➔
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="border border-emerald-500/30 bg-emerald-50/50 dark:bg-emerald-950/20 p-2.5 rounded-sm flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-2">
-                          <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                          <div>
-                            <span className="font-bold text-emerald-700 dark:text-emerald-400">ALL SECTIONS NORMAL</span>
-                            <div className="text-[10px] text-slate-500 dark:text-zinc-400">0 Active Outages • Field Crew On Standby</div>
-                          </div>
-                        </div>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-[10px] font-mono h-6 px-2"
-                          onClick={() => setActiveView("OMS")}
-                        >
-                          OMS Hub
-                        </Button>
-                      </div>
-                    )}
+            {/* ============================================================== */}
+            {/* VIEW F: SEQUENTIAL EVENT RECORDER (SER AUDIT LOG) */}
+            {/* ============================================================== */}
+            {(activeView === "LOGS" || activeView === "SOE") && (
+              <Card className="col-span-12 flex-1 flex flex-col font-mono min-h-0">
+                <CardHeader className="py-2.5 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Terminal className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    <CardTitle>SCADA Sequential Event Recorder (SER) // Real-Time Audit Log</CardTitle>
                   </div>
-
-                  {/* Alarm Silencing / Reset Action */}
-                  {isFault ? (
-                    <Button
-                      variant={isPtwLocked ? "outline" : isPowerCut ? "secondary" : "destructive"}
-                      size="sm"
-                      className={`w-full font-mono font-bold text-xs shadow-sm ${
-                        isPowerCut ? "bg-slate-200 hover:bg-slate-300 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-800 dark:text-zinc-200 border border-slate-300 dark:border-zinc-700" : ""
-                      }`}
-                      onClick={handleAcknowledgeAlarm}
-                      disabled={isAcking}
-                    >
-                      <Check className="h-3.5 w-3.5 mr-1" />
-                      {isAcking
-                        ? "CLEARING..."
-                        : isPowerCut
-                        ? "ACKNOWLEDGE OUTAGE (ESC)"
-                        : isAlarmUnacked
-                        ? "ACKNOWLEDGE TRIP ALARM (ESC)"
-                        : "RESET TRIP LATCH // RECLOSE SECTIONALIZER"}
-                    </Button>
-                  ) : (
-                    <div className="border border-slate-200 dark:border-zinc-800/60 bg-slate-50 dark:bg-zinc-950/40 p-2 rounded-sm text-[10px] text-slate-600 dark:text-zinc-400 flex items-center justify-between font-mono">
-                      <span className="text-slate-700 dark:text-zinc-300">SCADA Field Bus Telemetry</span>
-                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">ONLINE (POLL 250ms)</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5 text-[10px]">
+                      {(["ALL", "CRITICAL", "WARN", "INFO"] as const).map((lvl) => (
+                        <button
+                          key={lvl}
+                          onClick={() => setSoeSeverityFilter(lvl)}
+                          className={`px-2 py-0.5 rounded-xs font-bold transition-colors cursor-pointer ${soeSeverityFilter === lvl
+                            ? "bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 border border-slate-300 dark:border-zinc-700 shadow-xs"
+                            : "text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200"
+                            }`}
+                        >
+                          {lvl}
+                        </button>
+                      ))}
                     </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================== */}
-        {/* VIEW B: GIS FULL VIEW WITH ASSET TREE */}
-        {/* ============================================================== */}
-        {activeView === "GIS" && (
-          <div className="grid grid-cols-12 gap-2.5 flex-1 h-full min-h-[550px]">
-            <div className="col-span-12 lg:col-span-8 flex flex-col h-full min-h-[550px]">
-              <GisFeederMap
-                telemetry={telemetry}
-                networkSnapshot={networkSnapshot}
-                selectedPoleId={selectedPoleId}
-                onSelectPole={handlePoleSelect}
-              />
-            </div>
-            <div className="col-span-12 lg:col-span-4 flex flex-col h-full min-h-[550px]">
-              <FeederAssetTree
-                telemetry={telemetry}
-                networkSnapshot={networkSnapshot}
-                selectedPoleId={selectedPoleId}
-                onSelectPole={handlePoleSelect}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================== */}
-        {/* VIEW B2: 3-PHASE NETWORK DIGITAL TWIN & SIMULATOR */}
-        {/* ============================================================== */}
-        {activeView === "NETWORK" && (
-          <div className="flex-1 flex flex-col min-h-0">
-            <NetworkTwinView
-              snapshot={networkSnapshot}
-              onRefresh={fetchNetworkSnapshot}
-              selectedPoleId={selectedPoleId}
-              onSelectPole={handlePoleSelect}
-            />
-          </div>
-        )}
-
-        {/* ============================================================== */}
-        {/* VIEW C: WAVEFORM MONITOR */}
-        {/* ============================================================== */}
-        {activeView === "WAVEFORMS" && (
-          <div className="flex-1 flex flex-col min-h-0">
-            <TelemetryTrendChart
-              history={history}
-              tripLimit={tripLimit}
-              isFrozen={isWaveformFrozen}
-              onToggleFreeze={() => setIsWaveformFrozen(!isWaveformFrozen)}
-              networkSnapshot={networkSnapshot}
-              selectedPoleId={selectedPoleId}
-              onSelectPole={handlePoleSelect}
-            />
-          </div>
-        )}
-
-        {/* ============================================================== */}
-        {/* VIEW D: WORKFORCE & OUTAGE MANAGEMENT (OMS) */}
-        {/* ============================================================== */}
-        {activeView === "OMS" && (
-          <div className="flex-1 flex flex-col min-h-0">
-            <WorkforceOmsPanel
-              tickets={tickets}
-              onRefresh={fetchTickets}
-              isBreakerTripped={isBreakerTripped}
-              isFault={isFault}
-              networkSnapshot={networkSnapshot}
-              selectedPoleId={selectedPoleId}
-              onSelectPole={handlePoleSelect}
-              linemanPhone={linemanPhone}
-            />
-          </div>
-        )}
-
-        {/* ============================================================== */}
-        {/* VIEW E: ENGINEERING & FIRMWARE DIAGNOSTICS */}
-        {/* ============================================================== */}
-        {(activeView === "DIAGNOSTICS" || activeView === "COMMS") && (
-          <div className="flex-1 flex flex-col min-h-0">
-            <EngineeringDiagnostics
-              telemetry={telemetry}
-              networkSnapshot={networkSnapshot}
-              systemStatus={systemStatus}
-              availablePorts={availablePorts}
-              selectedPort={selectedPort}
-              onSelectPort={setSelectedPort}
-              onConnectPort={handlePortConnect}
-              onRefreshPorts={handleRefreshPorts}
-            />
-          </div>
-        )}
-
-        {/* ============================================================== */}
-        {/* VIEW F: SEQUENTIAL EVENT RECORDER (SER AUDIT LOG) */}
-        {/* ============================================================== */}
-        {(activeView === "LOGS" || activeView === "SOE") && (
-          <Card className="col-span-12 flex-1 flex flex-col font-mono min-h-0">
-            <CardHeader className="py-2.5 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                <Terminal className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                <CardTitle>SCADA Sequential Event Recorder (SER) // Real-Time Audit Log</CardTitle>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center bg-slate-100 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-sm p-0.5 text-[10px]">
-                  {(["ALL", "CRITICAL", "WARN", "INFO"] as const).map((lvl) => (
-                    <button
-                      key={lvl}
-                      onClick={() => setSoeSeverityFilter(lvl)}
-                      className={`px-2 py-0.5 rounded-xs font-bold transition-colors cursor-pointer ${
-                        soeSeverityFilter === lvl
-                          ? "bg-white dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 border border-slate-300 dark:border-zinc-700 shadow-xs"
-                          : "text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-zinc-200"
-                      }`}
+                    <Badge variant="outline">RECORDS: {logs.length}</Badge>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleExportCsv}
+                      className="h-6 px-2 text-[10px] font-mono border-slate-300 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-200"
                     >
-                      {lvl}
-                    </button>
-                  ))}
-                </div>
-                <Badge variant="outline">RECORDS: {logs.length}</Badge>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleExportCsv}
-                  className="h-6 px-2 text-[10px] font-mono border-slate-300 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-700 dark:text-zinc-200"
-                >
-                  <Download className="h-3 w-3 mr-1" />
-                  EXPORT SOE CSV
-                </Button>
-              </div>
-            </CardHeader>
+                      <Download className="h-3 w-3 mr-1" />
+                      EXPORT SOE CSV
+                    </Button>
+                  </div>
+                </CardHeader>
 
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-28">TIMESTAMP</TableHead>
-                    <TableHead className="w-24">SEVERITY</TableHead>
-                    <TableHead className="w-32">SUBSYSTEM</TableHead>
-                    <TableHead>EVENT MESSAGE / OPERATOR DIRECTIVE</TableHead>
-                    <TableHead className="w-48 text-right">DETAILS</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {logs.filter((l) => soeSeverityFilter === "ALL" || l.level === soeSeverityFilter).length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-slate-500 dark:text-zinc-500 py-4 font-mono text-xs">
-                        Awaiting SCADA telemetry records...
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    logs
-                      .filter((l) => soeSeverityFilter === "ALL" || l.level === soeSeverityFilter)
-                      .map((log) => (
-                      <TableRow key={log.id}>
-                        <TableCell className="text-slate-600 dark:text-zinc-400 font-mono text-xs">
-                          {new Date(log.timestamp).toLocaleTimeString()}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              log.level === "CRITICAL"
-                                ? "destructive"
-                                : log.level === "WARN"
-                                ? "warning"
-                                : "secondary"
-                            }
-                            className="text-[9px]"
-                          >
-                            {log.level}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-slate-800 dark:text-zinc-300 font-semibold font-mono text-xs">
-                          {log.source}
-                        </TableCell>
-                        <TableCell className="text-slate-900 dark:text-zinc-200">
-                          {log.message}
-                        </TableCell>
-                        <TableCell className="text-right text-slate-500 dark:text-zinc-400 text-[11px] truncate max-w-xs font-mono">
-                          {log.details || "--"}
-                        </TableCell>
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-28">TIMESTAMP</TableHead>
+                        <TableHead className="w-24">SEVERITY</TableHead>
+                        <TableHead className="w-32">SUBSYSTEM</TableHead>
+                        <TableHead>EVENT MESSAGE / OPERATOR DIRECTIVE</TableHead>
+                        <TableHead className="w-48 text-right">DETAILS</TableHead>
                       </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </Card>
-        )}
-      </main>
+                    </TableHeader>
+                    <TableBody>
+                      {logs.filter((l) => soeSeverityFilter === "ALL" || l.level === soeSeverityFilter).length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={5} className="text-center text-slate-500 dark:text-zinc-500 py-4 font-mono text-xs">
+                            Awaiting SCADA telemetry records...
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        logs
+                          .filter((l) => soeSeverityFilter === "ALL" || l.level === soeSeverityFilter)
+                          .map((log) => (
+                            <TableRow key={log.id}>
+                              <TableCell className="text-slate-600 dark:text-zinc-400 font-mono text-xs">
+                                {new Date(log.timestamp).toLocaleTimeString()}
+                              </TableCell>
+                              <TableCell>
+                                <Badge
+                                  variant={
+                                    log.level === "CRITICAL"
+                                      ? "destructive"
+                                      : log.level === "WARN"
+                                        ? "warning"
+                                        : "secondary"
+                                  }
+                                  className="text-[9px]"
+                                >
+                                  {log.level}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-slate-800 dark:text-zinc-300 font-semibold font-mono text-xs">
+                                {log.source}
+                              </TableCell>
+                              <TableCell className="text-slate-900 dark:text-zinc-200">
+                                {log.message}
+                              </TableCell>
+                              <TableCell className="text-right text-slate-500 dark:text-zinc-400 text-[11px] truncate max-w-xs font-mono">
+                                {log.details || "--"}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
+              </Card>
+            )}
+          </main>
     </div>
   );
 }
