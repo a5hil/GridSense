@@ -143,3 +143,10 @@ body {
   );
   animation: scada-gradient-wave 1.1s ease-in-out infinite;
 }
+
+/* Hairline Transmission Grid Mask Gradient */
+.hairline-bg {
+  mask-image: linear-gradient(to bottom, transparent 0, #000 72px, #000 calc(100% - 48px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 72px, #000 calc(100% - 48px), transparent 100%);
+}
+

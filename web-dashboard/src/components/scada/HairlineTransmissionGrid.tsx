@@ -8,18 +8,16 @@ interface Point2D {
   y: number;
 }
 
-interface TowerNode {
+interface Node3D {
   id: string;
-  type: "lattice" | "pole" | "substation";
+  type: "hv-tower" | "substation" | "feeder-pole" | "dtr-pole" | "lt-pole" | "building";
+  name: string;
   baseX: number;
   baseY: number;
-  floatPhase: number;
-  floatSpeed: number;
-  floatAmp: number;
-  currentZOffset: number;
-  screenPos?: Point2D;
+  lineDir?: { x: number; y: number };
   peakPos?: Point2D;
   conductorAttachments: Point2D[];
+  lvAttachments?: Point2D[];
 }
 
 interface CatenarySpan {
@@ -30,15 +28,73 @@ interface CatenarySpan {
   sag: number;
   pulseProgress1: number;
   pulseProgress2: number;
-  pulseActive?: boolean;
-  pulseColor?: string;
   pulseSpeed: number;
+  useLvSource?: boolean;
 }
+
+interface Safe {
+  top: number;
+  bottom: number;
+  left: number;
+  right: number;
+}
+
+const TOP_Z: Record<string, number> = {
+  "hv-tower": 165,
+  substation: 68,
+  "feeder-pole": 82,
+  "dtr-pole": 85,
+  "lt-pole": 72,
+  building: 42,
+};
+
+// Isometric projection constants (30-degree isometric)
+const COS30 = 0.8660254;
+const SIN30 = 0.5;
+
+function project(
+  wx: number,
+  wy: number,
+  wz: number,
+  originX: number,
+  originY: number,
+  scale: number
+): Point2D {
+  return {
+    x: originX + (wx - wy) * COS30 * scale,
+    y: originY + (wx + wy) * SIN30 * scale - wz * scale,
+  };
+}
+
+function lineDir(
+  prev: Node3D | null,
+  self: Node3D,
+  next: Node3D | null
+): { x: number; y: number } {
+  let dx = 0;
+  let dy = 0;
+  if (!prev && next) {
+    dx = next.baseX - self.baseX;
+    dy = next.baseY - self.baseY;
+  } else if (prev && !next) {
+    dx = self.baseX - prev.baseX;
+    dy = self.baseY - prev.baseY;
+  } else if (prev && next) {
+    dx = next.baseX - prev.baseX;
+    dy = next.baseY - prev.baseY;
+  }
+  const L = Math.hypot(dx, dy) || 1;
+  return { x: dx / L, y: dy / L };
+}
+
+const perp = (d: { x: number; y: number }) => ({ x: -d.y, y: d.x });
 
 export function HairlineTransmissionGrid() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const { theme } = useTheme();
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -47,12 +103,20 @@ export function HairlineTransmissionGrid() {
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
+    // Check for user preference for reduced motion
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
     let animationFrameId: number;
     let width = 0;
     let height = 0;
     let dpr = 1;
 
-    // Pointer state for interactive tethering
+    // Offscreen canvas caching for ground grid & axes
+    let offscreenCanvas: HTMLCanvasElement | null = null;
+    let offscreenCtx: CanvasRenderingContext2D | null = null;
+    let cachedTheme = "";
+
+    // Pointer state for interactive tethering & telemetry crosshair
     const pointer = {
       x: -9999,
       y: -9999,
@@ -61,10 +125,257 @@ export function HairlineTransmissionGrid() {
       targetY: -9999,
     };
 
-    let lastFaultTime = Date.now();
+    // =========================================================================
+    // 1. SCADA-ALIGNED DISTRIBUTION & TRANSMISSION NETWORK SCENE GRAPH
+    // Strict electrical engineering logic matching GridSense ADMS:
+    // HV Corridor (T0 -> T1 -> T3 -> T2)
+    // -> Primary 33/11kV Substation S1 (distinct HV and LV bushing decks)
+    // -> 11kV Feeder Pole P1
+    // -> 11kV/415V Pole-Mounted Distribution Transformer (DTR) P2 in true 3D
+    // -> LT 4-Wire Distribution Pole P3
+    // -> Consumer Service Drop B1
+    // =========================================================================
 
-    // High-DPI canvas resize handling
-    const handleResize = () => {
+    const towerNodes: Node3D[] = [
+      // 0. Far-West HV Incomer Dead-End (receives bulk power from off-screen regional grid)
+      {
+        id: "T0",
+        type: "hv-tower",
+        name: "TWR-400A (Incomer)",
+        baseX: -460,
+        baseY: 120,
+        conductorAttachments: [],
+      },
+      // 1. West Intermediate Transmission Tower
+      {
+        id: "T1",
+        type: "hv-tower",
+        name: "TWR-400B",
+        baseX: -320,
+        baseY: -60,
+        conductorAttachments: [],
+      },
+      // 2. North Skyline Corner Tower (Apex skyline elevation)
+      {
+        id: "T3",
+        type: "hv-tower",
+        name: "TWR-400C (Corner)",
+        baseX: -40,
+        baseY: -280,
+        conductorAttachments: [],
+      },
+      // 3. East Terminal Transmission Tower (High-side substation feed)
+      {
+        id: "T2",
+        type: "hv-tower",
+        name: "TWR-220A (Terminal)",
+        baseX: 360,
+        baseY: -80,
+        conductorAttachments: [],
+      },
+      // 4. Primary 33/11kV Substation Transformer Bank & Switchyard
+      {
+        id: "S1",
+        type: "substation",
+        name: "SUB-01 (33/11kV)",
+        baseX: 340,
+        baseY: 200,
+        conductorAttachments: [],
+        lvAttachments: [],
+      },
+      // 5. 11kV Outgoing Distribution Feeder Pole
+      {
+        id: "P1",
+        type: "feeder-pole",
+        name: "POL-11-01",
+        baseX: 520,
+        baseY: 140,
+        conductorAttachments: [],
+      },
+      // 6. 11kV / 415V Pole-Mounted Distribution Transformer (DTR)
+      {
+        id: "P2",
+        type: "dtr-pole",
+        name: "DTR-11-02",
+        baseX: 640,
+        baseY: 220,
+        conductorAttachments: [],
+        lvAttachments: [],
+      },
+      // 7. LT 415V Distribution Pole (3 phases + neutral)
+      {
+        id: "P3",
+        type: "lt-pole",
+        name: "POL-LT-03",
+        baseX: 720,
+        baseY: 340,
+        conductorAttachments: [],
+      },
+      // 8. Consumer Service Point / Metering Terminal
+      {
+        id: "B1",
+        type: "building",
+        name: "SVC-TERM-04",
+        baseX: 780,
+        baseY: 440,
+        conductorAttachments: [],
+      },
+    ];
+
+    // Compute line direction vectors along corridors for perpendicular crossarms
+    const hvCorridor = [towerNodes[0], towerNodes[1], towerNodes[2], towerNodes[3]];
+    for (let i = 0; i < hvCorridor.length; i++) {
+      const prev = i > 0 ? hvCorridor[i - 1] : null;
+      const self = hvCorridor[i];
+      const next = i < hvCorridor.length - 1 ? hvCorridor[i + 1] : towerNodes[4];
+      self.lineDir = lineDir(prev, self, next);
+    }
+
+    const distCorridor = [towerNodes[4], towerNodes[5], towerNodes[6], towerNodes[7], towerNodes[8]];
+    for (let i = 1; i < distCorridor.length; i++) {
+      const prev = distCorridor[i - 1];
+      const self = distCorridor[i];
+      const next = i < distCorridor.length - 1 ? distCorridor[i + 1] : null;
+      self.lineDir = lineDir(prev, self, next);
+    }
+
+    // =========================================================================
+    // 2. 3-PHASE CONTINUOUS CIRCUITS (Phase 0, 1, 2 continuous across spans)
+    // =========================================================================
+
+    function create3PhaseCircuit(
+      fromId: string,
+      toId: string,
+      sag: number,
+      speed = 0.0022,
+      useLvSource = false
+    ): CatenarySpan[] {
+      return [0, 1, 2].map((k) => ({
+        fromNodeId: fromId,
+        fromAttachIdx: k,
+        toNodeId: toId,
+        toAttachIdx: k,
+        sag: sag + (k - 1) * 2.2,
+        pulseProgress1: (0.15 + k * 0.31) % 1,
+        pulseProgress2: (0.65 + k * 0.31) % 1,
+        pulseSpeed: speed,
+        useLvSource,
+      }));
+    }
+
+    function createLTCircuit(
+      fromId: string,
+      toId: string,
+      sag: number,
+      speed = 0.0028
+    ): CatenarySpan[] {
+      // 4 conductors: 3 phases + neutral
+      return [0, 1, 2, 3].map((k) => ({
+        fromNodeId: fromId,
+        fromAttachIdx: k,
+        toNodeId: toId,
+        toAttachIdx: k,
+        sag: sag + (k - 1.5) * 1.5,
+        pulseProgress1: (0.2 + k * 0.25) % 1,
+        pulseProgress2: (0.7 + k * 0.25) % 1,
+        pulseSpeed: speed,
+        useLvSource: true,
+      }));
+    }
+
+    const spans: CatenarySpan[] = [
+      // Corridor 1: Incomer T0 -> Tower T1 (3-Phase)
+      ...create3PhaseCircuit("T0", "T1", 20, 0.0022),
+      // Corridor 2: Tower T1 -> Corner Tower T3 (3-Phase)
+      ...create3PhaseCircuit("T1", "T3", 22, 0.0021),
+      // Corridor 3: Corner Tower T3 -> Terminal Tower T2 (3-Phase)
+      ...create3PhaseCircuit("T3", "T2", 24, 0.0022),
+      // Substation Incomer Drop: Tower T2 -> Substation S1 HV Bushings (3-Phase)
+      ...create3PhaseCircuit("T2", "S1", 19, 0.0024),
+      // Feeder Outgoing: Substation S1 LV Bushings -> Feeder Pole P1 (3-Phase 11kV)
+      ...create3PhaseCircuit("S1", "P1", 17, 0.0026, true),
+      // Feeder Span: Feeder Pole P1 -> DTR Pole P2 (3-Phase 11kV)
+      ...create3PhaseCircuit("P1", "P2", 16, 0.0027),
+      // Distribution LT Line: DTR Pole P2 LV -> LT Pole P3 (4-Wire: 3 Phases + Neutral)
+      ...createLTCircuit("P2", "P3", 14, 0.0029),
+      // Service Drop: LT Pole P3 -> Building B1 Terminal
+      ...create3PhaseCircuit("P3", "B1", 12, 0.0031),
+    ];
+
+    // Off-screen incoming transmission line guide entering T0
+    const offscreenIncomerSource = {
+      baseX: -600,
+      baseY: 180,
+      z: 165,
+    };
+
+    // =========================================================================
+    // 3. SAFE-AREA BOUNDING BOX CALCULATION (fitView)
+    // Guarantees zero clipping under 60px header and off the bottom/sides
+    // =========================================================================
+
+    function fitView(
+      w: number,
+      h: number,
+      safe: Safe = { top: 64, bottom: 40, left: 24, right: 24 },
+      pad = 18,
+      maxSag = 26
+    ) {
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minY = Infinity;
+      let maxY = -Infinity;
+
+      for (const n of towerNodes) {
+        const topZ = TOP_Z[n.type] ?? 100;
+        const dir = n.lineDir || { x: 1, y: 0 };
+        const pp = perp(dir);
+        const crossarmExtent = n.type === "hv-tower" ? 44 : 24;
+
+        // Bounding checks for base, top peak, and crossarm tips
+        const pointsToCheck = [
+          project(n.baseX, n.baseY, 0, 0, 0, 1),
+          project(n.baseX, n.baseY, topZ, 0, 0, 1),
+          project(n.baseX - pp.x * crossarmExtent, n.baseY - pp.y * crossarmExtent, topZ - 20, 0, 0, 1),
+          project(n.baseX + pp.x * crossarmExtent, n.baseY + pp.y * crossarmExtent, topZ - 20, 0, 0, 1),
+        ];
+
+        for (const p of pointsToCheck) {
+          minX = Math.min(minX, p.x);
+          maxX = Math.max(maxX, p.x);
+          minY = Math.min(minY, p.y);
+          maxY = Math.max(maxY, p.y + maxSag);
+        }
+      }
+
+      // Include offscreen incomer source
+      const offP = project(offscreenIncomerSource.baseX, offscreenIncomerSource.baseY, offscreenIncomerSource.z, 0, 0, 1);
+      minX = Math.min(minX, offP.x);
+      minY = Math.min(minY, offP.y);
+
+      const aw = Math.max(w - safe.left - safe.right - 2 * pad, 100);
+      const ah = Math.max(h - safe.top - safe.bottom - 2 * pad, 100);
+
+      // Scale to fit safe viewport; cap at 1.12 to prevent oversized geometry on 4k screens
+      const scale = Math.min(aw / (maxX - minX), ah / (maxY - minY), 1.12);
+
+      // Centered cleanly inside safe area, preserving perimeter room for the central card
+      const originX = safe.left + pad + (aw - (maxX - minX) * scale) / 2 - minX * scale;
+      const originY = safe.top + pad + (ah - (maxY - minY) * scale) / 2 - minY * scale;
+
+      return { scale, originX, originY };
+    }
+
+    // =========================================================================
+    // 4. DPI-AWARE HAIRLINE WIDTH GUARDRAIL
+    // =========================================================================
+    const hair = (w: number) => Math.max(w, 1 / dpr);
+
+    // =========================================================================
+    // 5. RESIZE HANDLING & OFFSCREEN CANVAS CACHE
+    // =========================================================================
+
+    const updateDimensions = () => {
       if (!canvas) return;
       dpr = Math.min(window.devicePixelRatio || 1, 2);
       width = canvas.parentElement?.clientWidth || window.innerWidth;
@@ -74,12 +385,24 @@ export function HairlineTransmissionGrid() {
       canvas.height = Math.floor(height * dpr);
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
+
+      // Invalidate offscreen cache
+      offscreenCanvas = null;
     };
 
-    handleResize();
-    window.addEventListener("resize", handleResize);
+    updateDimensions();
 
-    const onPointerMove = (e: MouseEvent) => {
+    const resizeObserver = new ResizeObserver(() => {
+      updateDimensions();
+    });
+
+    if (canvas.parentElement) {
+      resizeObserver.observe(canvas.parentElement);
+    }
+
+    // Pointer events on window with pointerType guard
+    const onPointerMove = (e: PointerEvent) => {
+      if (e.pointerType && e.pointerType !== "mouse") return;
       const rect = canvas.getBoundingClientRect();
       pointer.targetX = e.clientX - rect.left;
       pointer.targetY = e.clientY - rect.top;
@@ -90,323 +413,155 @@ export function HairlineTransmissionGrid() {
       pointer.active = false;
     };
 
-    const container = containerRef.current || window;
-    container.addEventListener("mousemove", onPointerMove as EventListener);
-    container.addEventListener("mouseleave", onPointerLeave as EventListener);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerleave", onPointerLeave);
 
-    // 30-degree isometric projection mapping
-    const COS30 = 0.8660254;
-    const SIN30 = 0.5;
-
-    const project = (
-      wx: number,
-      wy: number,
-      wz: number,
+    // Render static ground grid once to offscreen canvas
+    const updateOffscreenGrid = (
       originX: number,
       originY: number,
-      scale: number = 1
-    ): Point2D => {
-      return {
-        x: originX + (wx - wy) * COS30 * scale,
-        y: originY + (wx + wy) * SIN30 * scale - wz * scale,
-      };
+      scale: number,
+      isDark: boolean
+    ) => {
+      if (!offscreenCanvas) {
+        offscreenCanvas = document.createElement("canvas");
+      }
+      offscreenCanvas.width = canvas.width;
+      offscreenCanvas.height = canvas.height;
+      offscreenCtx = offscreenCanvas.getContext("2d");
+      if (!offscreenCtx) return;
+
+      offscreenCtx.save();
+      offscreenCtx.scale(dpr, dpr);
+
+      const gridLine = isDark ? "rgba(148, 163, 184, 0.08)" : "rgba(203, 213, 225, 0.75)";
+      const axisGuide = isDark ? "rgba(226, 232, 240, 0.12)" : "rgba(71, 85, 105, 0.14)";
+
+      offscreenCtx.lineWidth = hair(0.5);
+      offscreenCtx.strokeStyle = gridLine;
+
+      const gridSize = 44;
+      const gridExtent = 880;
+
+      offscreenCtx.beginPath();
+      for (let g = -gridExtent; g <= gridExtent; g += gridSize * 2) {
+        const p1 = project(g, -gridExtent, 0, originX, originY, scale);
+        const p2 = project(g, gridExtent, 0, originX, originY, scale);
+        offscreenCtx.moveTo(p1.x, p1.y);
+        offscreenCtx.lineTo(p2.x, p2.y);
+
+        const q1 = project(-gridExtent, g, 0, originX, originY, scale);
+        const q2 = project(gridExtent, g, 0, originX, originY, scale);
+        offscreenCtx.moveTo(q1.x, q1.y);
+        offscreenCtx.lineTo(q2.x, q2.y);
+      }
+      offscreenCtx.stroke();
+
+      // Cardinal axis guides
+      offscreenCtx.strokeStyle = axisGuide;
+      offscreenCtx.setLineDash([3, 4]);
+      offscreenCtx.beginPath();
+      const ax1 = project(-gridExtent, 0, 0, originX, originY, scale);
+      const ax2 = project(gridExtent, 0, 0, originX, originY, scale);
+      offscreenCtx.moveTo(ax1.x, ax1.y);
+      offscreenCtx.lineTo(ax2.x, ax2.y);
+
+      const ay1 = project(0, -gridExtent, 0, originX, originY, scale);
+      const ay2 = project(0, gridExtent, 0, originX, originY, scale);
+      offscreenCtx.moveTo(ay1.x, ay1.y);
+      offscreenCtx.lineTo(ay2.x, ay2.y);
+      offscreenCtx.stroke();
+      offscreenCtx.setLineDash([]);
+
+      offscreenCtx.restore();
+      cachedTheme = isDark ? "dark" : "light";
     };
 
     // =========================================================================
-    // REFINED AUTHENTIC TRANSMISSION GRID ARCHITECTURE
-    // - Entire composition shifted rightward for optimal asymmetric balance
-    // - Scaled up slightly for prominent, crisp structural presence
-    // - Distribution poles relocated outward to eliminate clutter
-    // - 100% strict electrical engineering logic (Towers -> Substation -> Poles)
+    // 6. PRIMARY ANIMATION & RENDER LOOP (Capped at 30-45 FPS for SCADA fidelity)
     // =========================================================================
 
-    const towerNodes: TowerNode[] = [
-      // 1. Far-West High-Voltage Incomer Dead-End Tower
-      {
-        id: "T0",
-        type: "lattice",
-        baseX: -480,
-        baseY: 100,
-        floatPhase: 0.8,
-        floatSpeed: 0.001,
-        floatAmp: 4.8,
-        currentZOffset: 0,
-        conductorAttachments: [],
-      },
-      // 2. West Primary 400kV Lattice Transmission Tower
-      {
-        id: "T1",
-        type: "lattice",
-        baseX: -340,
-        baseY: -60,
-        floatPhase: 0.2,
-        floatSpeed: 0.00095,
-        floatAmp: 5.5,
-        currentZOffset: 0,
-        conductorAttachments: [],
-      },
-      // 3. North Background 400kV Skyline Tower
-      {
-        id: "T3",
-        type: "lattice",
-        baseX: -50,
-        baseY: -300,
-        floatPhase: 2.1,
-        floatSpeed: 0.00085,
-        floatAmp: 5.0,
-        currentZOffset: 0,
-        conductorAttachments: [],
-      },
-      // 4. East 220kV Intermediate Lattice Tower
-      {
-        id: "T2",
-        type: "lattice",
-        baseX: 380,
-        baseY: -70,
-        floatPhase: 3.2,
-        floatSpeed: 0.001,
-        floatAmp: 5.5,
-        currentZOffset: 0,
-        conductorAttachments: [],
-      },
-      // 5. Lower-Right Substation Step-Down Transformer Bank
-      {
-        id: "S1",
-        type: "substation",
-        baseX: 340,
-        baseY: 220,
-        floatPhase: 4.3,
-        floatSpeed: 0.0008,
-        floatAmp: 3.5,
-        currentZOffset: 0,
-        conductorAttachments: [],
-      },
-      // 6. Outgoing Distribution Feeder Pole 1 (Pushed outward to avoid clutter)
-      {
-        id: "P1",
-        type: "pole",
-        baseX: 560,
-        baseY: 120,
-        floatPhase: 5.1,
-        floatSpeed: 0.0012,
-        floatAmp: 4.2,
-        currentZOffset: 0,
-        conductorAttachments: [],
-      },
-      // 7. Terminal Distribution Feeder Pole 2 (Spaced gracefully along perimeter)
-      {
-        id: "P2",
-        type: "pole",
-        baseX: 680,
-        baseY: 280,
-        floatPhase: 1.2,
-        floatSpeed: 0.0013,
-        floatAmp: 4.0,
-        currentZOffset: 0,
-        conductorAttachments: [],
-      },
-    ];
+    let lastTime = performance.now();
+    const TARGET_FPS = 40;
+    const FRAME_INTERVAL = 1000 / TARGET_FPS;
 
-    // Catenary transmission spans with strict electrical logic
-    const spans: CatenarySpan[] = [
-      // 1. High-Voltage Transmission Corridor (West Incomer -> Tower 1)
-      {
-        fromNodeId: "T0",
-        fromAttachIdx: 0,
-        toNodeId: "T1",
-        toAttachIdx: 2,
-        sag: 20,
-        pulseProgress1: 0.12,
-        pulseProgress2: 0.62,
-        pulseSpeed: 0.0022,
-      },
-      // 2. High-Voltage Transmission Bundle (Tower 1 -> Tower 3 across skyline)
-      {
-        fromNodeId: "T1",
-        fromAttachIdx: 0,
-        toNodeId: "T3",
-        toAttachIdx: 0,
-        sag: 22,
-        pulseProgress1: 0.2,
-        pulseProgress2: 0.7,
-        pulseSpeed: 0.002,
-      },
-      {
-        fromNodeId: "T1",
-        fromAttachIdx: 1,
-        toNodeId: "T3",
-        toAttachIdx: 1,
-        sag: 20,
-        pulseProgress1: 0.45,
-        pulseProgress2: 0.95,
-        pulseSpeed: 0.0021,
-      },
-      // 3. High-Voltage Transmission Bundle (Tower 3 -> Tower 2)
-      {
-        fromNodeId: "T3",
-        fromAttachIdx: 0,
-        toNodeId: "T2",
-        toAttachIdx: 0,
-        sag: 26,
-        pulseProgress1: 0.15,
-        pulseProgress2: 0.65,
-        pulseSpeed: 0.0022,
-      },
-      {
-        fromNodeId: "T3",
-        fromAttachIdx: 1,
-        toNodeId: "T2",
-        toAttachIdx: 1,
-        sag: 24,
-        pulseProgress1: 0.35,
-        pulseProgress2: 0.85,
-        pulseSpeed: 0.0023,
-      },
-      // 4. HV Line drops from Tower 2 into Substation Primary HV Bushings
-      {
-        fromNodeId: "T2",
-        fromAttachIdx: 1,
-        toNodeId: "S1",
-        toAttachIdx: 0,
-        sag: 19,
-        pulseProgress1: 0.25,
-        pulseProgress2: 0.75,
-        pulseSpeed: 0.0024,
-      },
-      {
-        fromNodeId: "T2",
-        fromAttachIdx: 2,
-        toNodeId: "S1",
-        toAttachIdx: 1,
-        sag: 18,
-        pulseProgress1: 0.5,
-        pulseProgress2: 0.0,
-        pulseSpeed: 0.0025,
-      },
-      // 5. Substation Secondary LV Bushing feeds outgoing Distribution Poles (11kV)
-      {
-        fromNodeId: "S1",
-        fromAttachIdx: 1,
-        toNodeId: "P1",
-        toAttachIdx: 0,
-        sag: 18,
-        pulseProgress1: 0.3,
-        pulseProgress2: 0.8,
-        pulseSpeed: 0.0026,
-      },
-      {
-        fromNodeId: "P1",
-        fromAttachIdx: 1,
-        toNodeId: "P2",
-        toAttachIdx: 0,
-        sag: 16,
-        pulseProgress1: 0.15,
-        pulseProgress2: 0.65,
-        pulseSpeed: 0.0027,
-      },
-    ];
-
-    const triggerFault = (spanIdx: number) => {
-      const span = spans[spanIdx];
-      if (!span) return;
-      span.pulseActive = true;
-      span.pulseColor = Math.random() > 0.4 ? "#f59e0b" : "#10b981";
-    };
-
-    // Primary render loop
     const render = (now: number) => {
-      const isDark = theme === "dark" || document.documentElement.classList.contains("dark");
+      const elapsed = now - lastTime;
+      if (elapsed < FRAME_INTERVAL) {
+        animationFrameId = requestAnimationFrame(render);
+        return;
+      }
+      const dt = Math.min(elapsed / 1000, 0.1);
+      lastTime = now - (elapsed % FRAME_INTERVAL);
+
+      const isDark =
+        themeRef.current === "dark" ||
+        document.documentElement.classList.contains("dark");
 
       // Smooth pointer interpolation
       if (pointer.active) {
-        pointer.x += (pointer.targetX - pointer.x) * 0.18;
-        pointer.y += (pointer.targetY - pointer.y) * 0.18;
+        pointer.x += (pointer.targetX - pointer.x) * 0.22;
+        pointer.y += (pointer.targetY - pointer.y) * 0.22;
       } else {
         pointer.x = -9999;
         pointer.y = -9999;
       }
 
-      // Palettes:
-      // Dark Mode: Crisp white structural lines, titanium grey braces, emerald electrical beacons.
-      // Light Mode: Clean slate lines with emerald accents.
+      // Compute exact dynamic fit safe area
+      const { scale, originX, originY } = fitView(width, height, {
+        top: 64,
+        bottom: 38,
+        left: 20,
+        right: 20,
+      });
+
+      // Palette:
+      // Dark Mode: architectural white uprights, titanium grey bracing, emerald telemetry
+      // Light Mode: clean slate uprights with emerald telemetry
       const bg = isDark ? "#050608" : "#f8fafc";
-      const gridLine = isDark ? "rgba(148, 163, 184, 0.08)" : "rgba(226, 232, 240, 0.75)";
-      const axisGuide = isDark ? "rgba(226, 232, 240, 0.12)" : "rgba(71, 85, 105, 0.12)";
-      const latticeStroke = isDark ? "rgba(248, 250, 252, 0.82)" : "rgba(30, 41, 59, 0.75)";
-      const lineStroke = isDark ? "rgba(148, 163, 184, 0.45)" : "rgba(71, 85, 105, 0.45)";
+      const latticeStroke = isDark ? "rgba(248, 250, 252, 0.88)" : "rgba(30, 41, 59, 0.80)";
+      const braceStroke = isDark ? "rgba(148, 163, 184, 0.50)" : "rgba(71, 85, 105, 0.50)";
       const catenaryStroke = isDark ? "rgba(148, 163, 184, 0.55)" : "rgba(71, 85, 105, 0.65)";
-      const highlightStroke = isDark ? "#10b981" : "#059669";
-      const tetherStroke = isDark ? "rgba(16, 185, 129, 0.65)" : "rgba(5, 150, 105, 0.65)";
-      const activePulseColor = isDark ? "#34d399" : "#059669";
+      const highlightEmerald = isDark ? "#10b981" : "#059669";
+      const telemetryPulseColor = isDark ? "#34d399" : "#059669";
+      const tetherStroke = isDark ? "rgba(16, 185, 129, 0.60)" : "rgba(5, 150, 105, 0.60)";
 
       ctx.save();
       ctx.scale(dpr, dpr);
 
-      // 1. CLEAR CANVAS
+      // 1. Clear background
       ctx.fillStyle = bg;
       ctx.fillRect(0, 0, width, height);
 
-      // Shifted illustration further right (+140px) and slightly upward (-35px) for optimal asymmetric balance
-      const originX = width / 2 + 140;
-      const originY = height / 2 - 35;
-      // Finely calibrated scale factor for crisp prominence without clipping
-      const scale = Math.min(width / 1380, height / 840, 1.1) * 1.04;
-
-      // 2. DELICATE SUBSTATION GROUND MATRIX & GRID GUIDES
-      ctx.lineWidth = 0.5;
-      ctx.strokeStyle = gridLine;
-
-      const gridSize = 42;
-      const gridExtent = 840;
-
-      ctx.beginPath();
-      for (let g = -gridExtent; g <= gridExtent; g += gridSize * 2) {
-        const p1 = project(g, -gridExtent, 0, originX, originY, scale);
-        const p2 = project(g, gridExtent, 0, originX, originY, scale);
-        ctx.moveTo(p1.x, p1.y);
-        ctx.lineTo(p2.x, p2.y);
-
-        const q1 = project(-gridExtent, g, 0, originX, originY, scale);
-        const q2 = project(gridExtent, g, 0, originX, originY, scale);
-        ctx.moveTo(q1.x, q1.y);
-        ctx.lineTo(q2.x, q2.y);
+      // 2. Offscreen cached terrain grid
+      if (!offscreenCanvas || cachedTheme !== (isDark ? "dark" : "light")) {
+        updateOffscreenGrid(originX, originY, scale, isDark);
       }
-      ctx.stroke();
+      if (offscreenCanvas) {
+        ctx.drawImage(offscreenCanvas, 0, 0, width, height);
+      }
 
-      // Cardinal axis guides
-      ctx.strokeStyle = axisGuide;
-      ctx.setLineDash([3, 4]);
-      ctx.beginPath();
-      const ax1 = project(-gridExtent, 0, 0, originX, originY, scale);
-      const ax2 = project(gridExtent, 0, 0, originX, originY, scale);
-      ctx.moveTo(ax1.x, ax1.y);
-      ctx.lineTo(ax2.x, ax2.y);
-
-      const ay1 = project(0, -gridExtent, 0, originX, originY, scale);
-      const ay2 = project(0, gridExtent, 0, originX, originY, scale);
-      ctx.moveTo(ay1.x, ay1.y);
-      ctx.lineTo(ay2.x, ay2.y);
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // 3. ZERO-GRAVITY FLOATING PHYSICS
+      // Reset node attachment points each frame
       towerNodes.forEach((node) => {
-        const elapsed = now * node.floatSpeed + node.floatPhase;
-        node.currentZOffset = Math.sin(elapsed) * node.floatAmp;
         node.conductorAttachments = [];
+        if (node.lvAttachments) node.lvAttachments = [];
       });
 
-      // 4. DRAW 3D TRANSMISSION STRUCTURES
-      const drawLatticeTower = (node: TowerNode) => {
+      // =======================================================================
+      // 7. DRAW 3D TRANSMISSION & DISTRIBUTION STRUCTURES
+      // =======================================================================
+
+      // Draw HV Lattice Tower with perpendicular crossarms
+      const drawLatticeTower = (node: Node3D) => {
         const bx = node.baseX;
         const by = node.baseY;
-        const bz = node.currentZOffset;
+        const bz = 0; // Grounded stably
 
         const baseHalfWidth = 26;
         const waistHalfWidth = 10;
         const waistHeight = 90;
-        const crossarmHeight1 = 115;
-        const crossarmHeight2 = 145;
+        const crossarmHeight1 = 118;
+        const crossarmHeight2 = 146;
         const peakHeight = 165;
         const crossarmSpan1 = 44;
         const crossarmSpan2 = 34;
@@ -432,26 +587,60 @@ export function HairlineTransmissionGrid() {
           project(bx - baseHalfWidth * 0.55, by + baseHalfWidth * 0.55, bz + waistHeight * 0.5, originX, originY, scale),
         ];
 
-        const armLeft1 = project(bx - crossarmSpan1, by, bz + crossarmHeight1, originX, originY, scale);
-        const armRight1 = project(bx + crossarmSpan1, by, bz + crossarmHeight1, originX, originY, scale);
-        const armCenter2 = project(bx, by, bz + crossarmHeight2, originX, originY, scale);
-
-        const armLeft2 = project(bx - crossarmSpan2, by, bz + crossarmHeight2, originX, originY, scale);
-        const armRight2 = project(bx + crossarmSpan2, by, bz + crossarmHeight2, originX, originY, scale);
-
         const peak = project(bx, by, bz + peakHeight, originX, originY, scale);
         node.peakPos = peak;
-        node.screenPos = project(bx, by, bz + waistHeight, originX, originY, scale);
 
-        const insLeft1: Point2D = { x: armLeft1.x, y: armLeft1.y + 10 * scale };
-        const insRight1: Point2D = { x: armRight1.x, y: armRight1.y + 10 * scale };
-        const insLeft2: Point2D = { x: armLeft2.x, y: armLeft2.y + 9 * scale };
+        // Vector perpendicular to line corridor in ground plane
+        const dir = node.lineDir || { x: 1, y: 0 };
+        const pp = perp(dir);
 
-        node.conductorAttachments = [insLeft1, insRight1, insLeft2];
+        // Lower crossarm (carrying phases 0 and 1)
+        const armLeft1 = project(
+          bx - pp.x * crossarmSpan1,
+          by - pp.y * crossarmSpan1,
+          bz + crossarmHeight1,
+          originX,
+          originY,
+          scale
+        );
+        const armRight1 = project(
+          bx + pp.x * crossarmSpan1,
+          by + pp.y * crossarmSpan1,
+          bz + crossarmHeight1,
+          originX,
+          originY,
+          scale
+        );
 
-        // Footing base
-        ctx.strokeStyle = lineStroke;
-        ctx.lineWidth = 0.55;
+        // Upper crossarm (carrying phase 2)
+        const armLeft2 = project(
+          bx - pp.x * crossarmSpan2,
+          by - pp.y * crossarmSpan2,
+          bz + crossarmHeight2,
+          originX,
+          originY,
+          scale
+        );
+        const armRight2 = project(
+          bx + pp.x * crossarmSpan2,
+          by + pp.y * crossarmSpan2,
+          bz + crossarmHeight2,
+          originX,
+          originY,
+          scale
+        );
+        const armCenter2 = project(bx, by, bz + crossarmHeight2, originX, originY, scale);
+
+        // Insulator strings (hanging vertically)
+        const insLeft1: Point2D = { x: armLeft1.x, y: armLeft1.y + 11 * scale };
+        const insRight1: Point2D = { x: armRight1.x, y: armRight1.y + 11 * scale };
+        const insTop2: Point2D = { x: armRight2.x, y: armRight2.y + 10 * scale };
+
+        node.conductorAttachments = [insLeft1, insRight1, insTop2];
+
+        // Footing base perimeter
+        ctx.strokeStyle = braceStroke;
+        ctx.lineWidth = hair(0.55);
         ctx.beginPath();
         ctx.moveTo(footings[0].x, footings[0].y);
         ctx.lineTo(footings[1].x, footings[1].y);
@@ -460,9 +649,9 @@ export function HairlineTransmissionGrid() {
         ctx.closePath();
         ctx.stroke();
 
-        // Tower corner legs (white in dark mode)
+        // Tower main corner legs (crisp white in dark mode)
         ctx.strokeStyle = latticeStroke;
-        ctx.lineWidth = 0.8;
+        ctx.lineWidth = hair(0.85);
         ctx.beginPath();
         for (let i = 0; i < 4; i++) {
           ctx.moveTo(footings[i].x, footings[i].y);
@@ -471,9 +660,9 @@ export function HairlineTransmissionGrid() {
         }
         ctx.stroke();
 
-        // Diagonal lattice bracing (grey)
-        ctx.strokeStyle = lineStroke;
-        ctx.lineWidth = 0.5;
+        // Diagonal lattice bracing (titanium slate)
+        ctx.strokeStyle = braceStroke;
+        ctx.lineWidth = hair(0.5);
         ctx.beginPath();
         for (let i = 0; i < 4; i++) {
           const next = (i + 1) % 4;
@@ -489,9 +678,9 @@ export function HairlineTransmissionGrid() {
         }
         ctx.stroke();
 
-        // Crossarms
+        // Perpendicular crossarm structural members
         ctx.strokeStyle = latticeStroke;
-        ctx.lineWidth = 0.8;
+        ctx.lineWidth = hair(0.8);
         ctx.beginPath();
         ctx.moveTo(armLeft1.x, armLeft1.y);
         ctx.lineTo(armRight1.x, armRight1.y);
@@ -508,84 +697,38 @@ export function HairlineTransmissionGrid() {
         ctx.lineTo(peak.x, peak.y);
         ctx.stroke();
 
-        // Insulator strings with emerald beacon dots
-        ctx.strokeStyle = highlightStroke;
-        ctx.lineWidth = 0.75;
+        // Insulators (only where conductors attach, eliminating dangling artifacts)
+        ctx.strokeStyle = highlightEmerald;
+        ctx.lineWidth = hair(0.75);
         ctx.beginPath();
-        [insLeft1, insRight1, insLeft2].forEach((ins, idx) => {
-          const armEnd = idx === 0 ? armLeft1 : idx === 1 ? armRight1 : armLeft2;
+        [insLeft1, insRight1, insTop2].forEach((ins, idx) => {
+          const armEnd = idx === 0 ? armLeft1 : idx === 1 ? armRight1 : armRight2;
           ctx.moveTo(armEnd.x, armEnd.y);
           ctx.lineTo(ins.x, ins.y);
-          ctx.arc(ins.x, ins.y, 1.4 * scale, 0, Math.PI * 2);
         });
         ctx.stroke();
 
-        // Peak point light dot (emerald)
-        ctx.fillStyle = highlightStroke;
+        // Insulator emerald beacon dots (each in fresh path to prevent stray line artifacts)
+        ctx.fillStyle = highlightEmerald;
+        [insLeft1, insRight1, insTop2].forEach((ins) => {
+          ctx.beginPath();
+          ctx.arc(ins.x, ins.y, 1.4 * scale, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // Peak lightning mast beacon
         ctx.beginPath();
         ctx.arc(peak.x, peak.y, 1.6 * scale, 0, Math.PI * 2);
         ctx.fill();
       };
 
-      const drawPole = (node: TowerNode) => {
+      // Draw Primary 33/11kV Substation Transformer Bank
+      const drawSubstation = (node: Node3D) => {
         const bx = node.baseX;
         const by = node.baseY;
-        const bz = node.currentZOffset;
-        const poleHeight = 85;
-        const crossarmWidth = 22;
+        const bz = 0;
 
-        const base = project(bx, by, bz, originX, originY, scale);
-        const top = project(bx, by, bz + poleHeight, originX, originY, scale);
-        const armLeft = project(bx - crossarmWidth, by, bz + poleHeight - 8, originX, originY, scale);
-        const armRight = project(bx + crossarmWidth, by, bz + poleHeight - 8, originX, originY, scale);
-
-        node.peakPos = top;
-        node.screenPos = top;
-        node.conductorAttachments = [armLeft, armRight];
-
-        // Pole upright shaft (white in dark mode)
-        ctx.strokeStyle = latticeStroke;
-        ctx.lineWidth = 0.9;
-        ctx.beginPath();
-        ctx.moveTo(base.x, base.y);
-        ctx.lineTo(top.x, top.y);
-        ctx.stroke();
-
-        // Crossarm
-        ctx.strokeStyle = lineStroke;
-        ctx.lineWidth = 0.7;
-        ctx.beginPath();
-        ctx.moveTo(armLeft.x, armLeft.y);
-        ctx.lineTo(armRight.x, armRight.y);
-        ctx.stroke();
-
-        // Pole transformer can (grey)
-        const transCanTop = project(bx + 6, by - 6, bz + poleHeight - 24, originX, originY, scale);
-        const transCanBot = project(bx + 6, by - 6, bz + poleHeight - 40, originX, originY, scale);
-        ctx.strokeStyle = lineStroke;
-        ctx.lineWidth = 0.6;
-        ctx.beginPath();
-        ctx.moveTo(transCanTop.x - 3, transCanTop.y);
-        ctx.lineTo(transCanTop.x + 3, transCanTop.y);
-        ctx.lineTo(transCanBot.x + 3, transCanBot.y);
-        ctx.lineTo(transCanBot.x - 3, transCanBot.y);
-        ctx.closePath();
-        ctx.stroke();
-
-        // Insulator pins (emerald beacon)
-        ctx.fillStyle = highlightStroke;
-        ctx.beginPath();
-        ctx.arc(armLeft.x, armLeft.y, 1.3 * scale, 0, Math.PI * 2);
-        ctx.arc(armRight.x, armRight.y, 1.3 * scale, 0, Math.PI * 2);
-        ctx.fill();
-      };
-
-      const drawSubstation = (node: TowerNode) => {
-        const bx = node.baseX;
-        const by = node.baseY;
-        const bz = node.currentZOffset;
-
-        const hw = 30;
+        const hw = 28;
         const hd = 22;
         const th = 40;
 
@@ -601,15 +744,22 @@ export function HairlineTransmissionGrid() {
 
         const deckCenter = project(bx, by, bz + th, originX, originY, scale);
         node.peakPos = deckCenter;
-        node.screenPos = deckCenter;
 
-        const bushing1 = project(bx - 12, by, bz + th + 26, originX, originY, scale);
-        const bushing2 = project(bx + 12, by, bz + th + 26, originX, originY, scale);
-        node.conductorAttachments = [bushing1, bushing2];
+        // HV incoming bushings on North face (facing T2)
+        const hvBushings: Point2D[] = [-14, 0, 14].map((off) =>
+          project(bx + off, by - hd + 6, bz + th + 24, originX, originY, scale)
+        );
+        node.conductorAttachments = hvBushings;
 
-        // Base perimeter
-        ctx.strokeStyle = lineStroke;
-        ctx.lineWidth = 0.6;
+        // LV outgoing bushings on South-East face (facing P1)
+        const lvBushings: Point2D[] = [-12, 0, 12].map((off) =>
+          project(bx + off, by + hd - 6, bz + th + 16, originX, originY, scale)
+        );
+        node.lvAttachments = lvBushings;
+
+        // Tank base perimeter
+        ctx.strokeStyle = braceStroke;
+        ctx.lineWidth = hair(0.6);
         ctx.beginPath();
         ctx.moveTo(b00.x, b00.y);
         ctx.lineTo(b10.x, b10.y);
@@ -618,9 +768,9 @@ export function HairlineTransmissionGrid() {
         ctx.closePath();
         ctx.stroke();
 
-        // Vertical enclosure edges (white in dark mode)
+        // Upright tank corners (architectural white in dark mode)
         ctx.strokeStyle = latticeStroke;
-        ctx.lineWidth = 0.75;
+        ctx.lineWidth = hair(0.8);
         ctx.beginPath();
         ctx.moveTo(b00.x, b00.y);
         ctx.lineTo(t00.x, t00.y);
@@ -633,8 +783,8 @@ export function HairlineTransmissionGrid() {
         ctx.stroke();
 
         // Top deck plate
-        ctx.strokeStyle = lineStroke;
-        ctx.lineWidth = 0.75;
+        ctx.strokeStyle = braceStroke;
+        ctx.lineWidth = hair(0.7);
         ctx.beginPath();
         ctx.moveTo(t00.x, t00.y);
         ctx.lineTo(t10.x, t10.y);
@@ -643,9 +793,9 @@ export function HairlineTransmissionGrid() {
         ctx.closePath();
         ctx.stroke();
 
-        // Radiator cooling ribs
-        ctx.strokeStyle = lineStroke;
-        ctx.lineWidth = 0.5;
+        // Radiator cooling ribs along flank
+        ctx.strokeStyle = braceStroke;
+        ctx.lineWidth = hair(0.5);
         ctx.beginPath();
         for (let r = -hw + 6; r <= hw - 6; r += 7) {
           const rfBot = project(bx + r, by + hd, bz, originX, originY, scale);
@@ -655,38 +805,368 @@ export function HairlineTransmissionGrid() {
         }
         ctx.stroke();
 
-        // Bushing conductors & corona rings
-        ctx.strokeStyle = highlightStroke;
-        ctx.lineWidth = 0.8;
+        // Conservator oil tank drum on top deck
+        const c1 = project(bx - 16, by, bz + th + 10, originX, originY, scale);
+        const c2 = project(bx + 16, by, bz + th + 10, originX, originY, scale);
+        ctx.strokeStyle = latticeStroke;
+        ctx.lineWidth = hair(0.7);
         ctx.beginPath();
-        const bBase1 = project(bx - 12, by, bz + th, originX, originY, scale);
-        const bBase2 = project(bx + 12, by, bz + th, originX, originY, scale);
-        ctx.moveTo(bBase1.x, bBase1.y);
-        ctx.lineTo(bushing1.x, bushing1.y);
-        ctx.moveTo(bBase2.x, bBase2.y);
-        ctx.lineTo(bushing2.x, bushing2.y);
+        ctx.moveTo(c1.x, c1.y);
+        ctx.lineTo(c2.x, c2.y);
         ctx.stroke();
 
+        // Bushings stems & corona rings
+        ctx.strokeStyle = highlightEmerald;
+        ctx.lineWidth = hair(0.75);
         ctx.beginPath();
-        ctx.arc(bushing1.x, bushing1.y, 2.0 * scale, 0, Math.PI * 2);
-        ctx.arc(bushing2.x, bushing2.y, 2.0 * scale, 0, Math.PI * 2);
+        hvBushings.forEach((b, idx) => {
+          const off = (idx - 1) * 14;
+          const base = project(bx + off, by - hd + 6, bz + th, originX, originY, scale);
+          ctx.moveTo(base.x, base.y);
+          ctx.lineTo(b.x, b.y);
+        });
+        lvBushings.forEach((b, idx) => {
+          const off = (idx - 1) * 12;
+          const base = project(bx + off, by + hd - 6, bz + th, originX, originY, scale);
+          ctx.moveTo(base.x, base.y);
+          ctx.lineTo(b.x, b.y);
+        });
         ctx.stroke();
+
+        // Bushing corona beacons
+        ctx.fillStyle = highlightEmerald;
+        [...hvBushings, ...lvBushings].forEach((b) => {
+          ctx.beginPath();
+          ctx.arc(b.x, b.y, 1.8 * scale, 0, Math.PI * 2);
+          ctx.fill();
+        });
       };
 
-      // Draw all positioned structures
+      // Draw 11kV Feeder Distribution Pole
+      const drawFeederPole = (node: Node3D) => {
+        const bx = node.baseX;
+        const by = node.baseY;
+        const bz = 0;
+        const poleHeight = 82;
+        const crossarmWidth = 24;
+
+        const dir = node.lineDir || { x: 1, y: 0 };
+        const pp = perp(dir);
+
+        const base = project(bx, by, bz, originX, originY, scale);
+        const top = project(bx, by, bz + poleHeight, originX, originY, scale);
+        node.peakPos = top;
+
+        // 3-Phase crossarm perpendicular to line
+        const armLeft = project(
+          bx - pp.x * crossarmWidth,
+          by - pp.y * crossarmWidth,
+          bz + poleHeight - 8,
+          originX,
+          originY,
+          scale
+        );
+        const armCenter = project(bx, by, bz + poleHeight - 6, originX, originY, scale);
+        const armRight = project(
+          bx + pp.x * crossarmWidth,
+          by + pp.y * crossarmWidth,
+          bz + poleHeight - 8,
+          originX,
+          originY,
+          scale
+        );
+
+        node.conductorAttachments = [armLeft, armCenter, armRight];
+
+        // Pole upright shaft (crisp white in dark mode)
+        ctx.strokeStyle = latticeStroke;
+        ctx.lineWidth = hair(0.9);
+        ctx.beginPath();
+        ctx.moveTo(base.x, base.y);
+        ctx.lineTo(top.x, top.y);
+        ctx.stroke();
+
+        // Crossarm
+        ctx.strokeStyle = braceStroke;
+        ctx.lineWidth = hair(0.75);
+        ctx.beginPath();
+        ctx.moveTo(armLeft.x, armLeft.y);
+        ctx.lineTo(armRight.x, armRight.y);
+        ctx.stroke();
+
+        // Pin insulators (emerald beacons)
+        ctx.fillStyle = highlightEmerald;
+        [armLeft, armCenter, armRight].forEach((pin) => {
+          ctx.beginPath();
+          ctx.arc(pin.x, pin.y, 1.3 * scale, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      };
+
+      // Draw 11kV / 415V Pole-Mounted Distribution Transformer (DTR) in True 3D
+      const drawDTRPole = (node: Node3D) => {
+        const bx = node.baseX;
+        const by = node.baseY;
+        const bz = 0;
+        const poleHeight = 85;
+        const crossarmWidth = 22;
+
+        const dir = node.lineDir || { x: 1, y: 0 };
+        const pp = perp(dir);
+
+        const base = project(bx, by, bz, originX, originY, scale);
+        const top = project(bx, by, bz + poleHeight, originX, originY, scale);
+        node.peakPos = top;
+
+        // 11kV primary crossarm
+        const armLeft = project(
+          bx - pp.x * crossarmWidth,
+          by - pp.y * crossarmWidth,
+          bz + poleHeight - 6,
+          originX,
+          originY,
+          scale
+        );
+        const armCenter = project(bx, by, bz + poleHeight - 4, originX, originY, scale);
+        const armRight = project(
+          bx + pp.x * crossarmWidth,
+          by + pp.y * crossarmWidth,
+          bz + poleHeight - 6,
+          originX,
+          originY,
+          scale
+        );
+
+        node.conductorAttachments = [armLeft, armCenter, armRight];
+
+        // True 3D World-Space Distribution Transformer Tank
+        const tankX = bx + pp.x * 9;
+        const tankY = by + pp.y * 9;
+        const tankZBot = bz + 32;
+        const tankZTop = bz + 52;
+        const tw = 7;
+        const td = 6;
+
+        const tb00 = project(tankX - tw, tankY - td, tankZBot, originX, originY, scale);
+        const tb10 = project(tankX + tw, tankY - td, tankZBot, originX, originY, scale);
+        const tb11 = project(tankX + tw, tankY + td, tankZBot, originX, originY, scale);
+        const tb01 = project(tankX - tw, tankY + td, tankZBot, originX, originY, scale);
+
+        const tt00 = project(tankX - tw, tankY - td, tankZTop, originX, originY, scale);
+        const tt10 = project(tankX + tw, tankY - td, tankZTop, originX, originY, scale);
+        const tt11 = project(tankX + tw, tankY + td, tankZTop, originX, originY, scale);
+        const tt01 = project(tankX - tw, tankY + td, tankZTop, originX, originY, scale);
+
+        // Secondary LT 415V bushing rack (4 terminals: 3 phases + neutral)
+        const ltBushings: Point2D[] = [-6, -2, 2, 6].map((off) =>
+          project(tankX + off, tankY + td, tankZBot + 6, originX, originY, scale)
+        );
+        node.lvAttachments = ltBushings;
+
+        // Pole upright shaft
+        ctx.strokeStyle = latticeStroke;
+        ctx.lineWidth = hair(0.9);
+        ctx.beginPath();
+        ctx.moveTo(base.x, base.y);
+        ctx.lineTo(top.x, top.y);
+        ctx.stroke();
+
+        // Primary 11kV crossarm
+        ctx.strokeStyle = braceStroke;
+        ctx.lineWidth = hair(0.75);
+        ctx.beginPath();
+        ctx.moveTo(armLeft.x, armLeft.y);
+        ctx.lineTo(armRight.x, armRight.y);
+        ctx.stroke();
+
+        // 3D DTR Transformer Tank Enclosure
+        ctx.strokeStyle = braceStroke;
+        ctx.lineWidth = hair(0.6);
+        ctx.beginPath();
+        // Base plate
+        ctx.moveTo(tb00.x, tb00.y);
+        ctx.lineTo(tb10.x, tb10.y);
+        ctx.lineTo(tb11.x, tb11.y);
+        ctx.lineTo(tb01.x, tb01.y);
+        ctx.closePath();
+        // Top plate
+        ctx.moveTo(tt00.x, tt00.y);
+        ctx.lineTo(tt10.x, tt10.y);
+        ctx.lineTo(tt11.x, tt11.y);
+        ctx.lineTo(tt01.x, tt01.y);
+        ctx.closePath();
+        // Vertical corner ribs
+        ctx.moveTo(tb00.x, tb00.y);
+        ctx.lineTo(tt00.x, tt00.y);
+        ctx.moveTo(tb10.x, tb10.y);
+        ctx.lineTo(tt10.x, tt10.y);
+        ctx.moveTo(tb11.x, tb11.y);
+        ctx.lineTo(tt11.x, tt11.y);
+        ctx.moveTo(tb01.x, tb01.y);
+        ctx.lineTo(tt01.x, tt01.y);
+        // Mounting bracket to pole
+        const pMid = project(bx, by, tankZBot + 10, originX, originY, scale);
+        const tMid = project(tankX, tankY, tankZBot + 10, originX, originY, scale);
+        ctx.moveTo(pMid.x, pMid.y);
+        ctx.lineTo(tMid.x, tMid.y);
+        ctx.stroke();
+
+        // Primary pins
+        ctx.fillStyle = highlightEmerald;
+        [armLeft, armCenter, armRight].forEach((pin) => {
+          ctx.beginPath();
+          ctx.arc(pin.x, pin.y, 1.3 * scale, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // LT secondary bushings
+        ltBushings.forEach((lt) => {
+          ctx.beginPath();
+          ctx.arc(lt.x, lt.y, 1.1 * scale, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      };
+
+      // Draw LT Distribution Pole (4-Wire: 3 Phases + Neutral)
+      const drawLTPole = (node: Node3D) => {
+        const bx = node.baseX;
+        const by = node.baseY;
+        const bz = 0;
+        const poleHeight = 72;
+
+        const base = project(bx, by, bz, originX, originY, scale);
+        const top = project(bx, by, bz + poleHeight, originX, originY, scale);
+        node.peakPos = top;
+
+        // Vertical spool insulator rack along pole
+        const spools: Point2D[] = [52, 57, 62, 67].map((h) =>
+          project(bx + 3, by, bz + h, originX, originY, scale)
+        );
+        node.conductorAttachments = spools;
+
+        ctx.strokeStyle = latticeStroke;
+        ctx.lineWidth = hair(0.85);
+        ctx.beginPath();
+        ctx.moveTo(base.x, base.y);
+        ctx.lineTo(top.x, top.y);
+        ctx.stroke();
+
+        // Spool rack bracket
+        ctx.strokeStyle = braceStroke;
+        ctx.lineWidth = hair(0.65);
+        ctx.beginPath();
+        const rBot = project(bx + 3, by, bz + 50, originX, originY, scale);
+        const rTop = project(bx + 3, by, bz + 69, originX, originY, scale);
+        ctx.moveTo(rBot.x, rBot.y);
+        ctx.lineTo(rTop.x, rTop.y);
+        ctx.stroke();
+
+        // Spool insulator dots
+        ctx.fillStyle = highlightEmerald;
+        spools.forEach((s) => {
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, 1.2 * scale, 0, Math.PI * 2);
+          ctx.fill();
+        });
+      };
+
+      // Draw Consumer Building & Service Drop Weatherhead
+      const drawBuildingTerminal = (node: Node3D) => {
+        const bx = node.baseX;
+        const by = node.baseY;
+        const bz = 0;
+
+        const hw = 22;
+        const hd = 16;
+        const bh = 32;
+
+        const b00 = project(bx - hw, by - hd, bz, originX, originY, scale);
+        const b10 = project(bx + hw, by - hd, bz, originX, originY, scale);
+        const b11 = project(bx + hw, by + hd, bz, originX, originY, scale);
+        const b01 = project(bx - hw, by + hd, bz, originX, originY, scale);
+
+        const r00 = project(bx - hw, by - hd, bz + bh, originX, originY, scale);
+        const r10 = project(bx + hw, by - hd, bz + bh, originX, originY, scale);
+        const r11 = project(bx + hw, by + hd, bz + bh, originX, originY, scale);
+        const r01 = project(bx - hw, by + hd, bz + bh, originX, originY, scale);
+
+        const weatherhead = project(bx - hw + 4, by - hd + 4, bz + bh + 8, originX, originY, scale);
+        node.conductorAttachments = [weatherhead, weatherhead, weatherhead];
+        node.peakPos = r10;
+
+        ctx.strokeStyle = braceStroke;
+        ctx.lineWidth = hair(0.65);
+        ctx.beginPath();
+        // Ground outline
+        ctx.moveTo(b00.x, b00.y);
+        ctx.lineTo(b10.x, b10.y);
+        ctx.lineTo(b11.x, b11.y);
+        ctx.lineTo(b01.x, b01.y);
+        ctx.closePath();
+        // Roof outline
+        ctx.moveTo(r00.x, r00.y);
+        ctx.lineTo(r10.x, r10.y);
+        ctx.lineTo(r11.x, r11.y);
+        ctx.lineTo(r01.x, r01.y);
+        ctx.closePath();
+        // Walls
+        ctx.moveTo(b00.x, b00.y);
+        ctx.lineTo(r00.x, r00.y);
+        ctx.moveTo(b10.x, b10.y);
+        ctx.lineTo(r10.x, r10.y);
+        ctx.moveTo(b11.x, b11.y);
+        ctx.lineTo(r11.x, r11.y);
+        ctx.moveTo(b01.x, b01.y);
+        ctx.lineTo(r01.x, r01.y);
+        // Service mast
+        ctx.moveTo(r00.x, r00.y);
+        ctx.lineTo(weatherhead.x, weatherhead.y);
+        ctx.stroke();
+
+        ctx.fillStyle = highlightEmerald;
+        ctx.beginPath();
+        ctx.arc(weatherhead.x, weatherhead.y, 1.4 * scale, 0, Math.PI * 2);
+        ctx.fill();
+      };
+
+      // Draw all structures
       towerNodes.forEach((node) => {
-        if (node.type === "lattice") drawLatticeTower(node);
-        else if (node.type === "pole") drawPole(node);
+        if (node.type === "hv-tower") drawLatticeTower(node);
         else if (node.type === "substation") drawSubstation(node);
+        else if (node.type === "feeder-pole") drawFeederPole(node);
+        else if (node.type === "dtr-pole") drawDTRPole(node);
+        else if (node.type === "lt-pole") drawLTPole(node);
+        else if (node.type === "building") drawBuildingTerminal(node);
       });
 
-      // 5. DRAW SUSPENDED CATENARY TRANSMISSION LINES & CONTINUOUS MICRO-PULSES
-      spans.forEach((span, sIdx) => {
+      // Off-screen incoming conductor bundle entering T0
+      const t0 = towerNodes[0];
+      if (t0 && t0.conductorAttachments.length >= 3) {
+        const offP = project(offscreenIncomerSource.baseX, offscreenIncomerSource.baseY, offscreenIncomerSource.z, originX, originY, scale);
+        ctx.strokeStyle = catenaryStroke;
+        ctx.lineWidth = hair(0.7);
+        ctx.beginPath();
+        t0.conductorAttachments.forEach((att) => {
+          ctx.moveTo(offP.x, offP.y);
+          ctx.lineTo(att.x, att.y);
+        });
+        ctx.stroke();
+      }
+
+      // =======================================================================
+      // 8. DRAW 3-PHASE CATENARY CONDUCTORS & CONTINUOUS TELEMETRY PULSES
+      // =======================================================================
+
+      spans.forEach((span) => {
         const fromNode = towerNodes.find((n) => n.id === span.fromNodeId);
         const toNode = towerNodes.find((n) => n.id === span.toNodeId);
         if (!fromNode || !toNode) return;
 
-        const pStart = fromNode.conductorAttachments[span.fromAttachIdx] || fromNode.peakPos;
+        const sourceList = span.useLvSource && fromNode.lvAttachments && fromNode.lvAttachments.length > 0
+          ? fromNode.lvAttachments
+          : fromNode.conductorAttachments;
+
+        const pStart = sourceList[span.fromAttachIdx] || fromNode.peakPos;
         const pEnd = toNode.conductorAttachments[span.toAttachIdx] || toNode.peakPos;
         if (!pStart || !pEnd) return;
 
@@ -697,9 +1177,9 @@ export function HairlineTransmissionGrid() {
           return { x: lx, y: ly + sagOffset };
         };
 
-        const segments = 24;
-        ctx.strokeStyle = span.pulseActive ? (span.pulseColor || activePulseColor) : catenaryStroke;
-        ctx.lineWidth = span.pulseActive ? 1.3 : 0.7;
+        const segments = 22;
+        ctx.strokeStyle = catenaryStroke;
+        ctx.lineWidth = hair(0.7);
         ctx.beginPath();
         const startPt = getCatenaryPoint(0);
         ctx.moveTo(startPt.x, startPt.y);
@@ -709,42 +1189,34 @@ export function HairlineTransmissionGrid() {
         }
         ctx.stroke();
 
-        // 60 FPS smooth continuous micro-pulse motion
-        span.pulseProgress1 = (span.pulseProgress1 + span.pulseSpeed) % 1;
-        span.pulseProgress2 = (span.pulseProgress2 + span.pulseSpeed) % 1;
-
-        const pulseColor = span.pulseActive ? (span.pulseColor || activePulseColor) : activePulseColor;
+        // Frame-rate independent delta-time continuous motion
+        span.pulseProgress1 = (span.pulseProgress1 + span.pulseSpeed * (dt * 60)) % 1;
+        span.pulseProgress2 = (span.pulseProgress2 + span.pulseSpeed * (dt * 60)) % 1;
 
         [span.pulseProgress1, span.pulseProgress2].forEach((prog) => {
           const head = getCatenaryPoint(prog);
           const tail = getCatenaryPoint(Math.max(0, prog - 0.045));
 
-          // Comet spark tail
-          ctx.strokeStyle = pulseColor;
-          ctx.lineWidth = span.pulseActive ? 1.5 : 1.0;
+          // Telemetry trail
+          ctx.strokeStyle = telemetryPulseColor;
+          ctx.lineWidth = hair(1.0);
           ctx.beginPath();
           ctx.moveTo(tail.x, tail.y);
           ctx.lineTo(head.x, head.y);
           ctx.stroke();
 
-          // Sub-pixel pulse head bead
-          ctx.fillStyle = pulseColor;
+          // Sub-pixel pulse bead
+          ctx.fillStyle = telemetryPulseColor;
           ctx.beginPath();
-          ctx.arc(head.x, head.y, span.pulseActive ? 2.4 * scale : 1.5 * scale, 0, Math.PI * 2);
+          ctx.arc(head.x, head.y, 1.4 * scale, 0, Math.PI * 2);
           ctx.fill();
         });
-
-        // Hover proximity detection
-        if (pointer.active) {
-          const midPt = getCatenaryPoint(0.5);
-          const dist = Math.hypot(pointer.x - midPt.x, pointer.y - midPt.y);
-          if (dist < 36 && !span.pulseActive) {
-            triggerFault(sIdx);
-          }
-        }
       });
 
-      // 6. CURSOR TETHERING (Dynamic links without text)
+      // =======================================================================
+      // 9. DYNAMIC CURSOR TETHERING & TELEMETRY CROSSHAIR (Corrected Geometry)
+      // =======================================================================
+
       if (pointer.active) {
         const tetherTargets: { pos: Point2D; dist: number }[] = [];
 
@@ -765,7 +1237,7 @@ export function HairlineTransmissionGrid() {
 
         nearest.forEach((target) => {
           ctx.strokeStyle = tetherStroke;
-          ctx.lineWidth = 0.65;
+          ctx.lineWidth = hair(0.65);
           ctx.setLineDash([3, 3]);
 
           ctx.beginPath();
@@ -774,56 +1246,58 @@ export function HairlineTransmissionGrid() {
           ctx.stroke();
 
           ctx.setLineDash([]);
-          ctx.fillStyle = highlightStroke;
+          ctx.fillStyle = highlightEmerald;
           ctx.beginPath();
-          ctx.arc(target.pos.x, target.pos.y, 2.2 * scale, 0, Math.PI * 2);
+          ctx.arc(target.pos.x, target.pos.y, 2.0 * scale, 0, Math.PI * 2);
           ctx.fill();
         });
 
-        ctx.strokeStyle = highlightStroke;
-        ctx.lineWidth = 0.75;
+        // Crisp SCADA Crosshair (Horizontal & Vertical ticks, plus ring)
+        ctx.strokeStyle = highlightEmerald;
+        ctx.lineWidth = hair(0.85);
+
         ctx.beginPath();
+        // Horizontal crosshair tick
         ctx.moveTo(pointer.x - 7, pointer.y);
         ctx.lineTo(pointer.x + 7, pointer.y);
+        // Vertical crosshair tick
         ctx.moveTo(pointer.x, pointer.y - 7);
-        ctx.lineTo(pointer.x + 7, pointer.y);
+        ctx.lineTo(pointer.x, pointer.y + 7);
+        ctx.stroke();
+
+        ctx.beginPath();
         ctx.arc(pointer.x, pointer.y, 3.5, 0, Math.PI * 2);
         ctx.stroke();
       }
 
-      // 7. OCCASIONAL FAULT EXCITATION
-      const timeSinceFault = Date.now() - lastFaultTime;
-      if (timeSinceFault > 9000) {
-        lastFaultTime = Date.now();
-        const randSpanIdx = Math.floor(Math.random() * spans.length);
-        triggerFault(randSpanIdx);
-      }
-
-      spans.forEach((span) => {
-        if (span.pulseActive && Math.random() < 0.02) {
-          span.pulseActive = false;
-        }
-      });
-
       ctx.restore();
 
-      animationFrameId = requestAnimationFrame(render);
+      // If user prefers reduced motion, render a single pristine frame
+      if (!prefersReducedMotion) {
+        animationFrameId = requestAnimationFrame(render);
+      }
     };
 
     animationFrameId = requestAnimationFrame(render);
 
     return () => {
       cancelAnimationFrame(animationFrameId);
-      window.removeEventListener("resize", handleResize);
-      container.removeEventListener("mousemove", onPointerMove as EventListener);
-      container.removeEventListener("mouseleave", onPointerLeave as EventListener);
+      resizeObserver.disconnect();
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerleave", onPointerLeave);
     };
   }, [theme]);
 
   return (
     <div
       ref={containerRef}
-      className="absolute inset-0 overflow-hidden pointer-events-auto z-0"
+      className="absolute inset-0 overflow-hidden pointer-events-none z-0 hairline-bg hidden min-[900px]:block"
+      style={{
+        maskImage:
+          "linear-gradient(to bottom, transparent 0, #000 72px, #000 calc(100% - 48px), transparent 100%)",
+        WebkitMaskImage:
+          "linear-gradient(to bottom, transparent 0, #000 72px, #000 calc(100% - 48px), transparent 100%)",
+      }}
       aria-hidden="true"
     >
       <canvas ref={canvasRef} className="block w-full h-full" />
