@@ -117,8 +117,8 @@ export default function LoginPage() {
       </header>
 
       {/* 2. CENTER OPERATOR AUTHENTICATION CARD (z-index: 10, protected legibility guardrails) */}
-      <main className="relative z-10 flex-1 flex items-center justify-center p-4">
-        <div className="w-full max-w-md border border-slate-200 dark:border-zinc-800 bg-white/95 dark:bg-[#0c0d10]/95 backdrop-blur-md p-8 rounded-sm shadow-2xl transition-colors">
+      <main className="relative z-10 flex-1 flex items-center justify-center min-[900px]:max-[1500px]:justify-start min-[900px]:max-[1500px]:pl-12 min-[1500px]:justify-center p-4">
+        <div id="login-card" className="w-full max-w-md border border-slate-200 dark:border-zinc-800 bg-white/95 dark:bg-[#0c0d10]/95 backdrop-blur-md p-8 rounded-sm shadow-2xl transition-colors">
           <div className="mb-6 pb-3 border-b border-slate-200 dark:border-zinc-800">
             <h2 className="text-sm font-bold uppercase tracking-wider text-slate-900 dark:text-zinc-100">
               OPERATOR AUTHENTICATION

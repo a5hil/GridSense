@@ -111,6 +111,11 @@ export function HairlineTransmissionGrid() {
     let height = 0;
     let dpr = 1;
 
+    // Cached projection state computed once per resize
+    let currentScale = 1;
+    let currentOriginX = 0;
+    let currentOriginY = 0;
+
     // Offscreen canvas caching for ground grid & axes
     let offscreenCanvas: HTMLCanvasElement | null = null;
     let offscreenCtx: CanvasRenderingContext2D | null = null;
@@ -126,31 +131,42 @@ export function HairlineTransmissionGrid() {
     };
 
     // =========================================================================
-    // 1. SCADA-ALIGNED DISTRIBUTION & TRANSMISSION NETWORK SCENE GRAPH
-    // Strict electrical engineering logic matching GridSense ADMS:
-    // HV Corridor (T0 -> T1 -> T3 -> T2)
-    // -> Primary 33/11kV Substation S1 (distinct HV and LV bushing decks)
+    // 1. SCADA-ALIGNED DISTRIBUTION & SUB-TRANSMISSION SCENE GRAPH (Round 2)
+    // 33 kV sub-transmission corridor (TWR-33A -> TWR-33B -> TWR-33C -> TWR-33D)
+    // -> Primary 33/11kV Substation S1 (distinct HV -y face and LV +x face)
     // -> 11kV Feeder Pole P1
     // -> 11kV/415V Pole-Mounted Distribution Transformer (DTR) P2 in true 3D
     // -> LT 4-Wire Distribution Pole P3
     // -> Consumer Service Drop B1
+    //
+    // Distribution cluster (S1, P1, P2, P3, B1) moved (+120, -120) world units
+    // to clear the central/left login authentication card.
     // =========================================================================
 
     const towerNodes: Node3D[] = [
-      // 0. Far-West HV Incomer Dead-End (receives bulk power from off-screen regional grid)
+      // Virtual offscreen grid interconnect source node (never drawn directly)
+      {
+        id: "SRC",
+        type: "hv-tower",
+        name: "GRID-INTERCONNECT (Virtual)",
+        baseX: -980,
+        baseY: 120,
+        conductorAttachments: [],
+      },
+      // 0. Far-West 33kV Incomer Dead-End Tower
       {
         id: "T0",
         type: "hv-tower",
-        name: "TWR-400A (Incomer)",
+        name: "TWR-33A (Incomer)",
         baseX: -460,
         baseY: 120,
         conductorAttachments: [],
       },
-      // 1. West Intermediate Transmission Tower
+      // 1. West Intermediate 33kV Transmission Tower
       {
         id: "T1",
         type: "hv-tower",
-        name: "TWR-400B",
+        name: "TWR-33B",
         baseX: -320,
         baseY: -60,
         conductorAttachments: [],
@@ -159,79 +175,79 @@ export function HairlineTransmissionGrid() {
       {
         id: "T3",
         type: "hv-tower",
-        name: "TWR-400C (Corner)",
+        name: "TWR-33C (Skyline)",
         baseX: -40,
         baseY: -280,
         conductorAttachments: [],
       },
-      // 3. East Terminal Transmission Tower (High-side substation feed)
+      // 3. East Terminal 33kV Transmission Tower (High-side substation feed)
       {
         id: "T2",
         type: "hv-tower",
-        name: "TWR-220A (Terminal)",
+        name: "TWR-33D (Substation Terminal)",
         baseX: 360,
         baseY: -80,
         conductorAttachments: [],
       },
-      // 4. Primary 33/11kV Substation Transformer Bank & Switchyard
+      // 4. Primary 33/11kV Substation Transformer Bank & Switchyard (+120, -120 shift)
       {
         id: "S1",
         type: "substation",
-        name: "SUB-01 (33/11kV)",
-        baseX: 340,
-        baseY: 200,
+        name: "SUB-01 (33/11kV Primary)",
+        baseX: 460,
+        baseY: 80,
         conductorAttachments: [],
         lvAttachments: [],
       },
-      // 5. 11kV Outgoing Distribution Feeder Pole
+      // 5. 11kV Outgoing Distribution Feeder Pole (+120, -120 shift)
       {
         id: "P1",
         type: "feeder-pole",
         name: "POL-11-01",
-        baseX: 520,
-        baseY: 140,
+        baseX: 640,
+        baseY: 20,
         conductorAttachments: [],
       },
-      // 6. 11kV / 415V Pole-Mounted Distribution Transformer (DTR)
+      // 6. 11kV / 415V Pole-Mounted Distribution Transformer (DTR) (+120, -120 shift)
       {
         id: "P2",
         type: "dtr-pole",
-        name: "DTR-11-02",
-        baseX: 640,
-        baseY: 220,
+        name: "DTR-11-02 (11kV/415V)",
+        baseX: 760,
+        baseY: 100,
         conductorAttachments: [],
         lvAttachments: [],
       },
-      // 7. LT 415V Distribution Pole (3 phases + neutral)
+      // 7. LT 415V Distribution Pole (3 phases + neutral) (+120, -120 shift)
       {
         id: "P3",
         type: "lt-pole",
-        name: "POL-LT-03",
-        baseX: 720,
-        baseY: 340,
+        name: "POL-LT-03 (4-Wire)",
+        baseX: 840,
+        baseY: 220,
         conductorAttachments: [],
       },
-      // 8. Consumer Service Point / Metering Terminal
+      // 8. Consumer Service Point / Metering Terminal (+120, -120 shift)
       {
         id: "B1",
         type: "building",
         name: "SVC-TERM-04",
-        baseX: 780,
-        baseY: 440,
+        baseX: 900,
+        baseY: 320,
         conductorAttachments: [],
       },
     ];
 
     // Compute line direction vectors along corridors for perpendicular crossarms
-    const hvCorridor = [towerNodes[0], towerNodes[1], towerNodes[2], towerNodes[3]];
+    const hvCorridor = [towerNodes[1], towerNodes[2], towerNodes[3], towerNodes[4]];
     for (let i = 0; i < hvCorridor.length; i++) {
       const prev = i > 0 ? hvCorridor[i - 1] : null;
       const self = hvCorridor[i];
-      const next = i < hvCorridor.length - 1 ? hvCorridor[i + 1] : towerNodes[4];
+      const next = i < hvCorridor.length - 1 ? hvCorridor[i + 1] : towerNodes[5];
       self.lineDir = lineDir(prev, self, next);
     }
 
-    const distCorridor = [towerNodes[4], towerNodes[5], towerNodes[6], towerNodes[7], towerNodes[8]];
+    const distCorridor = [towerNodes[5], towerNodes[6], towerNodes[7], towerNodes[8], towerNodes[9]];
     for (let i = 1; i < distCorridor.length; i++) {
       const prev = distCorridor[i - 1];
       const self = distCorridor[i];
@@ -283,7 +299,28 @@ export function HairlineTransmissionGrid() {
       }));
     }
 
+    function createServiceDropCircuit(
+      fromId: string,
+      toId: string,
+      sag: number,
+      speed = 0.0031
+    ): CatenarySpan[] {
+      // 2 conductors: 1-phase service drop
+      return [0, 1].map((k) => ({
+        fromNodeId: fromId,
+        fromAttachIdx: k,
+        toNodeId: toId,
+        toAttachIdx: k,
+        sag: sag + k * 1.5,
+        pulseProgress1: (0.2 + k * 0.4) % 1,
+        pulseProgress2: (0.7 + k * 0.4) % 1,
+        pulseSpeed: speed,
+      }));
+    }
+
     const spans: CatenarySpan[] = [
+      // Corridor 0: Regional Grid Inflow (SRC -> TWR-33A Incomer)
+      ...create3PhaseCircuit("SRC", "T0", 20, 0.0022),
       // Corridor 1: Incomer T0 -> Tower T1 (3-Phase)
       ...create3PhaseCircuit("T0", "T1", 20, 0.0022),
       // Corridor 2: Tower T1 -> Corner Tower T3 (3-Phase)
@@ -298,20 +335,13 @@ export function HairlineTransmissionGrid() {
       ...create3PhaseCircuit("P1", "P2", 16, 0.0027),
       // Distribution LT Line: DTR Pole P2 LV -> LT Pole P3 (4-Wire: 3 Phases + Neutral)
       ...createLTCircuit("P2", "P3", 14, 0.0029),
-      // Service Drop: LT Pole P3 -> Building B1 Terminal
-      ...create3PhaseCircuit("P3", "B1", 12, 0.0031),
+      // Service Drop: LT Pole P3 -> Building B1 Terminal (2-Conductor Drop)
+      ...createServiceDropCircuit("P3", "B1", 12, 0.0031),
     ];
-
-    // Off-screen incoming transmission line guide entering T0
-    const offscreenIncomerSource = {
-      baseX: -600,
-      baseY: 180,
-      z: 165,
-    };
 
     // =========================================================================
     // 3. SAFE-AREA BOUNDING BOX CALCULATION (fitView)
-    // Guarantees zero clipping under 60px header and off the bottom/sides
+    // Guarantees zero clipping under header and off the bottom/sides
     // =========================================================================
 
     function fitView(
@@ -327,6 +357,7 @@ export function HairlineTransmissionGrid() {
       let maxY = -Infinity;
 
       for (const n of towerNodes) {
+        if (n.id === "SRC") continue; // Virtual node excluded from bounding box
         const topZ = TOP_Z[n.type] ?? 100;
         const dir = n.lineDir || { x: 1, y: 0 };
         const pp = perp(dir);
@@ -348,18 +379,12 @@ export function HairlineTransmissionGrid() {
         }
       }
 
-      // Include offscreen incomer source
-      const offP = project(offscreenIncomerSource.baseX, offscreenIncomerSource.baseY, offscreenIncomerSource.z, 0, 0, 1);
-      minX = Math.min(minX, offP.x);
-      minY = Math.min(minY, offP.y);
-
       const aw = Math.max(w - safe.left - safe.right - 2 * pad, 100);
       const ah = Math.max(h - safe.top - safe.bottom - 2 * pad, 100);
 
-      // Scale to fit safe viewport; cap at 1.12 to prevent oversized geometry on 4k screens
-      const scale = Math.min(aw / (maxX - minX), ah / (maxY - minY), 1.12);
+      // Scale to fit safe viewport; cap at 1.15
+      const scale = Math.min(aw / (maxX - minX), ah / (maxY - minY), 1.15);
 
-      // Centered cleanly inside safe area, preserving perimeter room for the central card
       const originX = safe.left + pad + (aw - (maxX - minX) * scale) / 2 - minX * scale;
       const originY = safe.top + pad + (ah - (maxY - minY) * scale) / 2 - minY * scale;
 
@@ -372,7 +397,7 @@ export function HairlineTransmissionGrid() {
     const hair = (w: number) => Math.max(w, 1 / dpr);
 
     // =========================================================================
-    // 5. RESIZE HANDLING & OFFSCREEN CANVAS CACHE
+    // 5. RESIZE HANDLING & PRE-COMPUTED VIEWPORT STATE
     // =========================================================================
 
     const updateDimensions = () => {
@@ -386,21 +411,67 @@ export function HairlineTransmissionGrid() {
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
 
+      // Two-column layout check below ~1500px: card on left, artwork on right
+      const isTwoColumn = width < 1500;
+      let safeLeft = 24;
+      if (isTwoColumn) {
+        const cardEl = document.getElementById("login-card");
+        const cardWidth = cardEl ? cardEl.getBoundingClientRect().width : 448;
+        safeLeft = cardWidth + 48;
+      }
+
+      // Compute fitView once per resize
+      const fit = fitView(width, height, {
+        top: 64,
+        bottom: 38,
+        left: safeLeft,
+        right: 24,
+      });
+
+      currentScale = fit.scale;
+      currentOriginX = fit.originX;
+      currentOriginY = fit.originY;
+
       // Invalidate offscreen cache
       offscreenCanvas = null;
+
+      // Dev-only overlap check against #login-card
+      if (process.env.NODE_ENV !== "production") {
+        const card = document.getElementById("login-card")?.getBoundingClientRect();
+        const host = canvas.getBoundingClientRect();
+        if (card) {
+          for (const n of towerNodes) {
+            if (n.id === "SRC") continue;
+            const b = project(n.baseX, n.baseY, 0, currentOriginX, currentOriginY, currentScale);
+            const topZ = TOP_Z[n.type] ?? 80;
+            const t = project(n.baseX, n.baseY, topZ, currentOriginX, currentOriginY, currentScale);
+            const x0 = Math.min(b.x, t.x) + host.left;
+            const x1 = Math.max(b.x, t.x) + host.left;
+            const y0 = Math.min(b.y, t.y) + host.top;
+            const y1 = Math.max(b.y, t.y) + host.top;
+            if (x1 > card.left - 16 && x0 < card.right + 16 && y1 > card.top - 16 && y0 < card.bottom + 16) {
+              console.warn(`[hairline] ${n.id} overlaps the login card at ${width}x${height}`);
+            }
+          }
+        }
+      }
     };
 
     updateDimensions();
 
     const resizeObserver = new ResizeObserver(() => {
       updateDimensions();
+      if (prefersReducedMotion && running) {
+        // Redraw single frame after resize in reduced motion mode
+        requestAnimationFrame(render);
+      }
     });
 
     if (canvas.parentElement) {
       resizeObserver.observe(canvas.parentElement);
     }
 
-    // Pointer events on window with pointerType guard
+    // Pointer events with document.documentElement pointerleave and blur
     const onPointerMove = (e: PointerEvent) => {
       if (e.pointerType && e.pointerType !== "mouse") return;
       const rect = canvas.getBoundingClientRect();
@@ -414,9 +485,10 @@ export function HairlineTransmissionGrid() {
     };
 
     window.addEventListener("pointermove", onPointerMove);
-    window.addEventListener("pointerleave", onPointerLeave);
+    document.documentElement.addEventListener("pointerleave", onPointerLeave);
+    window.addEventListener("blur", onPointerLeave);
 
-    // Render static ground grid once to offscreen canvas
+    // Dynamic viewport-sized ground matrix
     const updateOffscreenGrid = (
       originX: number,
       originY: number,
@@ -441,7 +513,8 @@ export function HairlineTransmissionGrid() {
       offscreenCtx.strokeStyle = gridLine;
 
       const gridSize = 44;
-      const gridExtent = 880;
+      // Size gridExtent dynamically from viewport dimensions
+      const gridExtent = Math.ceil((width + height) / scale / gridSize) * gridSize;
 
       offscreenCtx.beginPath();
       for (let g = -gridExtent; g <= gridExtent; g += gridSize * 2) {
@@ -478,16 +551,57 @@ export function HairlineTransmissionGrid() {
     };
 
     // =========================================================================
-    // 6. PRIMARY ANIMATION & RENDER LOOP (Capped at 30-45 FPS for SCADA fidelity)
+    // 6. ANIMATION LIFECYCLE (Controlled by min-width: 900px media query)
     // =========================================================================
 
+    const mq = window.matchMedia("(min-width: 900px)");
+    let running = false;
     let lastTime = performance.now();
     const TARGET_FPS = 40;
     const FRAME_INTERVAL = 1000 / TARGET_FPS;
 
+    const startAnimation = () => {
+      if (running) return;
+      running = true;
+      lastTime = performance.now();
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    const stopAnimation = () => {
+      running = false;
+      cancelAnimationFrame(animationFrameId);
+    };
+
+    const syncAnimationState = () => {
+      if (mq.matches) {
+        startAnimation();
+      } else {
+        stopAnimation();
+      }
+    };
+
+    const motionMq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const onMotionChange = () => {
+      if (motionMq.matches) {
+        stopAnimation();
+        requestAnimationFrame(render);
+      } else if (mq.matches) {
+        startAnimation();
+      }
+    };
+
+    mq.addEventListener("change", syncAnimationState);
+    motionMq.addEventListener("change", onMotionChange);
+
+    // =========================================================================
+    // 7. PRIMARY RENDER LOOP
+    // =========================================================================
+
     const render = (now: number) => {
+      if (!running && !prefersReducedMotion) return;
+
       const elapsed = now - lastTime;
-      if (elapsed < FRAME_INTERVAL) {
+      if (elapsed < FRAME_INTERVAL && !prefersReducedMotion) {
         animationFrameId = requestAnimationFrame(render);
         return;
       }
@@ -507,13 +621,9 @@ export function HairlineTransmissionGrid() {
         pointer.y = -9999;
       }
 
-      // Compute exact dynamic fit safe area
-      const { scale, originX, originY } = fitView(width, height, {
-        top: 64,
-        bottom: 38,
-        left: 20,
-        right: 20,
-      });
+      const scale = currentScale;
+      const originX = currentOriginX;
+      const originY = currentOriginY;
 
       // Palette:
       // Dark Mode: architectural white uprights, titanium grey bracing, emerald telemetry
@@ -548,14 +658,14 @@ export function HairlineTransmissionGrid() {
       });
 
       // =======================================================================
-      // 7. DRAW 3D TRANSMISSION & DISTRIBUTION STRUCTURES
+      // 8. DRAW 3D TRANSMISSION & DISTRIBUTION STRUCTURES
       // =======================================================================
 
-      // Draw HV Lattice Tower with perpendicular crossarms
+      // Draw 33kV Lattice Tower with perpendicular crossarms and symmetric delta phases
       const drawLatticeTower = (node: Node3D) => {
         const bx = node.baseX;
         const by = node.baseY;
-        const bz = 0; // Grounded stably
+        const bz = 0;
 
         const baseHalfWidth = 26;
         const waistHalfWidth = 10;
@@ -612,7 +722,7 @@ export function HairlineTransmissionGrid() {
           scale
         );
 
-        // Upper crossarm (carrying phase 2)
+        // Upper crossarm & apex center
         const armLeft2 = project(
           bx - pp.x * crossarmSpan2,
           by - pp.y * crossarmSpan2,
@@ -631,10 +741,10 @@ export function HairlineTransmissionGrid() {
         );
         const armCenter2 = project(bx, by, bz + crossarmHeight2, originX, originY, scale);
 
-        // Insulator strings (hanging vertically)
+        // 3-Phase symmetric delta attachments: left arm, right arm, upper-center
         const insLeft1: Point2D = { x: armLeft1.x, y: armLeft1.y + 11 * scale };
         const insRight1: Point2D = { x: armRight1.x, y: armRight1.y + 11 * scale };
-        const insTop2: Point2D = { x: armRight2.x, y: armRight2.y + 10 * scale };
+        const insTop2: Point2D = { x: armCenter2.x, y: armCenter2.y + 10 * scale };
 
         node.conductorAttachments = [insLeft1, insRight1, insTop2];
 
@@ -697,18 +807,18 @@ export function HairlineTransmissionGrid() {
         ctx.lineTo(peak.x, peak.y);
         ctx.stroke();
 
-        // Insulators (only where conductors attach, eliminating dangling artifacts)
+        // Insulators (only where conductors attach)
         ctx.strokeStyle = highlightEmerald;
         ctx.lineWidth = hair(0.75);
         ctx.beginPath();
         [insLeft1, insRight1, insTop2].forEach((ins, idx) => {
-          const armEnd = idx === 0 ? armLeft1 : idx === 1 ? armRight1 : armRight2;
+          const armEnd = idx === 0 ? armLeft1 : idx === 1 ? armRight1 : armCenter2;
           ctx.moveTo(armEnd.x, armEnd.y);
           ctx.lineTo(ins.x, ins.y);
         });
         ctx.stroke();
 
-        // Insulator emerald beacon dots (each in fresh path to prevent stray line artifacts)
+        // Insulator emerald beacon dots
         ctx.fillStyle = highlightEmerald;
         [insLeft1, insRight1, insTop2].forEach((ins) => {
           ctx.beginPath();
@@ -723,6 +833,7 @@ export function HairlineTransmissionGrid() {
       };
 
       // Draw Primary 33/11kV Substation Transformer Bank
+      // HV bushings: -y face (facing T2); LV bushings: +x face (facing P1); Radiators: -x face
       const drawSubstation = (node: Node3D) => {
         const bx = node.baseX;
         const by = node.baseY;
@@ -745,15 +856,15 @@ export function HairlineTransmissionGrid() {
         const deckCenter = project(bx, by, bz + th, originX, originY, scale);
         node.peakPos = deckCenter;
 
-        // HV incoming bushings on North face (facing T2)
+        // HV incoming bushings on North face (-y face, facing T2)
         const hvBushings: Point2D[] = [-14, 0, 14].map((off) =>
           project(bx + off, by - hd + 6, bz + th + 24, originX, originY, scale)
         );
         node.conductorAttachments = hvBushings;
 
-        // LV outgoing bushings on South-East face (facing P1)
+        // LV outgoing bushings on East face (+x face, facing P1)
         const lvBushings: Point2D[] = [-12, 0, 12].map((off) =>
-          project(bx + off, by + hd - 6, bz + th + 16, originX, originY, scale)
+          project(bx + hw - 6, by + off, bz + th + 16, originX, originY, scale)
         );
         node.lvAttachments = lvBushings;
 
@@ -793,13 +904,13 @@ export function HairlineTransmissionGrid() {
         ctx.closePath();
         ctx.stroke();
 
-        // Radiator cooling ribs along flank
+        // Radiator cooling ribs on -x face
         ctx.strokeStyle = braceStroke;
         ctx.lineWidth = hair(0.5);
         ctx.beginPath();
-        for (let r = -hw + 6; r <= hw - 6; r += 7) {
-          const rfBot = project(bx + r, by + hd, bz, originX, originY, scale);
-          const rfTop = project(bx + r, by + hd, bz + th - 4, originX, originY, scale);
+        for (let r = -hd + 4; r <= hd - 4; r += 5) {
+          const rfBot = project(bx - hw, by + r, bz, originX, originY, scale);
+          const rfTop = project(bx - hw, by + r, bz + th - 4, originX, originY, scale);
           ctx.moveTo(rfBot.x, rfBot.y);
           ctx.lineTo(rfTop.x, rfTop.y);
         }
@@ -815,7 +926,7 @@ export function HairlineTransmissionGrid() {
         ctx.lineTo(c2.x, c2.y);
         ctx.stroke();
 
-        // Bushings stems & corona rings
+        // Bushing stems
         ctx.strokeStyle = highlightEmerald;
         ctx.lineWidth = hair(0.75);
         ctx.beginPath();
@@ -827,7 +938,7 @@ export function HairlineTransmissionGrid() {
         });
         lvBushings.forEach((b, idx) => {
           const off = (idx - 1) * 12;
-          const base = project(bx + off, by + hd - 6, bz + th, originX, originY, scale);
+          const base = project(bx + hw - 6, by + off, bz + th, originX, originY, scale);
           ctx.moveTo(base.x, base.y);
           ctx.lineTo(b.x, b.y);
         });
@@ -878,7 +989,7 @@ export function HairlineTransmissionGrid() {
 
         node.conductorAttachments = [armLeft, armCenter, armRight];
 
-        // Pole upright shaft (crisp white in dark mode)
+        // Pole upright shaft
         ctx.strokeStyle = latticeStroke;
         ctx.lineWidth = hair(0.9);
         ctx.beginPath();
@@ -1090,8 +1201,10 @@ export function HairlineTransmissionGrid() {
         const r11 = project(bx + hw, by + hd, bz + bh, originX, originY, scale);
         const r01 = project(bx - hw, by + hd, bz + bh, originX, originY, scale);
 
-        const weatherhead = project(bx - hw + 4, by - hd + 4, bz + bh + 8, originX, originY, scale);
-        node.conductorAttachments = [weatherhead, weatherhead, weatherhead];
+        // 2 distinct service terminals offset by a few px
+        const w1 = project(bx - hw + 4, by - hd + 2, bz + bh + 8, originX, originY, scale);
+        const w2 = project(bx - hw + 4, by - hd + 6, bz + bh + 8, originX, originY, scale);
+        node.conductorAttachments = [w1, w2];
         node.peakPos = r10;
 
         ctx.strokeStyle = braceStroke;
@@ -1120,17 +1233,20 @@ export function HairlineTransmissionGrid() {
         ctx.lineTo(r01.x, r01.y);
         // Service mast
         ctx.moveTo(r00.x, r00.y);
-        ctx.lineTo(weatherhead.x, weatherhead.y);
+        ctx.lineTo(w1.x, w1.y);
         ctx.stroke();
 
         ctx.fillStyle = highlightEmerald;
-        ctx.beginPath();
-        ctx.arc(weatherhead.x, weatherhead.y, 1.4 * scale, 0, Math.PI * 2);
-        ctx.fill();
+        [w1, w2].forEach((w) => {
+          ctx.beginPath();
+          ctx.arc(w.x, w.y, 1.4 * scale, 0, Math.PI * 2);
+          ctx.fill();
+        });
       };
 
-      // Draw all structures
+      // Draw all visible structures (SRC is virtual)
       towerNodes.forEach((node) => {
+        if (node.id === "SRC") return;
         if (node.type === "hv-tower") drawLatticeTower(node);
         else if (node.type === "substation") drawSubstation(node);
         else if (node.type === "feeder-pole") drawFeederPole(node);
@@ -1139,22 +1255,24 @@ export function HairlineTransmissionGrid() {
         else if (node.type === "building") drawBuildingTerminal(node);
       });
 
-      // Off-screen incoming conductor bundle entering T0
-      const t0 = towerNodes[0];
-      if (t0 && t0.conductorAttachments.length >= 3) {
-        const offP = project(offscreenIncomerSource.baseX, offscreenIncomerSource.baseY, offscreenIncomerSource.z, originX, originY, scale);
-        ctx.strokeStyle = catenaryStroke;
-        ctx.lineWidth = hair(0.7);
-        ctx.beginPath();
-        t0.conductorAttachments.forEach((att) => {
-          ctx.moveTo(offP.x, offP.y);
-          ctx.lineTo(att.x, att.y);
-        });
-        ctx.stroke();
+      // Compute virtual SRC conductor attachments: translated back along T0's line direction
+      const t0 = towerNodes.find((n) => n.id === "T0");
+      const src = towerNodes.find((n) => n.id === "SRC");
+      if (t0 && src && t0.conductorAttachments.length >= 3 && t0.lineDir) {
+        const d = t0.lineDir;
+        const back = 520;
+        const a = project(t0.baseX, t0.baseY, 0, originX, originY, scale);
+        const b = project(t0.baseX - d.x * back, t0.baseY - d.y * back, 0, originX, originY, scale);
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        src.conductorAttachments = t0.conductorAttachments.map((p) => ({
+          x: p.x + dx,
+          y: p.y + dy,
+        }));
       }
 
       // =======================================================================
-      // 8. DRAW 3-PHASE CATENARY CONDUCTORS & CONTINUOUS TELEMETRY PULSES
+      // 9. DRAW 3-PHASE CATENARY CONDUCTORS & TELEMETRY PULSES
       // =======================================================================
 
       spans.forEach((span) => {
@@ -1178,7 +1296,18 @@ export function HairlineTransmissionGrid() {
         };
 
         const segments = 22;
-        ctx.strokeStyle = catenaryStroke;
+
+        // Virtual incoming span from SRC fades in from transparent at far-left edge
+        if (span.fromNodeId === "SRC") {
+          const grad = ctx.createLinearGradient(pStart.x, pStart.y, pEnd.x, pEnd.y);
+          grad.addColorStop(0, "transparent");
+          grad.addColorStop(0.35, catenaryStroke);
+          grad.addColorStop(1, catenaryStroke);
+          ctx.strokeStyle = grad;
+        } else {
+          ctx.strokeStyle = catenaryStroke;
+        }
+
         ctx.lineWidth = hair(0.7);
         ctx.beginPath();
         const startPt = getCatenaryPoint(0);
@@ -1194,6 +1323,9 @@ export function HairlineTransmissionGrid() {
         span.pulseProgress2 = (span.pulseProgress2 + span.pulseSpeed * (dt * 60)) % 1;
 
         [span.pulseProgress1, span.pulseProgress2].forEach((prog) => {
+          // Fade pulses at the incoming left margin for SRC span
+          if (span.fromNodeId === "SRC" && prog < 0.25) return;
+
           const head = getCatenaryPoint(prog);
           const tail = getCatenaryPoint(Math.max(0, prog - 0.045));
 
@@ -1214,13 +1346,14 @@ export function HairlineTransmissionGrid() {
       });
 
       // =======================================================================
-      // 9. DYNAMIC CURSOR TETHERING & TELEMETRY CROSSHAIR (Corrected Geometry)
+      // 10. DYNAMIC CURSOR TETHERING & TELEMETRY CROSSHAIR
       // =======================================================================
 
       if (pointer.active) {
         const tetherTargets: { pos: Point2D; dist: number }[] = [];
 
         towerNodes.forEach((node) => {
+          if (node.id === "SRC") return;
           if (node.peakPos) {
             const d = Math.hypot(pointer.x - node.peakPos.x, pointer.y - node.peakPos.y);
             tetherTargets.push({ pos: node.peakPos, dist: d });
@@ -1272,21 +1405,25 @@ export function HairlineTransmissionGrid() {
 
       ctx.restore();
 
-      // If user prefers reduced motion, render a single pristine frame
-      if (!prefersReducedMotion) {
+      // Schedule next frame only while running and motion is enabled
+      if (running && !prefersReducedMotion) {
         animationFrameId = requestAnimationFrame(render);
       }
     };
 
-    animationFrameId = requestAnimationFrame(render);
+    // Initial sync of animation state
+    syncAnimationState();
 
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      stopAnimation();
       resizeObserver.disconnect();
       window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerleave", onPointerLeave);
+      document.documentElement.removeEventListener("pointerleave", onPointerLeave);
+      window.removeEventListener("blur", onPointerLeave);
+      mq.removeEventListener("change", syncAnimationState);
+      motionMq.removeEventListener("change", onMotionChange);
     };
-  }, [theme]);
+  }, []); // Theme handled dynamically via themeRef without tearing down effect
 
   return (
     <div
