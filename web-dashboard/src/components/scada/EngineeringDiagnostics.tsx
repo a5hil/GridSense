@@ -49,13 +49,13 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
         <div className="flex items-center gap-2">
           <Cpu className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
           <span className="text-slate-900 dark:text-zinc-200 font-semibold">
-            SCADA RTU COMMUNICATIONS &amp; CIPHER DIAGNOSTICS CONSOLE
+            SCADA RTU COMMUNICATIONS &amp; GATEWAY DIAGNOSTICS
           </span>
           <span>•</span>
-          <span>Sub-GHz Utility Mesh (IN865), AES-128 Supervisory Bus &amp; IEC 60870-5 Ingestion</span>
+          <span>Sub-GHz Utility Mesh (IN865), Gateway Hardware Security &amp; JSON Telemetry Bus</span>
         </div>
         <Badge variant="crypto" className="text-[10px]">
-          PROTOCOL: IEC 60870-5-104 / AES-128-CTR
+          PROTOCOL: JSON TELEMETRY BUS (IEC 104 MODEL)
         </Badge>
       </div>
 
@@ -139,7 +139,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
           <CardHeader>
             <div className="flex items-center gap-2">
               <Power className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <CardTitle>RTU Serial Communications Interface (IEC 60870-5-101/104)</CardTitle>
+              <CardTitle>RTU Serial Communications Interface (USB / UART)</CardTitle>
             </div>
             <Badge variant={systemStatus?.gatewayConnected ? "healthy" : "warning"}>
               {systemStatus?.gatewayConnected ? "ONLINE" : "OFFLINE"}
@@ -195,7 +195,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
             {/* Direct Hardware Commands & Gateway Info */}
             <div className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950/60 p-2.5 rounded-sm space-y-2 mt-2">
               <div className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase font-semibold flex justify-between items-center">
-                <span>TELEMETRY INGESTION (IEC 60870-5-104)</span>
+                <span>TELEMETRY INGESTION (SERIAL / JSON)</span>
                 <span className="text-emerald-500 font-bold">
                   ACTIVE SCADA BUS
                 </span>
@@ -254,12 +254,12 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
           </div>
         </Card>
 
-        {/* PANEL 3: CIPHER & RAW JSON TELEMETRY STREAM */}
+        {/* PANEL 3: GATEWAY SECURITY & RAW TELEMETRY STREAM */}
         <Card className="col-span-12 lg:col-span-4 flex flex-col justify-between">
           <CardHeader>
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
-              <CardTitle>SCADA Cybersecurity Suite (AES-128-CTR &amp; CRC-32)</CardTitle>
+              <CardTitle>Gateway Security &amp; Payload Diagnostics (AES-128 / CRC-32)</CardTitle>
             </div>
             <Badge variant="crypto">SECURE</Badge>
           </CardHeader>
@@ -267,8 +267,8 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
           <CardContent className="space-y-2 text-xs">
             <div className="space-y-1">
               <div className="flex justify-between items-baseline border-b border-slate-200 dark:border-zinc-800/60 pb-1">
-                <span className="text-slate-500 dark:text-zinc-400">Cipher Suite</span>
-                <span className="text-cyan-700 dark:text-cyan-400 font-bold">AES-128-CTR ENCRYPTED</span>
+                <span className="text-slate-500 dark:text-zinc-400">RF Link Security</span>
+                <span className="text-cyan-700 dark:text-cyan-400 font-bold">HARDWARE AES DECRYPTED (GATEWAY)</span>
               </div>
               <div className="flex justify-between items-baseline border-b border-slate-200 dark:border-zinc-800/60 pb-1">
                 <span className="text-slate-500 dark:text-zinc-400">Gateway Uptime (gw_ms)</span>
@@ -292,7 +292,7 @@ export const EngineeringDiagnostics = React.memo(function EngineeringDiagnostics
 
             <div className="mt-2">
               <div className="text-[10px] text-slate-500 dark:text-zinc-400 uppercase font-semibold mb-1">
-                IEC 60870-5-104 PROTOCOL INGESTION BUFFER:
+                RAW TELEMETRY INGESTION BUFFER (JSON):
               </div>
               <pre className="border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 p-2 rounded-sm text-[10px] text-slate-800 dark:text-zinc-300 overflow-x-auto max-h-36 font-mono leading-tight">
                 {telemetry?.rawPayload

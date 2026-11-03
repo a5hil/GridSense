@@ -11,7 +11,7 @@ interface PlatformLoadingOverlayProps {
 const PROCESS_STEPS = [
   "Connecting to distribution substation...",
   "Synchronizing real-time telemetry...",
-  "Loading grid digital twin model...",
+  "Loading feeder network simulation model...",
   "Calibrating protection & fault detection...",
   "Launching dispatch console...",
 ];

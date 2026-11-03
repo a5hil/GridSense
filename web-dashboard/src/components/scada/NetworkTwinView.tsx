@@ -209,7 +209,7 @@ export const NetworkTwinView = React.memo(function NetworkTwinView({
               ) : (
                 <Badge variant="warning" className="text-[10px] flex items-center gap-1">
                   <Radio className="h-3 w-3" />
-                  OFFLINE DIGITAL TWIN (SIMULATION)
+                  3-PHASE NETWORK SIMULATOR (SYNTHETIC FEEDER)
                 </Badge>
               )}
             </div>

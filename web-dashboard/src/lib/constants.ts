@@ -1,13 +1,13 @@
 /**
- * GridSense Enterprise ADMS - Production Configuration & Naming System
- * Commercial-grade distribution management constants.
+ * GridSense ADMS - Distribution Automation Configuration
+ * Standard distribution management and SCADA constants.
  */
 
 export const ENTERPRISE_CONFIG = {
   SYSTEM_NAME: "GridSense ADMS",
-  EDITION: "Enterprise Suite",
+  EDITION: "Standard SCADA Edition",
   VERSION: "2026.4",
-  COPYRIGHT: "GridSense ADMS © 2026 // Enterprise Suite",
+  COPYRIGHT: "GridSense ADMS © 2026",
 
   // Substation & Primary Infrastructure
   SUBSTATION_NAME: "ANGAMALY 33/11kV PRIMARY SUBSTATION",

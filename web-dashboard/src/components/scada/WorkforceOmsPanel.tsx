@@ -778,14 +778,14 @@ export function WorkforceOmsPanel({
       </div>
 
       {/* ============================================================== */}
-      {/* 3. TABLE 2: RESOLVED OUTAGES & RESTORATION LEDGER              */}
+      {/* 3. TABLE 2: RESOLVED OUTAGES & RESTORATION HISTORY             */}
       {/* ============================================================== */}
       <div className="border border-slate-200 dark:border-zinc-800 bg-white dark:bg-[#0c0d10] rounded-sm p-3.5 shadow-xs dark:shadow-none flex flex-col flex-1 min-h-0 space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 dark:border-zinc-800 pb-2">
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-slate-500" />
             <span className="font-bold uppercase tracking-wider text-xs text-slate-900 dark:text-zinc-100">
-              Outage Restoration &amp; Resolved Incidents Ledger
+              Outage Restoration &amp; Incident History
             </span>
             <Badge variant="outline" className="text-[9px]">
               {filteredClosedTickets.length} RECORDS

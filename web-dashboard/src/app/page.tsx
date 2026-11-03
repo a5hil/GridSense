@@ -1065,7 +1065,7 @@ export default function SCADADashboard() {
                 </div>
               </Card>
 
-              {/* CARD 3: 3-Phase Bus Voltage Level & Balance (IEEE 1159) */}
+              {/* CARD 3: 3-Phase Bus Voltage Level & Phase Balance */}
               <Card className={`col-span-12 sm:col-span-6 lg:col-span-3 flex flex-col justify-between transition-opacity ${isP1Stale ? "opacity-75 border-amber-500/50" : ""
                 }`}>
                 {(() => {
@@ -1084,7 +1084,7 @@ export default function SCADADashboard() {
                       <CardHeader className="pb-1.5">
                         <div className="flex items-center justify-between gap-1.5">
                           <span className="text-[11px] text-slate-600 dark:text-zinc-400 font-mono uppercase tracking-wider font-semibold truncate">
-                            LV BUS VOLTAGE (IEC 61000)
+                            LV BUS VOLTAGE (230V / 415V)
                           </span>
                           <Badge
                             variant={
@@ -1146,9 +1146,9 @@ export default function SCADADashboard() {
                             ANSI 59 EXCURSION (+{(((maxV - 230) / 230) * 100).toFixed(0)}%)
                           </span>
                         ) : isUnbalanced ? (
-                          <span className="text-amber-600 dark:text-amber-500 font-semibold">IEEE 1159 UNBALANCE ADVISORY</span>
+                          <span className="text-amber-600 dark:text-amber-500 font-semibold">PHASE UNBALANCE ADVISORY</span>
                         ) : (
-                          <span className="text-emerald-600 dark:text-emerald-500 font-semibold">ANSI C84.1 RANGE A COMPLIANT</span>
+                          <span className="text-emerald-600 dark:text-emerald-500 font-semibold">VOLTAGE WITHIN NOMINAL LIMITS</span>
                         )}
                       </div>
                     </>
