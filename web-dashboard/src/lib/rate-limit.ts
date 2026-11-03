@@ -9,7 +9,15 @@ interface RateLimitRecord {
   resetAt: number;
 }
 
-const rateLimitStore = new Map<string, RateLimitRecord>();
+const globalForRateLimit = globalThis as unknown as {
+  __gridsense_rate_limit?: Map<string, RateLimitRecord>;
+};
+
+if (!globalForRateLimit.__gridsense_rate_limit) {
+  globalForRateLimit.__gridsense_rate_limit = new Map<string, RateLimitRecord>();
+}
+
+const rateLimitStore = globalForRateLimit.__gridsense_rate_limit;
 
 // Periodic garbage collection for expired keys (every 5 minutes)
 if (typeof setInterval !== "undefined") {

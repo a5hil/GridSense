@@ -100,17 +100,23 @@ export default function LoginPage() {
       }
       setIsAuthorized(true);
 
-      // Check for redirect return url
+      // Check for redirect return url (Strict Open Redirect prevention: reject protocol-relative // and backslashes)
       let targetPath = "/";
       if (typeof window !== "undefined") {
         const fromParam = new URLSearchParams(window.location.search).get("from");
-        if (fromParam && fromParam.startsWith("/")) {
+        if (
+          fromParam &&
+          fromParam.startsWith("/") &&
+          !fromParam.startsWith("//") &&
+          !fromParam.includes("\\") &&
+          !fromParam.includes(":")
+        ) {
           targetPath = fromParam;
         }
       }
 
-      router.push(targetPath);
-      router.refresh();
+      // Hard redirect into the authenticated dashboard session
+      window.location.replace(targetPath);
     } catch {
       setErrorMsg("Network error communicating with authentication service");
       setIsLoading(false);

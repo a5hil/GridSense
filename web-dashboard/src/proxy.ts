@@ -17,8 +17,10 @@ function base64UrlToArrayBuffer(str: string): ArrayBuffer {
 }
 
 async function isTokenValid(token?: string): Promise<boolean> {
-  if (!token || !token.includes(".")) return false;
-  const [data, sig] = token.split(".");
+  if (!token) return false;
+  const parts = token.split(".");
+  if (parts.length !== 2) return false;
+  const [data, sig] = parts;
   if (!data || !sig) return false;
 
   try {
@@ -58,6 +60,17 @@ export async function proxy(req: NextRequest) {
     pathname === "/api/telemetry/stream"
   ) {
     return NextResponse.next();
+  }
+
+  // 1b. CSRF Protection: Verify Origin on state-changing API operations to prevent cross-origin abuse
+  if (pathname.startsWith("/api/") && ["POST", "PUT", "DELETE", "PATCH"].includes(req.method)) {
+    const origin = req.headers.get("origin");
+    if (origin && origin !== req.nextUrl.origin) {
+      return NextResponse.json(
+        { success: false, error: "CSRF_FORBIDDEN", message: "Cross-origin SCADA operations forbidden" },
+        { status: 403 }
+      );
+    }
   }
 
   const token = req.cookies.get(COOKIE_NAME)?.value;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateCredentials, createSessionToken, COOKIE_NAME } from "@/lib/auth";
 import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
+import { telemetryStore } from "@/lib/telemetry-state";
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,34 +15,66 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Rate Limiting: 5 attempts per IP/username per 15 minutes
+    const cleanUser = username.trim().toLowerCase();
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "127.0.0.1";
-    const rateLimitKey = `login:${ip}:${username.trim().toLowerCase()}`;
-    const rateCheck = checkRateLimit(rateLimitKey, 5, 15 * 60 * 1000);
 
-    if (!rateCheck.allowed) {
+    // Dual-Key Rate Limiting Defense:
+    // 1. Account-level lockout: Max 5 attempts per username (prevents distributed password spraying across rotating IPs)
+    // 2. IP-level throttle: Max 20 attempts per IP (prevents multi-account dictionary/credential stuffing)
+    const userRateKey = `login:user:${cleanUser}`;
+    const ipRateKey = `login:ip:${ip}`;
+
+    const userRateCheck = checkRateLimit(userRateKey, 5, 15 * 60 * 1000);
+    const ipRateCheck = checkRateLimit(ipRateKey, 20, 15 * 60 * 1000);
+
+    if (!userRateCheck.allowed || !ipRateCheck.allowed) {
+      const retryAfter = Math.max(userRateCheck.retryAfterSec, ipRateCheck.retryAfterSec);
+      
+      // Log security incident to Sequence of Events (SOE) audit trail
+      telemetryStore.addEventLog({
+        level: "WARN",
+        source: "SECURITY",
+        message: `Terminal Access Suspended: Rate limit threshold exceeded for '${cleanUser}' from IP ${ip}`,
+        details: `Lockout duration: ${retryAfter} seconds remaining.`,
+      });
+
       return NextResponse.json(
         {
           success: false,
-          error: `Too many failed authentication attempts. Please retry after ${rateCheck.retryAfterSec} seconds.`,
+          error: `Too many failed authentication attempts. Please retry after ${retryAfter} seconds.`,
         },
         {
           status: 429,
-          headers: { "Retry-After": String(rateCheck.retryAfterSec) },
+          headers: { "Retry-After": String(retryAfter) },
         }
       );
     }
 
-    const user = await authenticateCredentials(username, password);
+    const user = await authenticateCredentials(cleanUser, password);
     if (!user) {
+      // Log authentication rejection to SCADA security log
+      telemetryStore.addEventLog({
+        level: "WARN",
+        source: "AUTH",
+        message: `Authentication rejected: Invalid credentials for operator '${cleanUser}' from IP ${ip}`,
+      });
+
       return NextResponse.json(
         { success: false, error: "Invalid operator credentials or unassigned badge ID" },
         { status: 401 }
       );
     }
 
-    // Reset rate limiter on successful authentication
-    resetRateLimit(rateLimitKey);
+    // Reset rate limiter keys on successful authentication
+    resetRateLimit(userRateKey);
+    resetRateLimit(ipRateKey);
+
+    // Audit log successful operator session creation
+    telemetryStore.addEventLog({
+      level: "INFO",
+      source: "AUTH",
+      message: `Authorized dispatch session created: ${user.name} (${user.badgeId}) on ${user.station}`,
+    });
 
     const token = createSessionToken(user, user.sessionVersion || 1);
     const res = NextResponse.json({ success: true, user });

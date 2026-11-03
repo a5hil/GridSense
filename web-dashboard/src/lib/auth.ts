@@ -124,7 +124,11 @@ export async function authenticateCredentials(
   pass: string
 ): Promise<ScadaUser | null> {
   const user = await findUserByUsername(username);
-  if (!user) return null;
+  if (!user) {
+    // Constant-time defense: compute dummy PBKDF2 calculation to eliminate username enumeration via timing side-channel
+    hashPassword(pass, "a1b2c3d4e5f60718293a4b5c6d7e8f90", PBKDF2_ITERATIONS);
+    return null;
+  }
 
   // Use user's iterations or legacy default (1,000)
   const iterations = user.iterations || 1000;
@@ -181,8 +185,10 @@ export function createSessionToken(user: ScadaUser, sessionVersion = 1): string 
 }
 
 export function verifySessionToken(token: string): ScadaUser | null {
-  if (!token || !token.includes(".")) return null;
-  const [data, sig] = token.split(".");
+  if (!token) return null;
+  const parts = token.split(".");
+  if (parts.length !== 2) return null;
+  const [data, sig] = parts;
   if (!data || !sig) return null;
 
   const expectedSig = crypto.createHmac("sha256", AUTH_SECRET).update(data).digest("base64url");

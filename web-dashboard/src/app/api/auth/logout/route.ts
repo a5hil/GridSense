@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { COOKIE_NAME, verifySessionToken, invalidateUserSession } from "@/lib/auth";
+import { telemetryStore } from "@/lib/telemetry-state";
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,15 +9,16 @@ export async function POST(req: NextRequest) {
       const user = verifySessionToken(token);
       if (user?.username) {
         await invalidateUserSession(user.username);
+        telemetryStore.addEventLog({
+          level: "INFO",
+          source: "AUTH",
+          message: `Operator logout: ${user.name} (${user.badgeId}) terminated dispatch session`,
+        });
       }
     }
   } catch {}
 
   const res = NextResponse.json({ success: true, message: "Logged out" });
-  res.cookies.set(COOKIE_NAME, "", {
-    httpOnly: true,
-    maxAge: 0,
-    path: "/",
-  });
+  res.cookies.delete(COOKIE_NAME);
   return res;
 }
