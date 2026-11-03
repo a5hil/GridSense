@@ -80,6 +80,7 @@ ${params.operatorNotes ? `📝 *Operator Instructions:* _"${params.operatorNotes
         parse_mode: "Markdown",
         disable_web_page_preview: false,
       }),
+      signal: AbortSignal.timeout(5000),
     });
 
     const data = await res.json();
@@ -140,6 +141,7 @@ Field crews in this chat will now automatically receive high-priority outage dis
         text,
         parse_mode: "Markdown",
       }),
+      signal: AbortSignal.timeout(5000),
     });
 
     const data = await res.json();

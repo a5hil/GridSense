@@ -20,9 +20,10 @@ const ALLOWED_SERIAL_COMMANDS = new Set([
   "status",
 ]);
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const forceRefresh = req.nextUrl?.searchParams?.get("refresh") === "true";
   const [ports, dbStats] = await Promise.all([
-    listAvailablePorts(),
+    listAvailablePorts(forceRefresh),
     getDatabaseStats(),
   ]);
   const status = telemetryStore.getStatus();

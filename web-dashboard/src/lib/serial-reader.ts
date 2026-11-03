@@ -9,6 +9,14 @@ interface GlobalSerialState {
   hasAutoInitialized: boolean;
   lastErrorPort: string;
   pollTimer: NodeJS.Timeout | null;
+  cachedPorts: Array<{
+    path: string;
+    manufacturer: string;
+    serialNumber?: string;
+    pnpId?: string;
+    friendlyName: string;
+  }>;
+  lastPortsScanTime: number;
 }
 
 const globalForSerial = globalThis as unknown as { __gridsense_serial?: GlobalSerialState };
@@ -22,24 +30,40 @@ if (!globalForSerial.__gridsense_serial) {
     hasAutoInitialized: false,
     lastErrorPort: "",
     pollTimer: null,
+    cachedPorts: [],
+    lastPortsScanTime: 0,
   };
 }
 
 const state = globalForSerial.__gridsense_serial;
 
-export async function listAvailablePorts() {
+const PORTS_CACHE_TTL_MS = 6000;
+
+export async function listAvailablePorts(forceRefresh = false) {
+  const now = Date.now();
+  if (
+    !forceRefresh &&
+    state.cachedPorts &&
+    state.cachedPorts.length > 0 &&
+    now - state.lastPortsScanTime < PORTS_CACHE_TTL_MS
+  ) {
+    return state.cachedPorts;
+  }
   try {
     const ports = await SerialPort.list();
-    return ports.map((p) => ({
+    const mapped = ports.map((p) => ({
       path: p.path,
       manufacturer: p.manufacturer || "Unknown",
       serialNumber: p.serialNumber,
       pnpId: p.pnpId,
       friendlyName: p.friendlyName || p.path,
     }));
+    state.cachedPorts = mapped;
+    state.lastPortsScanTime = now;
+    return mapped;
   } catch (err: any) {
     console.error("[SerialPort] Error listing ports:", err.message);
-    return [];
+    return state.cachedPorts || [];
   }
 }
 
