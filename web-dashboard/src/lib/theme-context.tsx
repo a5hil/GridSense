@@ -16,6 +16,18 @@ const ThemeContext = React.createContext<ThemeContextType>({
   toggleTheme: () => {},
 });
 
+function applyTheme(t: Theme) {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  if (t === "light") {
+    root.classList.remove("dark");
+    root.classList.add("light");
+  } else {
+    root.classList.remove("light");
+    root.classList.add("dark");
+  }
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = React.useState<Theme>("dark");
   const [mounted, setMounted] = React.useState(false);
@@ -35,17 +47,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       applyTheme("dark");
     }
   }, []);
-
-  const applyTheme = (t: Theme) => {
-    const root = document.documentElement;
-    if (t === "light") {
-      root.classList.remove("dark");
-      root.classList.add("light");
-    } else {
-      root.classList.remove("light");
-      root.classList.add("dark");
-    }
-  };
 
   const handleSetTheme = (newTheme: Theme) => {
     setTheme(newTheme);

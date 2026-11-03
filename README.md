@@ -16,7 +16,7 @@ By combining split-core CT AC energy monitors (**PZEM-004T v4.0**), Sub-GHz LoRa
  [ Central Gateway ] ◄────── LoRa Sub-GHz (868 MHz) ──────┐
        │ (USB Serial)                                      │
        ▼                                                   │
- [ Tkinter FDIR Dashboard ]                                │
+ [ Next.js SCADA Operations Desk & OMS ]                  │
                                                            │
    [ Span 1 ]                           [ Span 1-2 ]       │
 ────────────────── Electric Pole 1 ────────────────── Electric Pole 2
