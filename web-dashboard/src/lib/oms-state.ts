@@ -48,9 +48,14 @@ class OmsManager {
       if (stored && stored.length > 0) {
         this.tickets = stored;
         stored.forEach((t) => {
-          const num = parseInt(t.ticketId.replace(/\D/g, ""), 10);
-          if (!isNaN(num) && num > this.ticketCounter) {
-            this.ticketCounter = num;
+          // Extract trailing digits cleanly e.g. "0043" -> 43 or "0052" -> 52
+          const match = t.ticketId.match(/(\d+)$/);
+          if (match) {
+            const raw = match[1];
+            const seq = parseInt(raw.slice(-4), 10);
+            if (!isNaN(seq) && seq > this.ticketCounter && seq < 10000) {
+              this.ticketCounter = seq;
+            }
           }
         });
       }
@@ -142,7 +147,9 @@ class OmsManager {
     if (existing) return existing;
 
     this.ticketCounter++;
-    const ticketId = `TT-2026-10-00${this.ticketCounter}`;
+    const now = new Date();
+    const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const ticketId = `TT-${yearMonth}-${String(this.ticketCounter).padStart(4, "0")}`;
     const timestamp = new Date().toISOString();
     const timeStr = new Date().toLocaleTimeString();
 

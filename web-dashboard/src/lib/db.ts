@@ -145,11 +145,12 @@ export async function saveTicketRecord(ticket: TroubleTicket): Promise<void> {
   try {
     const database = await getDb();
     if (database) {
+      const { _id, ...cleanTicket } = ticket as any;
       await database.collection("trouble_tickets").updateOne(
         { ticketId: ticket.ticketId },
         {
           $set: {
-            ...ticket,
+            ...cleanTicket,
             updatedAt: new Date(),
           },
           $setOnInsert: {
@@ -160,7 +161,7 @@ export async function saveTicketRecord(ticket: TroubleTicket): Promise<void> {
       );
     }
   } catch (err: any) {
-    // Kept in memory
+    console.error("[DB] Failed to save ticket record:", err?.message || err);
   }
 }
 

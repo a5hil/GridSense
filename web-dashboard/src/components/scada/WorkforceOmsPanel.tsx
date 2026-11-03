@@ -306,7 +306,7 @@ export function WorkforceOmsPanel({
     const chosen = linemen.find((l) => l.id === selectedLinemanId) || linemen[0];
 
     try {
-      await fetch("/api/oms/tickets", {
+      const res = await fetch("/api/oms/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -318,6 +318,11 @@ export function WorkforceOmsPanel({
           operatorNotes: customDispatchNotes,
         }),
       });
+      if (res.status === 401) {
+        alert("Operator session expired or unauthenticated. Please log in to dispatch field crews.");
+        window.location.href = "/login";
+        return;
+      }
       setIsDispatchModalOpen(false);
       if (onRefresh) onRefresh();
     } catch (err) {
@@ -333,7 +338,7 @@ export function WorkforceOmsPanel({
     if (!targetId) return;
     setIsSubmitting(true);
     try {
-      await fetch("/api/oms/tickets", {
+      const res = await fetch("/api/oms/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -341,6 +346,11 @@ export function WorkforceOmsPanel({
           ticketId: targetId,
         }),
       });
+      if (res.status === 401) {
+        alert("Operator session expired or unauthenticated. Please log in.");
+        window.location.href = "/login";
+        return;
+      }
       if (onRefresh) onRefresh();
     } catch (err) {
       console.error("Escalate early error:", err);
@@ -355,7 +365,7 @@ export function WorkforceOmsPanel({
     if (!targetId) return;
     setIsSubmitting(true);
     try {
-      await fetch("/api/oms/tickets", {
+      const res = await fetch("/api/oms/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -364,6 +374,11 @@ export function WorkforceOmsPanel({
           reason: "Scheduled Local Line & Vegetation Maintenance (Operator Suppressed)",
         }),
       });
+      if (res.status === 401) {
+        alert("Operator session expired or unauthenticated. Please log in.");
+        window.location.href = "/login";
+        return;
+      }
       if (onRefresh) onRefresh();
     } catch (err) {
       console.error("Flag maintenance error:", err);
@@ -378,7 +393,7 @@ export function WorkforceOmsPanel({
     if (!targetId) return;
     setIsSubmitting(true);
     try {
-      await fetch("/api/oms/tickets", {
+      const res = await fetch("/api/oms/tickets", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -387,6 +402,15 @@ export function WorkforceOmsPanel({
           notes: "Repairs verified safe by operator. Feeder re-energized.",
         }),
       });
+      if (res.status === 401) {
+        alert("Operator session expired or unauthenticated. Please log in to sign off / close trouble tickets.");
+        window.location.href = "/login";
+        return;
+      }
+      const data = await res.json().catch(() => ({}));
+      if (data && data.success === false) {
+        alert(`Failed to close ticket: ${data.message || data.error || "Unknown error"}`);
+      }
       if (onRefresh) onRefresh();
     } catch (err) {
       console.error("Close ticket error:", err);
