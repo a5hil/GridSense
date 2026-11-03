@@ -7,8 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "bridge": "node scripts/cloud-serial-bridge.js",
-    "check:hairline": "npx tsx scripts/check.ts"
+    "bridge": "node scripts/cloud-serial-bridge.js"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",
@@ -23,7 +22,6 @@
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
-    "@napi-rs/canvas": "^1.1.0",
     "@tailwindcss/turbopack": "^4.0.0",
     "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",
@@ -31,7 +29,6 @@
     "eslint": "^9.0.0",
     "eslint-config-next": "16.4.3",
     "tailwindcss": "^4.0.0",
-    "tsx": "^4.23.15",
     "typescript": "^5.0.0"
   },
   "optionalDependencies": {
