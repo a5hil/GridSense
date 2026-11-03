@@ -7,6 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:e2e": "playwright test",
+    "test:report": "playwright show-report",
     "bridge": "node scripts/cloud-serial-bridge.js"
   },
   "dependencies": {
@@ -22,6 +24,7 @@
     "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/turbopack": "^4.0.0",
     "@types/node": "^20.0.0",
     "@types/react": "^19.0.0",

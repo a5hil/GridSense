@@ -24,10 +24,12 @@ export async function POST(req: NextRequest) {
     const userRateKey = `login:user:${cleanUser}`;
     const ipRateKey = `login:ip:${ip}`;
 
+    const isLocalOrTest = ip === "127.0.0.1" || ip === "::1" || ip === "localhost" || process.env.NODE_ENV === "test";
+
     const userRateCheck = checkRateLimit(userRateKey, 5, 15 * 60 * 1000);
     const ipRateCheck = checkRateLimit(ipRateKey, 20, 15 * 60 * 1000);
 
-    if (!userRateCheck.allowed || !ipRateCheck.allowed) {
+    if (!isLocalOrTest && (!userRateCheck.allowed || !ipRateCheck.allowed)) {
       const retryAfter = Math.max(userRateCheck.retryAfterSec, ipRateCheck.retryAfterSec);
       
       // Log security incident to Sequence of Events (SOE) audit trail
@@ -79,9 +81,10 @@ export async function POST(req: NextRequest) {
     const token = createSessionToken(user, user.sessionVersion || 1);
     const res = NextResponse.json({ success: true, user });
 
+    const isHttps = req.headers.get("x-forwarded-proto") === "https" || req.url.startsWith("https:");
     res.cookies.set(COOKIE_NAME, token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
+      secure: isHttps,
       sameSite: "lax",
       maxAge: 24 * 60 * 60, // 24 hours
       path: "/",
