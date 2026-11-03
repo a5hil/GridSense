@@ -11,14 +11,18 @@ export async function GET(req: NextRequest) {
 
   const user = verifySessionToken(token);
   if (!user) {
-    return NextResponse.json({ authenticated: false, user: null }, { status: 401 });
+    const res = NextResponse.json({ authenticated: false, user: null }, { status: 401 });
+    res.cookies.delete(COOKIE_NAME);
+    return res;
   }
 
   // Check if session has been invalidated
   const account = await findUserByUsername(user.username);
   if (account && account.sessionVersion && user.sessionVersion) {
     if (account.sessionVersion !== user.sessionVersion) {
-      return NextResponse.json({ authenticated: false, user: null }, { status: 401 });
+      const res = NextResponse.json({ authenticated: false, user: null }, { status: 401 });
+      res.cookies.delete(COOKIE_NAME);
+      return res;
     }
   }
 

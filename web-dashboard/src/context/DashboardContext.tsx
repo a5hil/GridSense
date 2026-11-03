@@ -47,6 +47,7 @@ interface DashboardContextType {
   // Operator Profile
   currentUser: ScadaUser | null;
   setCurrentUser: (user: ScadaUser | null) => void;
+  isAuthChecking: boolean;
   handleLogout: () => void;
 
   // Macro metrics & Badges
@@ -73,6 +74,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
   const [lastHeartbeat, setLastHeartbeat] = useState<string>("--:--:--");
   const [currentUser, setCurrentUser] = useState<ScadaUser | null>(null);
+  const [isAuthChecking, setIsAuthChecking] = useState<boolean>(true);
   const [networkSnapshot, setNetworkSnapshot] = useState<NetworkSnapshot | null>(null);
   const [openTicketsCount, setOpenTicketsCount] = useState<number>(0);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
@@ -80,16 +82,31 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
 
   // Load user profile and SCADA settings on mount
   useEffect(() => {
-    if (pathname === "/login") return;
+    if (pathname === "/login") {
+      setIsAuthChecking(false);
+      return;
+    }
 
     fetch("/api/auth/me", { cache: "no-store", credentials: "same-origin" })
-      .then((res) => (res.ok ? res.json() : null))
+      .then(async (res) => {
+        if (!res.ok) throw new Error("UNAUTHORIZED");
+        return res.json();
+      })
       .then((data) => {
         if (data?.authenticated && data?.user) {
           setCurrentUser(data.user);
+          setIsAuthChecking(false);
+        } else {
+          throw new Error("UNAUTHORIZED");
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        setCurrentUser(null);
+        setIsAuthChecking(false);
+        if (typeof window !== "undefined") {
+          window.location.replace("/login");
+        }
+      });
 
     fetch("/api/oms/settings", { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
@@ -176,6 +193,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       setLastHeartbeat,
       currentUser,
       setCurrentUser,
+      isAuthChecking,
       handleLogout,
       networkSnapshot,
       setNetworkSnapshot: setNetworkSnapshotStable,
@@ -201,6 +219,7 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
       toggleAudioMuted,
       lastHeartbeat,
       currentUser,
+      isAuthChecking,
       handleLogout,
       networkSnapshot,
       setNetworkSnapshotStable,

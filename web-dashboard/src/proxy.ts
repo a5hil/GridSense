@@ -63,27 +63,28 @@ export async function proxy(req: NextRequest) {
   const token = req.cookies.get(COOKIE_NAME)?.value;
   const valid = await isTokenValid(token);
 
-  // 2. Redirect logged-in operators away from /login
+  // 2. Allow operators to access /login freely (to switch users or re-authenticate)
   if (pathname === "/login") {
-    if (valid) {
-      return NextResponse.redirect(new URL("/", req.url));
-    }
     return NextResponse.next();
   }
 
   // 3. Block unauthenticated access to protected SCADA pages & APIs
   if (!valid) {
     if (pathname.startsWith("/api/")) {
-      return NextResponse.json(
+      const jsonRes = NextResponse.json(
         { success: false, error: "UNAUTHORIZED_SCADA_ACCESS", message: "Operator session required" },
         { status: 401 }
       );
+      if (token) jsonRes.cookies.delete(COOKIE_NAME);
+      return jsonRes;
     }
     const loginUrl = new URL("/login", req.url);
     if (pathname !== "/") {
       loginUrl.searchParams.set("from", pathname);
     }
-    return NextResponse.redirect(loginUrl);
+    const redirectRes = NextResponse.redirect(loginUrl);
+    if (token) redirectRes.cookies.delete(COOKIE_NAME);
+    return redirectRes;
   }
 
   return NextResponse.next();

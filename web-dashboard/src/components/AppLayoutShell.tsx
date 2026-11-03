@@ -2,17 +2,31 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
+import { useDashboard } from "@/context/DashboardContext";
 import { Sidebar } from "@/components/Sidebar";
 import { Header } from "@/components/Header";
 import { StatusBar } from "@/components/StatusBar";
 
 export function AppLayoutShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { currentUser, isAuthChecking } = useDashboard();
   const isAuthPage = pathname === "/login";
 
   // Login page renders without dashboard frame
   if (isAuthPage) {
     return <>{children}</>;
+  }
+
+  // Strict SCADA Access Gate: Block dashboard rendering if unauthenticated or checking session
+  if (isAuthChecking || !currentUser) {
+    return (
+      <div className="h-screen w-screen bg-slate-100 dark:bg-[#08090b] flex flex-col items-center justify-center font-mono text-xs text-slate-500 dark:text-zinc-500 gap-3 select-none">
+        <div className="h-5 w-5 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+        <span className="tracking-wider uppercase text-[11px] font-semibold text-slate-600 dark:text-zinc-400">
+          Verifying Operator Dispatch Session...
+        </span>
+      </div>
+    );
   }
 
   return (

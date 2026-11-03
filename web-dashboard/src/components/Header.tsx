@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, Clock, LogOut, ShieldCheck, User } from "lucide-react";
+import { ChevronRight, Clock, LogOut, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useDashboard, ActiveView } from "@/context/DashboardContext";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -151,7 +151,7 @@ export function Header() {
         </div>
 
         {/* Operator Profile Dropdown / Pill */}
-        {currentUser ? (
+        {currentUser && (
           <div className="relative">
             <button
               onClick={() => setIsProfileOpen(!isProfileOpen)}
@@ -201,14 +201,6 @@ export function Header() {
               </div>
             )}
           </div>
-        ) : (
-          <Link
-            href="/login"
-            className="h-8 flex items-center gap-1.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-sm text-xs font-bold uppercase transition-colors shadow-2xs"
-          >
-            <User className="h-3.5 w-3.5" />
-            <span>Login</span>
-          </Link>
         )}
       </div>
     </header>
