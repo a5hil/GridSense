@@ -12,7 +12,7 @@ test.describe("Scenario 08: Full SCADA Navigation & Subsystem View Validation", 
 
     // 2. VIEW 2: Geospatial GIS
     await page.locator('button:has-text("Geospatial GIS")').first().click();
-    await expect(page.locator("text=/GEOSPATIAL TOPOLOGY ENGINE|Mounting Mapbox|Feeder Network/i").first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator("text=/DISTRIBUTION ASSET HIERARCHY|GEOSPATIAL TOPOLOGY ENGINE|Mounting Mapbox|Feeder Network/i").first()).toBeVisible({ timeout: 10000 });
 
     // 3. VIEW 3: 3-Phase Network Model (Digital Twin)
     await page.locator('button:has-text("Network Model")').first().click();

@@ -52,3 +52,9 @@ yarn-error.log*
 **/*.map
 **/*.o
 **/*.d
+
+# Test Artifacts & Playwright Reports
+test-results/
+playwright-report/
+**/test-results/
+**/playwright-report/

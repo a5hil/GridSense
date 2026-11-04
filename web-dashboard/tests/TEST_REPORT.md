@@ -3,7 +3,7 @@
 > **Execution Date:** November 3, 2026 (Updated with Deep Engineering Validations)  
 > **Environment:** Windows x64 • Node.js v24.13.1 • Next.js 16.4.3 • Playwright 1.64.1  
 > **Target Ports:** Central Gateway (`COM8` @ 115200) • Pole 1 Incomer RTU (`COM7` @ 115200) • Pole 2 Outgoing RTU (`COM9` @ 115200)  
-> **Final Suite Result:** **8 Passed / 8 Total (100% Pass Rate)**
+> **Final Suite Result:** **9 Passed / 9 Total (100% Pass Rate)**
 
 ---
 
@@ -53,10 +53,11 @@ The Playwright End-to-End Test Suite verifies the complete physical-to-digital l
 | **06** | `06_last_gasp_powercut.spec.ts` | `'p'` | COM9 (Pole 2) | **ANSI 27** Undervoltage / Last Gasp | $0.0\text{V}$ supply collapse detection, SLD blackout / de-energized feeder assertion, dying broadcast SOE audit record, authenticated network snapshot validation | 11.2s | **PASSED** |
 | **07** | `07_oms_ptw_lifecycle.spec.ts` | *(UI & State)* | Gateway / DB | CEA Sec 44 Safety & LOTO | OMS Duty Linemen roster, CEA Section 44 Reclosing Safety Interlock card, interactive "Clear PTW & Close" operator closure, `/api/oms/tickets` array verification | 14.2s | **PASSED** |
 | **08** | `08_ui_views_navigation.spec.ts` | *(UI & State)* | Gateway / UI | IEC 60870-5-104 / SCADA HMI | Navigates across all 7 subsystems (Operations Desk, GIS, Network Model Twin, Waveforms, OMS, Comms/Diagnostics, SOE), navigates into Settings and back, validates `/api/telemetry/ports` | 12.8s | **PASSED** |
+| **09** | `09_gateway_offline.spec.ts` | Disconnect / Reconnect | COM8 (Gateway) | Comms Loss Fail-Safe & Watchdog | Asserts `GATEWAY OFFLINE` and `TELEMETRY OFFLINE` header badges, `--- A` line differential fallback, `OFFLINE // UNKNOWN` breaker SLD state, field bus loss, and verifies clean UI re-connection to COM8 | 32.3s | **PASSED** |
 
-**Total Suite Duration:** 2.9 minutes  
+**Total Suite Duration:** 3.1 minutes  
 **Worker Configuration:** Sequential (`workers: 1`) to eliminate COM port resource conflicts  
-**Overall Result:** **8 Passed / 8 Total (100% Pass Rate)**
+**Overall Result:** **9 Passed / 9 Total (100% Pass Rate)**
 
 ---
 
