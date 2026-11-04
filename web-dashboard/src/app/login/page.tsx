@@ -16,15 +16,6 @@ const IST_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
   hourCycle: "h23",
 });
 
-// UTC / Zulu 24-hour formatter (secondary SCADA reference)
-const UTC_TIME_FORMATTER = new Intl.DateTimeFormat("en-GB", {
-  timeZone: "UTC",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hourCycle: "h23",
-});
-
 export default function LoginPage() {
   const router = useRouter();
   const { setCurrentUser } = useDashboard();
@@ -37,13 +28,11 @@ export default function LoginPage() {
   const [lockoutSec, setLockoutSec] = useState<number | null>(null);
   const [showContactModal, setShowContactModal] = useState(false);
   const [istTime, setIstTime] = useState<string>("");
-  const [utcTime, setUtcTime] = useState<string>("");
 
   useEffect(() => {
     const updateTime = () => {
       const now = new Date();
       setIstTime(IST_TIME_FORMATTER.format(now));
-      setUtcTime(UTC_TIME_FORMATTER.format(now));
     };
     updateTime();
     const interval = setInterval(updateTime, 1000);
@@ -154,7 +143,7 @@ export default function LoginPage() {
           {/* SCADA DARK / DAY LIGHT Theme Switcher */}
           <ThemeToggle />
 
-          {/* Real-time IST / UTC timestamp tracker */}
+          {/* Real-time IST timestamp tracker */}
           <div
             suppressHydrationWarning
             className="h-8 flex items-center gap-2 px-2.5 rounded-sm border border-slate-200 dark:border-zinc-800 bg-slate-50/80 dark:bg-zinc-950/80 text-[11px] text-slate-500 dark:text-zinc-400 tabular-nums hidden sm:flex font-mono shadow-2xs"
@@ -164,9 +153,6 @@ export default function LoginPage() {
               IST:
             </span>
             <span className="text-slate-900 dark:text-zinc-200 font-bold">{istTime || "--:--:--"}</span>
-            <span className="text-[10px] text-slate-400 dark:text-zinc-600 font-medium">
-              ({utcTime || "--:--:--"} UTC)
-            </span>
           </div>
         </div>
       </header>
